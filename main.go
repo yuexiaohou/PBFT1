@@ -57,3 +57,35 @@ func main() { // main 函数：程序入口点
 		fmt.Println(nd.String())
 	}
 }
+// 在 main 中：解析 flag -csv
+csvPath := flag.String("csv", "", "输出每轮每节点统计 CSV 路径 (optional)")
+...
+var csvFile *os.File
+var csvWriter *csv.Writer
+if *csvPath != "" {
+    csvFile, _ = os.Create(*csvPath)
+    defer csvFile.Close()
+    csvWriter = csv.NewWriter(csvFile)
+    // 写表头： round,node_id,throughput,m,active,role,...
+    csvWriter.Write([]string{"round","node_id","throughput","m","active","tier","isLeader"})
+}
+// 在每轮结束处记录每个节点
+for r := 0; r < totalRounds; r++ {
+    ...
+    for _, nd := range sim.nodes {
+        if csvWriter != nil {
+            csvWriter.Write([]string{
+                strconv.Itoa(r),
+                strconv.Itoa(nd.ID),
+                fmt.Sprintf("%.3f", nd.Throughput),
+                fmt.Sprintf("%.3f", nd.M),
+                strconv.FormatBool(nd.Active),
+                nd.Tier.String(),
+                strconv.FormatBool(sim.SelectLeader(r).ID==nd.ID),
+            })
+        }
+    }
+    if csvWriter != nil {
+        csvWriter.Flush()
+    }
+}
