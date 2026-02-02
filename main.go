@@ -4,6 +4,9 @@ import ( // 导入标准库包
 	"fmt"   // 格式化输出（Println、Printf 等）
 	"math/rand" // 伪随机数生成
 	"time"  // 时间相关（Sleep、Now、UnixNano 等）
+    "encoding/csv"
+    "os"
+    "strconv"
 )
 
 func main() { // main 函数：程序入口点
