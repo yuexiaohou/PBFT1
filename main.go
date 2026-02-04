@@ -8,7 +8,6 @@ import ( // 导入标准库包
     "encoding/csv"
     "os"
     "strconv"
-    blst "github.com/supranational/blst/bindings/go"
 )
 
 func main() { // main 函数：程序入口点

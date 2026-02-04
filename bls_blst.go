@@ -5,7 +5,6 @@ package main
 
 import (
     "crypto/rand"
-    "fmt"
     blst "github.com/supranational/blst/bindings/go"
 )
 
