@@ -20,7 +20,7 @@ type BlstBLS struct {
 func NewBlstBLS(id int) *BlstBLS {
 	ikm := make([]byte, 32)
 	_, _ = rand.Read(ikm)
-	sk := new(blst.SecretKey)
+	sk := blst.KeyGen(ikm, nil)
 	sk.KeyGen(ikm, nil)
 	pk := new(blst.P1Affine).From(sk)
 	return &BlstBLS{
