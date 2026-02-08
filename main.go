@@ -1,92 +1,92 @@
-package main // 声明当前文件属于 main 包，程序的入口包
+package main // 声明当前文件属于 main 包，表示这是可独立运行的程序入口
 
-import ( // 导入标准库包
-	"flag"
-	"fmt"   // 格式化输出（Println、Printf 等）
-	"math/rand" // 伪随机数生成
-	"time"  // 时间相关（Sleep、Now、UnixNano 等）
-    "encoding/csv"
-    "os"
-    "strconv"
+import ( // 导入所需的标准库
+	"flag"         // 解析命令行参数
+	"fmt"          // 格式化输出
+	"math/rand"    // 生成伪随机数
+	"time"         // 时间相关操作
+    "encoding/csv" // 读写 CSV 文件
+    "os"           // 操作系统功能（如文件）
+    "strconv"      // 字符串与基本类型转换
 )
 
-func main() { // main 函数：程序入口点
-	// 开关：是否使用 blst（若使用 blst 请用 -tags blst 编译并把 useBlst=true）
+func main() { // main 函数为程序入口
+	// 指定是否使用 blst 库（若要用 blst，需要用 -tags blst 编译且 useBlst=true）
 
-	// ...（1）flag和csv初始化
-    csvPath := flag.String("csv", "", "输出每轮每节点统计 CSV 路径 (optional)")
-    var csvFile *os.File
-    var csvWriter *csv.Writer
-    if *csvPath != "" {
-    csvFile, _ = os.Create(*csvPath)
-    defer csvFile.Close()
-    csvWriter = csv.NewWriter(csvFile)
-    // 写表头： round,node_id,throughput,m,active,role,...
-    csvWriter.Write([]string{"round","node_id","throughput","m","active","tier","isLeader"})
+	// ---（1）flag 和 csv 初始化部分---
+    csvPath := flag.String("csv", "", "输出每轮每节点统计 CSV 路径 (optional)") // 定义命令行参数（CSV 路径）
+    var csvFile *os.File    // 声明 CSV 文件句柄
+    var csvWriter *csv.Writer // 声明 CSV 写入对象
+    if *csvPath != "" {       // 如果传入了 csv 路径
+        csvFile, _ = os.Create(*csvPath) // 创建并打开 CSV 文件
+        defer csvFile.Close()             // 程序退出时关闭文件
+        csvWriter = csv.NewWriter(csvFile) // 创建 CSV writer
+        // 写表头
+        csvWriter.Write([]string{"round","node_id","throughput","m","active","tier","isLeader"})
     }
 
-    // ...（2）模拟器及节点初始化与运行
-	 useBlst := false // 布尔变量，指示是否启用 blst（一个可能的外部加密库或构建标签相关的功能）
+    // ---（2）模拟器和节点初始化与运行---
+	useBlst := false // 是否启用 blst 扩展（默认不启用）
 
-	 rand.Seed(time.Now().UnixNano()) // 使用当前时间的纳秒数作为随机数种子，保证每次运行随机序列不同
-	 nodes := []*Node{} // 创建一个空的 Node 指针切片，用于存放模拟中的节点
-	 for i := 0; i < 10; i++ { // 循环创建 10 个节点，索引从 0 到 9
-		throughput := 50.0 + rand.Float64()*150.0 // 随机生成一个吞吐量值：50 到 200 之间的浮点数
-		isMal := false // 标记节点是否为作恶节点，默认 false（诚实节点）
-		if i == 2 || i == 7 { // 如果节点索引是 2 或 7，则将其标记为作恶节点
+	rand.Seed(time.Now().UnixNano()) // 设置随机种子为当前时间纳秒数
+	nodes := []*Node{}    // 存放节点的切片
+	for i := 0; i < 10; i++ { // 创建 10 个节点
+		throughput := 50.0 + rand.Float64()*150.0 // 随机生成吞吐量（50~200）
+		isMal := false        // 默认节点为诚实节点
+		if i == 2 || i == 7 { // 2 号和 7 号节点标记为作恶节点
 			isMal = true
 		}
-		nodes = append(nodes, NewNode(i, throughput, isMal, useBlst)) // 创建节点并追加到 nodes 切片中
-	 }
-
-	sim := NewPBFTSimulator(nodes, useBlst) // 使用节点列表和 useBlst 开关创建 PBFT 模拟器实例
-	sim.ComputeTiers() // 计算或分配节点的层级（tier），基于吞吐量或其他指标
-
-	fmt.Println("Initial node statuses:") // 打印初始节点状态的标题
-	for _, nd := range sim.nodes { // 遍历模拟器中的所有节点
-		fmt.Println(nd.String()) // 打印每个节点的字符串表示（状态、属性等）
+		nodes = append(nodes, NewNode(i, throughput, isMal, useBlst)) // 创建节点并加到 nodes
 	}
 
-	totalRounds := 20 // 总共要运行的共识轮数
-	for r := 0; r < totalRounds; r++ { // 运行多轮模拟
-		if r%5 == 0 && r > 0 { // 每 5 轮（且不是第 0 轮）重新调整节点吞吐量并重算层级
-			for _, nd := range sim.nodes { // 遍历所有节点
-				nd.Throughput = nd.Throughput * (0.9 + rand.Float64()*0.2) // 将吞吐量乘以 0.9 到 1.1 之间的随机因子，模拟波动
+	sim := NewPBFTSimulator(nodes, useBlst) // 初始化 PBFT 模拟器
+	sim.ComputeTiers() // 计算每个节点的分层（例如高吞吐量/低吞吐量分层）
+
+	fmt.Println("Initial node statuses:") // 输出初始节点状态
+	for _, nd := range sim.nodes {        // 遍历所有节点
+		fmt.Println(nd.String())      // 输出每个节点的属性描述
+	}
+
+	totalRounds := 20 // 总共模拟 20 轮
+	for r := 0; r < totalRounds; r++ {       // 轮次循环
+		if r%5 == 0 && r > 0 {                // 每 5 轮调整一次节点吞吐量和层级
+			for _, nd := range sim.nodes {    // 遍历节点
+				nd.Throughput = nd.Throughput * (0.9 + rand.Float64()*0.2) // 吞吐量在 0.9～1.1 之间波动
 			}
-			sim.ComputeTiers() // 重新计算层级以反映吞吐量变化
-			fmt.Println("\nRecomputed tiers:") // 打印重算层级的提示
-			for _, nd := range sim.nodes { // 再次打印每个节点的新状态
+			sim.ComputeTiers() // 重新计算分层
+			fmt.Println("\nRecomputed tiers:")         // 打印提示
+			for _, nd := range sim.nodes {             // 输出分层后节点属性
 				fmt.Println(nd.String())
 			}
 		}
-		request := []byte(fmt.Sprintf("request-%d", r)) // 构造当前轮的请求内容（字节切片）
-		ok := sim.RunRound(r, request) // 在模拟器中运行一轮共识，传入轮数和请求，返回是否成功
-		if !ok { // 如果该轮失败（ok 为 false）
-			fmt.Printf("Round %d failed\n", r) // 打印失败信息，包含轮号
+		request := []byte(fmt.Sprintf("request-%d", r)) // 构造当前轮次的请求内容
+		ok := sim.RunRound(r, request)                  // 模拟运行一轮 PBFT 共识算法
+		if !ok { // 如果该轮失败
+			fmt.Printf("Round %d failed\n", r) // 打印警告信息
 		}
 
-     // 在每轮结束处记录每个节点
+        // 记录每一轮每个节点至 CSV
         for _, nd := range sim.nodes {
-            if csvWriter != nil {
+            if csvWriter != nil { // 若启用 CSV 记录
                 csvWriter.Write([]string{
-                    strconv.Itoa(r),
-                    strconv.Itoa(nd.ID),
-                    fmt.Sprintf("%.3f", nd.Throughput),
-                    fmt.Sprintf("%.3f", nd.m),
-                    strconv.FormatBool(nd.active),
-                    fmt.Sprintf("%v", nd.Tier),
-                    strconv.FormatBool(sim.SelectLeader(r).ID == nd.ID),
+                    strconv.Itoa(r),                   // 轮次
+                    strconv.Itoa(nd.ID),               // 节点 ID
+                    fmt.Sprintf("%.3f", nd.Throughput),// 吞吐量（小数点 3 位）
+                    fmt.Sprintf("%.3f", nd.m),         // m 参数（假设某种指标）
+                    strconv.FormatBool(nd.active),     // 节点是否活跃
+                    fmt.Sprintf("%v", nd.Tier),        // 节点层级
+                    strconv.FormatBool(sim.SelectLeader(r).ID == nd.ID), // 是否为 Leader
                 })
             }
         }
         if csvWriter != nil {
-            csvWriter.Flush()
+            csvWriter.Flush() // 每轮结束后强制刷新文件
         }
 
-        time.Sleep(200 * time.Millisecond)
+        time.Sleep(200 * time.Millisecond) // 暂停 200 毫秒，控制节奏方便观察
     }
 
-    fmt.Println("\nFinal node status:")
+    fmt.Println("\nFinal node status:") // 输出模拟结束后节点状态
     for _, nd := range sim.nodes {
         fmt.Println(nd.String())
     }
