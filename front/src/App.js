@@ -4,7 +4,7 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Trade from "./pages/Trade";
 import History from "./pages/History";
-import Navigation from "../components/Navigation";
+import Navigation from "./components/Navigation";
 
 function App() {
     const isAuthenticated = !!localStorage.getItem("token"); // 仅做简单示例
