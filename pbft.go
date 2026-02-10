@@ -14,12 +14,19 @@ type PBFTSimulator struct {
 	n       int     // 节点总数
 	f       int     // 最大容忍拜占庭节点数 (f)
 	useBlst bool    // 是否使用 BLS（布鲁姆/聚合签名）库的标志
+	AfterConsensusHandler func(round int) // <<< 新增：达成共识后的业务钩子
 }
 
 func NewPBFTSimulator(nodes []*Node, useBlst bool) *PBFTSimulator { // 构造函数：创建 PBFTSimulator 实例
 	n := len(nodes)                         // 计算节点数
 	f := (n - 1) / 3                        // 根据 PBFT 理论计算可容错的拜占庭个数 f
-	return &PBFTSimulator{nodes: nodes, n: n, f: f, useBlst: useBlst} // 返回新建实例
+	return &PBFTSimulator{
+    		nodes: nodes,
+    		n: n,
+    		f: f,
+    		useBlst: useBlst,
+    		AfterConsensusHandler: nil, // 默认无处理
+    }// 返回新建实例
 }
 
 func (s *PBFTSimulator) SelectLeader(round int) *Node { // 选择 leader 的策略函数，基于 round 与节点状态
