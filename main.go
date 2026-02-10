@@ -70,7 +70,7 @@ func main() { // main 函数为程序入口
 		nodes[i] = NewNode(i, throughput, isMal, useBlst) // 直接赋值（初始化node） // 创建节点并加到 nodes
 	}
 
-	sim := NewPBFTSimulator(nodes, useBlst, tradeLogger) // 初始化 PBFT 模拟器
+	sim := NewPBFTSimulator(nodes, useBlst) // 初始化 PBFT 模拟器
 	sim.ComputeTiers() // 计算每个节点的分层（例如高吞吐量/低吞吐量分层）
 
 	fmt.Println("Initial node statuses:") // 输出初始节点状态
@@ -110,9 +110,9 @@ func main() { // main 函数为程序入口
 
     		// ==== 日志功能补充 START ====
     		for _, t := range trades {
-    			tl.LogTrade(t)
+    			tradeLogger.LogTrade(t)
     		}
-    		tl.LogSingleOrderBook(0, ob)
+    		tradeLogger.LogSingleOrderBook(0, ob)
     		// ==== 日志功能补充 END ====
 
         // 记录每一轮每个节点至 CSV
