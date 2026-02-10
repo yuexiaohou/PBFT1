@@ -89,6 +89,9 @@ type ClearingResult struct {
 	Trades         []*Trade  // 成交列表
 }
 
+// volumeTolerance 定义浮点数比较的容差阈值，用于处理浮点数精度问题
+const volumeTolerance = 0.0001
+
 // String 返回出清结果的可读字符串表示
 func (cr *ClearingResult) String() string {
 	return fmt.Sprintf("Clearing[Price=%.2f, Vol=%.2f, Trades=%d, Time=%s]",
@@ -216,11 +219,11 @@ func (pte *PowerTradeEngine) MatchOrders() []*Trade {
 			sellOrder.Volume -= tradeVolume
 
 			// 如果订单完全成交，标记为已成交状态
-			if buyOrder.Volume <= 0.0001 { // 使用小容差处理浮点数精度问题
+			if buyOrder.Volume <= volumeTolerance { // 使用定义的容差处理浮点数精度问题
 				buyOrder.Status = OrderStatusMatched
 				buyIdx++
 			}
-			if sellOrder.Volume <= 0.0001 {
+			if sellOrder.Volume <= volumeTolerance {
 				sellOrder.Status = OrderStatusMatched
 				sellIdx++
 			}
@@ -246,7 +249,7 @@ func (pte *PowerTradeEngine) MatchOrders() []*Trade {
 func (pte *PowerTradeEngine) removeMatchedOrders(orders []*Order) []*Order {
 	result := make([]*Order, 0)
 	for _, order := range orders {
-		if order.Status == OrderStatusPending && order.Volume > 0.0001 {
+		if order.Status == OrderStatusPending && order.Volume > volumeTolerance {
 			result = append(result, order)
 		}
 	}

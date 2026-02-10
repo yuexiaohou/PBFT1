@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -227,10 +228,10 @@ func TestTradeLogging(t *testing.T) {
 	foundOrderLog := false
 	foundMatchLog := false
 	for _, log := range logs {
-		if len(log) > 7 && log[:7] == "[ORDER]" {
+		if strings.HasPrefix(log, "[ORDER]") {
 			foundOrderLog = true
 		}
-		if len(log) > 7 && log[:7] == "[MATCH]" {
+		if strings.HasPrefix(log, "[MATCH]") {
 			foundMatchLog = true
 		}
 	}
