@@ -29,9 +29,10 @@ func main() { // main 函数为程序入口
 	useBlst := false // 是否启用 blst 扩展（默认不启用）
 
 	rand.Seed(time.Now().UnixNano()) // 设置随机种子为当前时间纳秒数
-	numNodes := 10
+	numNodes := 100
     nodes := make([]*Node, numNodes)  // 存放节点的切片
-	for i := 0; i < numNodes; i++ { // 创建 10 个节点
+	for i := 0; i< numNodes; i++ { // 创建 100个节点
+	    nodes[i] = NewNode(i, ...) // 注意一定要初始化全体节点
 		throughput := 50.0 + rand.Float64()*150.0 // 随机生成吞吐量（50~200）
 		isMal := false        // 默认节点为诚实节点
 		if i == 2 || i == 7 { // 2 号和 7 号节点标记为作恶节点
