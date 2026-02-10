@@ -29,6 +29,16 @@ func main() { // main 函数为程序入口
         csvWriter.Write([]string{"round","node_id","throughput","m","active","tier","isLeader"})
     }
 
+	// ==== 日志功能补充 START ====
+	tl, err := NewTradeLog("trade.log")
+	if err != nil {
+		fmt.Println("Failed to open trade.log:", err)
+		return
+	}
+	defer tl.Close()
+	ob := NewOrderBook()
+	// ==== 日志功能补充 END ====
+
     // ---（2）模拟器和节点初始化与运行---
 	useBlst := false // 是否启用 blst 扩展（默认不启用）
 
@@ -74,6 +84,20 @@ func main() { // main 函数为程序入口
 		if !ok { // 如果该轮失败
 			fmt.Printf("Round %d failed\n", r) // 打印警告信息
 		}
+
+        // 订单挂单与撮合演示
+    		ob.SubmitOrder(Buy, 500+rand.Float64()*30, 10+rand.Float64()*3, "Alice")
+    		ob.SubmitOrder(Sell, 495+rand.Float64()*20, 5+rand.Float64()*6, "Bob")
+    		ob.SubmitOrder(Buy, 490+rand.Float64()*15, 4+rand.Float64()*2, "Carol")
+    		ob.SubmitOrder(Sell, 510+rand.Float64()*10, 8+rand.Float64()*5, "David")
+    		trades := ob.MatchAndClear()
+
+    		// ==== 日志功能补充 START ====
+    		for _, t := range trades {
+    			tl.LogTrade(t)
+    		}
+    		tl.LogSingleOrderBook(0, ob)
+    		// ==== 日志功能补充 END ====
 
         // 记录每一轮每个节点至 CSV
         for _, nd := range sim.nodes {
