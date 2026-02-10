@@ -15,6 +15,7 @@ type PBFTSimulator struct {
 	f       int     // 最大容忍拜占庭节点数 (f)
 	useBlst bool    // 是否使用 BLS（布鲁姆/聚合签名）库的标志
 	AfterConsensusHandler func(round int) // <<< 新增：达成共识后的业务钩子
+	TradeLogger *TradeLog // <<< 新增：用于交易及挂单日志
 }
 
 func NewPBFTSimulator(nodes []*Node, useBlst bool) *PBFTSimulator { // 构造函数：创建 PBFTSimulator 实例
@@ -26,6 +27,7 @@ func NewPBFTSimulator(nodes []*Node, useBlst bool) *PBFTSimulator { // 构造函
     		f: f,
     		useBlst: useBlst,
     		AfterConsensusHandler: nil, // 默认无处理
+    		TradeLogger: tradeLogger, // <<< 新增注入日志组件
     }// 返回新建实例
 }
 
@@ -148,6 +150,14 @@ func (s *PBFTSimulator) RunRound(round int, request []byte) bool {
 	// 判断阈值
 	if len(commitSigs) >= int(float64(s.n)*PrepareQuorumMultiplier) { // 如果 commit 签名数达到阈值（基于 PrepareQuorumMultiplier）
 		fmt.Println("Consensus achieved in this round") // 打印达成共识
+		    // ==== 日志调用补充 START ====
+        		if s.TradeLogger != nil {
+        			// 以 orderBooks 为例，打印所有节点挂单。如全局 order book，可用 s.TradeLogger.LogSingleOrderBook(0, ob)
+        			orderBooks := map[int]*OrderBook{} // <<<< 按你的业务逻辑获取各节点订单簿
+        			s.TradeLogger.LogAllOrderBook(orderBooks)
+        			// 或 s.TradeLogger.LogSingleOrderBook(0, ob)
+        		}
+            // ==== 日志调用补充 END ====
 		successIDs := map[int]bool{} // 创建映射以记录哪些节点参与了成功的 commit
 		for _, pk := range commitPubKeys { // 遍历 commit 的公钥切片
 			// stub 公钥解析演示（若真实 pk 为字节流则需其它映射）
