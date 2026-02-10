@@ -10,13 +10,15 @@ import ( // 导入所需的标准库
     "strconv"      // 字符串与基本类型转换
 	// ==== 电力交易相关 START ====
 	// 假定 trade.go 在同目录，并已加入工程
-)
 	// ==== 电力交易相关 END ====
 )
 
 func main() { // main 函数为程序入口
 	// 指定是否使用 blst 库（若要用 blst，需要用 -tags blst 编译且 useBlst=true）
-
+    numNodes := flag.Int("nodes", 100, "节点总数")
+	maliciousRatio := flag.Float64("malicious", 0.05, "恶性节点比例 (默认为5%)")
+	maliciousCount := flag.Int("mal_count", -1, "恶性节点数 (优先于比例，若>=0则按此指定)")
+	flag.Parse()
 	// ---（1）flag 和 csv 初始化部分---
     csvPath := flag.String("csv", "", "输出每轮每节点统计 CSV 路径 (optional)") // 定义命令行参数（CSV 路径）
     var csvFile *os.File    // 声明 CSV 文件句柄
@@ -42,15 +44,28 @@ func main() { // main 函数为程序入口
     // ---（2）模拟器和节点初始化与运行---
 	useBlst := false // 是否启用 blst 扩展（默认不启用）
 
-	rand.Seed(time.Now().UnixNano()) // 设置随机种子为当前时间纳秒数
-	numNodes := 100
-    nodes := make([]*Node, numNodes)  // 存放节点的切片
-	for i := 0; i< numNodes; i++ { // 创建 100个节点
-		throughput := 50.0 + rand.Float64()*150.0 // 随机生成吞吐量（50~200）
-		isMal := false        // 默认节点为诚实节点
-		if i == 2 || i == 7 { // 2 号和 7 号节点标记为作恶节点
-			isMal = true
+    rand.Seed(time.Now().UnixNano())
+	var malNodes map[int]bool
+	if *maliciousCount >= 0 {
+		malNodes = make(map[int]bool)
+		// 随机选择 mal_count 个恶意节点编号
+		idxs := rand.Perm(*numNodes)[:*maliciousCount]
+		for _, idx := range idxs {
+			malNodes[idx] = true
 		}
+	} else {
+		malNodes = make(map[int]bool)
+		mCount := int(float64(*numNodes) * *maliciousRatio)
+		idxs := rand.Perm(*numNodes)[:mCount]
+		for _, idx := range idxs {
+			malNodes[idx] = true
+		}
+	}
+
+	nodes := make([]*Node, *numNodes)
+	for i := 0; i < *numNodes; i++ {
+		throughput := 50.0 + rand.Float64()*150.0
+		isMal := malNodes[i]
 		nodes[i] = NewNode(i, throughput, isMal, useBlst) // 直接赋值（初始化node） // 创建节点并加到 nodes
 	}
 
