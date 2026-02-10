@@ -73,7 +73,7 @@ func main() { // main 函数为程序入口
                     strconv.Itoa(r),                   // 轮次
                     strconv.Itoa(nd.ID),               // 节点 ID
                     fmt.Sprintf("%.3f", nd.Throughput),// 吞吐量（小数点 3 位）
-                    fmt.Sprintf("%.3f", nd.m),         // m 参数（假设某种指标）
+                    strconv.Itoa(nd.m),                // m 参数（假设某种指标）
                     strconv.FormatBool(nd.active),     // 节点是否活跃
                     fmt.Sprintf("%v", nd.Tier),        // 节点层级
                     strconv.FormatBool(sim.SelectLeader(r).ID == nd.ID), // 是否为 Leader
@@ -91,5 +91,53 @@ func main() { // main 函数为程序入口
     for _, nd := range sim.nodes {
         fmt.Println(nd.String())
     }
+
+    // ---（3）电力交易演示部分---
+    fmt.Println("\n========== 电力交易演示 ==========")
+    
+    // 创建电力交易引擎
+    tradeEngine := NewPowerTradeEngine()
+    
+    // 模拟几个节点提交电力交易订单
+    fmt.Println("\n--- 提交买单和卖单 ---")
+    // 节点 5 提交买单：愿意以 1.8 元/kWh 买入 150 kWh
+    tradeEngine.SubmitOrder(OrderTypeBuy, 1.8, 150.0, 5)
+    // 节点 10 提交买单：愿意以 1.6 元/kWh 买入 200 kWh
+    tradeEngine.SubmitOrder(OrderTypeBuy, 1.6, 200.0, 10)
+    // 节点 15 提交买单：愿意以 1.5 元/kWh 买入 100 kWh
+    tradeEngine.SubmitOrder(OrderTypeBuy, 1.5, 100.0, 15)
+    
+    // 节点 20 提交卖单：愿意以 1.4 元/kWh 卖出 120 kWh
+    tradeEngine.SubmitOrder(OrderTypeSell, 1.4, 120.0, 20)
+    // 节点 25 提交卖单：愿意以 1.5 元/kWh 卖出 180 kWh
+    tradeEngine.SubmitOrder(OrderTypeSell, 1.5, 180.0, 25)
+    // 节点 30 提交卖单：愿意以 1.7 元/kWh 卖出 100 kWh
+    tradeEngine.SubmitOrder(OrderTypeSell, 1.7, 100.0, 30)
+    
+    // 打印当前市场状态
+    fmt.Println("\n--- 撮合前市场状态 ---")
+    tradeEngine.PrintMarketStatus()
+    
+    // 执行市场出清
+    fmt.Println("\n--- 执行市场出清 ---")
+    clearingResult := tradeEngine.ClearMarket()
+    
+    // 打印出清结果
+    fmt.Printf("\n出清价格: %.2f 元/kWh\n", clearingResult.ClearingPrice)
+    fmt.Printf("出清电量: %.2f kWh\n", clearingResult.ClearingVolume)
+    fmt.Printf("成交笔数: %d\n", len(clearingResult.Trades))
+    
+    // 打印出清后市场状态
+    fmt.Println("\n--- 出清后市场状态 ---")
+    tradeEngine.PrintMarketStatus()
+    
+    // 打印所有成交记录
+    fmt.Println("\n--- 成交记录详情 ---")
+    allTrades := tradeEngine.GetTrades()
+    for _, trade := range allTrades {
+        fmt.Println(trade.String())
+    }
+    
+    fmt.Println("\n========== 电力交易演示结束 ==========")
     // <<< 只要这最后这一个大括号就能闭合 main 函数！！！
 }

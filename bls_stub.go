@@ -69,3 +69,10 @@ func (s *SimpleBLSStub) VerifyAggregate(pubKeys [][]byte, message []byte, aggSig
 func (s *SimpleBLSStub) PublicKey() []byte {
 	return []byte(fmt.Sprintf("PK-node-%02d", s.id))
 }
+
+// NewBlstBLS 是一个仅在非 blst 构建时使用的桩函数
+// 当不使用 blst 标签编译时，此函数简单地返回 SimpleBLSStub
+// 这样可以让代码在没有 blst 库时也能编译通过
+func NewBlstBLS(id int) BLS {
+	return NewSimpleBLSStub(id)
+}
