@@ -8,10 +8,10 @@
 v
 +----[循环]: for round in Rounds ---+
 |                                   |
-| 1. SelectLeader()                 |
+| 1. SelectLeader()                 |// 选择领导者
 |    |                              |
 |    v                              |
-| 2. ComputeTiers()                 |
+| 2. ComputeTiers()                 |// 计算层次（）
 |    +                              |
 | 3. request := new message         |
 |    +                              |
@@ -49,3 +49,9 @@ v
 - 各节点有不同层级、恶意属性、througput更新，每轮可能状态变化
 - 通过BLS签名聚合提升性能
 - leader由PBFTSimulator动态选取
+
+1、工程中是如何模拟吞吐量的？
+在main.go函数中使用随机生成的方式来模拟吞吐量
+for _, nd := range sim.nodes {    // 遍历节点
+nd.Throughput = nd.Throughput * (0.9 + rand.Float64()*0.2) // 吞吐量在 0.9～1.1 之间波动
+}
