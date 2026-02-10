@@ -32,13 +32,12 @@ func main() { // main 函数为程序入口
 	numNodes := 100
     nodes := make([]*Node, numNodes)  // 存放节点的切片
 	for i := 0; i< numNodes; i++ { // 创建 100个节点
-	    nodes[i] = NewNode(i, ...) // 注意一定要初始化全体节点
 		throughput := 50.0 + rand.Float64()*150.0 // 随机生成吞吐量（50~200）
 		isMal := false        // 默认节点为诚实节点
 		if i == 2 || i == 7 { // 2 号和 7 号节点标记为作恶节点
 			isMal = true
 		}
-		nodes = append(nodes, NewNode(i, throughput, isMal, useBlst)) // 创建节点并加到 nodes
+		nodes[i] = NewNode(i, throughput, isMal, useBlst) // 直接赋值（初始化node） // 创建节点并加到 nodes
 	}
 
 	sim := NewPBFTSimulator(nodes, useBlst) // 初始化 PBFT 模拟器
