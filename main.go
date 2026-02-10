@@ -8,6 +8,10 @@ import ( // 导入所需的标准库
     "encoding/csv" // 读写 CSV 文件
     "os"           // 操作系统功能（如文件）
     "strconv"      // 字符串与基本类型转换
+	// ==== 电力交易相关 START ====
+	// 假定 trade.go 在同目录，并已加入工程
+)
+	// ==== 电力交易相关 END ====
 )
 
 func main() { // main 函数为程序入口
@@ -48,6 +52,11 @@ func main() { // main 函数为程序入口
 		fmt.Println(nd.String())      // 输出每个节点的属性描述
 	}
 
+// ==== 电力交易相关 START ====
+	ob := NewOrderBook()
+	// ==== 电力交易相关 END ====
+
+
 	totalRounds := 20 // 总共模拟 20 轮
 	for r := 0; r < totalRounds; r++ {       // 轮次循环
 		if r%5 == 0 && r > 0 {                // 每 5 轮调整一次节点吞吐量和层级
@@ -84,6 +93,29 @@ func main() { // main 函数为程序入口
             csvWriter.Flush() // 每轮结束后强制刷新文件
         }
 
+        // ==== 电力交易相关 START ====
+    		// 模拟每回合下发部分买/卖订单，并撮合
+    		numOrders := 5
+    		for i := 0; i < numOrders; i++ {
+    			// 买和卖各一半
+    			if i%2 == 0 {
+    				// 买单：价格 450 ~ 550 ，数量 5~15
+    				ob.SubmitOrder(Buy, 450+rand.Float64()*100, 5+rand.Float64()*10, fmt.Sprintf("User_%d", i))
+    			} else {
+    				// 卖单：价格 440~540，数量 3~12
+    				ob.SubmitOrder(Sell, 440+rand.Float64()*100, 3+rand.Float64()*9, fmt.Sprintf("User_%d", i))
+    			}
+    		}
+    		trades := ob.MatchAndClear()
+    		if len(trades) > 0 {
+    			fmt.Printf("Round %d matched trades:\n", r)
+    			for _, t := range trades {
+    				fmt.Printf("BuyOrderID: %d, SellOrderID: %d, Price: %.2f, Quantity: %.2f\n",
+    					t.BuyOrderID, t.SellOrderID, t.Price, t.Quantity)
+    			}
+    		}
+    		// ==== 电力交易相关 END ====
+
         time.Sleep(200 * time.Millisecond) // 暂停 200 毫秒，控制节奏方便观察
     }
 
@@ -91,5 +123,11 @@ func main() { // main 函数为程序入口
     for _, nd := range sim.nodes {
         fmt.Println(nd.String())
     }
+    // ==== 电力交易相关 START ====
+	fmt.Println("\n--- 交易日志 ---")
+	for _, logline := range ob.ListLogs() {
+		fmt.Println(logline)
+	}
+	// ==== 电力交易相关 END ====
     // <<< 只要这最后这一个大括号就能闭合 main 函数！！！
 }
