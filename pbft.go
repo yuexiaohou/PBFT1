@@ -162,6 +162,11 @@ func (s *PBFTSimulator) RunRound(round int, request []byte) bool {
 				nd.UpdateReward(false) // 否则视为未参与或失败
 			}
 		}
+            // ====== 补充2：共识后业务钩子调用 ======
+    		if s.AfterConsensusHandler != nil {
+    			s.AfterConsensusHandler(round)
+    		}
+    		// ====== 补充2 END ======
 		return true // 返回共识成功
 	} else {
 		fmt.Println("Not enough commit signatures; consensus failed") // 未达到阈值，打印失败信息
