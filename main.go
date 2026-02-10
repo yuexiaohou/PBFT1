@@ -78,7 +78,7 @@ func main() { // main 函数为程序入口
 	}
 
 // ==== 电力交易相关 START ====
-	ob := NewOrderBook()
+	ob = NewOrderBook()
 	// ==== 电力交易相关 END ====
 
 
@@ -145,7 +145,7 @@ func main() { // main 函数为程序入口
     				ob.SubmitOrder(Sell, 440+rand.Float64()*100, 3+rand.Float64()*9, fmt.Sprintf("User_%d", i))
     			}
     		}
-    		trades := ob.MatchAndClear()
+    		trades = ob.MatchAndClear()
     		if len(trades) > 0 {
     			fmt.Printf("Round %d matched trades:\n", r)
     			for _, t := range trades {
