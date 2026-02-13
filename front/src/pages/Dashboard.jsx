@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { getBalance, deposit } from "../api";
+import { Typography, Paper, Box, Button, TextField, Alert } from "@mui/material";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 
 export default function Dashboard() {
     const [balance, setBalance] = useState(0);
@@ -9,6 +11,7 @@ export default function Dashboard() {
     useEffect(() => {
         fetchBalance();
     }, []);
+
     const fetchBalance = async () => {
         try {
             const { data } = await getBalance();
@@ -28,12 +31,27 @@ export default function Dashboard() {
     };
 
     return (
-        <div>
-            <h2>账户总览</h2>
-            <p>当前余额：{balance}</p>
-            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="充值金额" />
-            <button onClick={handleDeposit}>充值</button>
-            <p>{msg}</p>
-        </div>
+        <Box sx={{ display: "flex", minHeight: "60vh", alignItems: "center", justifyContent: "center" }}>
+            <Paper elevation={3} sx={{ p: 4, minWidth: 350 }}>
+                <Box display="flex" alignItems="center" mb={2}>
+                    <AccountBalanceWalletIcon fontSize="large" color="primary" sx={{ mr: 1 }} />
+                    <Typography variant="h5">账户总览</Typography>
+                </Box>
+                <Typography variant="body1" mb={2}>
+                    当前余额：<strong>{balance}</strong>
+                </Typography>
+                <Box display="flex" alignItems="center" gap={1}>
+                    <TextField
+                        type="number"
+                        label="充值金额"
+                        size="small"
+                        value={amount}
+                        onChange={e => setAmount(e.target.value)}
+                    />
+                    <Button variant="contained" onClick={handleDeposit}>充值</Button>
+                </Box>
+                {msg && <Alert sx={{ mt: 2 }} severity={msg === "充值成功" ? "success" : "error"}>{msg}</Alert>}
+            </Paper>
+        </Box>
     );
 }
