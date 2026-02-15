@@ -18,6 +18,7 @@
     "build": "react-scripts build",
     "test": "react-scripts test"
   },
+  "proxy": "http://localhost:5000",
   "browserslist": {
     "production": [
       ">0.2%",

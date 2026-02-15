@@ -2,7 +2,6 @@ package main
 
 import (
 	"time"
-	"net/http"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
