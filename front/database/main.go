@@ -71,6 +71,7 @@ func main() {
 			return
 		}
 		db.Create(&Balance{UserID: user.ID, Balance: 0})
+		fmt.Println("注册成功", req.Username)
 		c.JSON(200, gin.H{"msg": "注册成功"})
 	})
 
