@@ -32,7 +32,7 @@ type TradeHistory struct {
 
 // 数据库连接
 func dbConnect() *gorm.DB {
-	dsn := "user:password@tcp(127.0.0.1:3306)/yourdb?charset=utf8mb4&parseTime=True&loc=Local"
+	dsn := "root:111111@tcp(127.0.0.1:3306)/yourdb?charset=utf8mb4&parseTime=True&loc=Local"
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		panic("Database connection failed")
