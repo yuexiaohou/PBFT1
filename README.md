@@ -198,3 +198,5 @@ Fabric 集成思路（摘要）
   - 将 PBFT 改进封装为 Fabric ordering-plugin 的原型代码片段并说明如何做 channel reconfiguration。
 
 感谢阅读——请告诉我希望我接着生成哪部分（安装脚本、bench 脚本、或 Fabric 插件草案）。  
+
+启动前端前需要先启动/front中的后端服务；
