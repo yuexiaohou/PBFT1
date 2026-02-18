@@ -9,15 +9,22 @@ export default function Login() {
     const [msg, setMsg] = useState("");
     const navigate = useNavigate();
 
+// === 修改开始 ===
     const handleLogin = async () => {
         try {
             const res = await login(username, password);
+            // ======= 高亮：打印API返回内容 =======
+            console.log('API返回', res);
             localStorage.setItem("token", res.data.token || "dummy");
+            // ======= 高亮：打印token写入效果 =======
+            console.log('token after set:', localStorage.getItem("token"));
             navigate("/dashboard");
-        } catch {
+        } catch (e) {
+            console.log(e);
             setMsg("登录失败，请重试");
         }
     };
+    // === 修改结束 ===
 
     return (
         <Box sx={{ display: "flex", minHeight: "80vh", alignItems: "center", justifyContent: "center" }}>
