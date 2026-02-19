@@ -16,6 +16,7 @@ export default function Login() {
             // ======= 高亮：打印API返回内容 =======
             console.log('API返回', res);
             localStorage.setItem("token", res.data.token || "dummy");
+            localStorage.setItem("username", username); // ======= 新增: 保存用户名 =======
             // ======= 高亮：打印token写入效果 =======
             console.log('token after set:', localStorage.getItem("token"));
             navigate("/dashboard");

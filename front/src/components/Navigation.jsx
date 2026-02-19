@@ -4,6 +4,7 @@ export default function Navigation() {
     const isAuthenticated = !!localStorage.getItem("token");
     const logout = () => {
         localStorage.removeItem("token");
+        localStorage.removeItem("username"); // ======= 新增: 登出时删除用户名 =======
         window.location.href = "/login";
     };
     return (
