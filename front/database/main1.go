@@ -241,7 +241,6 @@ func main() {
 		} else {
 			c.JSON(400, gin.H{"msg": "余额不足"})
 		}
-	})
 
 		// ========== 高亮: 在交易后写入模拟PBFT共识结果/区块信息 ==========
 		validators := []PBFTValidator{
@@ -272,7 +271,7 @@ func main() {
 			)
 			c.JSON(400, gin.H{"msg": "余额不足"})
 		}
-	}
+	})
 
 	api.GET("/trade/history", func(c *gin.Context) {
 		username := c.Query("username")
