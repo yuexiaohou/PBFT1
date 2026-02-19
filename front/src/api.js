@@ -24,3 +24,7 @@ export const trade = (type, amount) => axios.post(withUsername("/api/trade"), { 
 
 export const getTradeHistory = () => axios.get(withUsername("/api/trade/history"));
 // ========== 【高亮】必须替换为如下 ==========
+
+export const getPBFTResult = () => axios.get("/api/pbft/result");
+export const getPBFTBlock = () => axios.get("/api/pbft/block");
+export const getPBFTBlockById = (id) => axios.get(`/api/pbft/block?id=${id}`);

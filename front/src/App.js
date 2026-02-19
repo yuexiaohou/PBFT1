@@ -5,6 +5,8 @@ import Dashboard from "./pages/Dashboard";
 import Trade from "./pages/Trade";
 import History from "./pages/History";
 import Navigation from "./components/Navigation";
+import PBFTResult from "./pages/PBFTResult";
+import BlockSearch from "./pages/BlockSearch";
 
 function App() {
     const isAuthenticated = !!localStorage.getItem("token"); // 仅做简单示例
@@ -19,6 +21,8 @@ function App() {
                 <Route path="/dashboard" element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />} />
                 <Route path="/trade" element={isAuthenticated ? <Trade /> : <Navigate to="/login" />} />
                 <Route path="/history" element={isAuthenticated ? <History /> : <Navigate to="/login" />} />
+                <Route path="/pbft" element={isAuthenticated ? <PBFTResult /> : <Navigate to="/login" />} />
+                <Route path="/blocksearch" element={isAuthenticated ? <BlockSearch /> : <Navigate to="/login" />} />
             </Routes>
         </BrowserRouter>
     );
