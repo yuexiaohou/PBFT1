@@ -301,31 +301,5 @@ func main() {
 
 	// ========== 高亮: PBFT前端API接口 ==========
 
-	api.GET("/trade/history", func(c *gin.Context) {
-		username := c.Query("username")
-		if username == "" {
-			c.JSON(401, gin.H{"msg": "未登录"})
-			return
-		}
-		var user User
-		if err := db.Where("username = ?", username).First(&user).Error; err != nil {
-			c.JSON(401, gin.H{"msg": "未登录"})
-			return
-		}
-		var records []TradeHistory
-		db.Where("user_id = ?", user.ID).Order("time desc").Find(&records)
-		// 转换格式给前端
-		var out []gin.H
-		for _, r := range records {
-			out = append(out, gin.H{
-				"type":   r.Type,
-				"amount": r.Amount,
-				"time":   r.Time.Format("2006-01-02 15:04:05"),
-				"status": r.Status,
-			})
-		}
-		c.JSON(200, gin.H{"records": out})
-	})
-
 	r.Run(":5000")
 }
