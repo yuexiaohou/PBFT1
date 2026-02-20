@@ -1,5 +1,4 @@
 //go:build blst
-// +build blst
 
 package main
 
