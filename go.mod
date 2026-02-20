@@ -1,4 +1,4 @@
-module improved-pbft
+module PBFT1
 
 go 1.20
 
