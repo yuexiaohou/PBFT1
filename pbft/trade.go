@@ -1,4 +1,4 @@
-package main // 指定当前文件属于 main 包
+package pbft // 指定当前文件属于 main 包
 
 import (
 	"fmt"     // 字符串格式化与输出

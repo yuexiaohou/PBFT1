@@ -1,4 +1,4 @@
-package main // 声明当前文件属于 main 包，表示这是可独立运行的程序入口
+package pbft // 声明当前文件属于 main 包，表示这是可独立运行的程序入口
 
 import ( // 导入所需的标准库
 	"flag"         // 解析命令行参数

@@ -1,4 +1,4 @@
-package main
+package pbft
 
 import (
 	"fmt"      // 格式化输出、错误信息等

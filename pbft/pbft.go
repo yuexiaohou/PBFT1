@@ -1,4 +1,4 @@
-package main // 定义包为 main，表示此文件属于可独立运行的程序
+package pbft // 定义包为 main，表示此文件属于可独立运行的程序
 
 import ( // 导入必要的标准库包
 	"fmt"   // 格式化 I/O，用于打印日志
