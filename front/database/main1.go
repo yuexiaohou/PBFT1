@@ -9,6 +9,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"github.com/gin-contrib/cors"
 	"fmt"          // 格式化输出
+	pbft "PBFT1/pbft"
 )
 
 type User struct {
