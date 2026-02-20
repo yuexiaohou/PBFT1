@@ -14,6 +14,8 @@ export default function Navigation() {
                     <Link to="/dashboard">账户</Link> |
                     <Link to="/trade">交易</Link> |
                     <Link to="/history">历史记录</Link> |
+                    <Link to="/pbft">PBFT结果</Link> |
+                    <Link to="/blocksearch">区块/溯源</Link> |
                     <button onClick={logout}>退出登录</button>
                 </>
             ) : (
