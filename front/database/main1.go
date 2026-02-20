@@ -107,6 +107,12 @@ func main() {
 
 	api := r.Group("/api")
 
+	// ====== 高亮：新增 PBFT result 接口 BEGIN ======
+    	api.GET("/pbft/result", func(c *gin.Context) {
+    		c.JSON(200, latestPBFTResult)
+    	})
+    	// ====== 高亮：新增 PBFT result 接口 END ======
+
 	api.POST("/register", func(c *gin.Context) {
 		var req struct {
 			Username string `json:"username"`
