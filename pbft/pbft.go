@@ -5,6 +5,7 @@ import ( // 导入必要的标准库包
 	"math/rand" // 随机数，用于模拟恶意行为概率
 	"sort"  // 排序，用于对节点排序（例如选择 leader、计算 tiers）
 	"sync"  // 并发原语，用于等待并保护共享切片
+	"time"
 )
 
 // 简化 PBFT 模拟器（PRE-PREPARE / PREPARE / COMMIT）
