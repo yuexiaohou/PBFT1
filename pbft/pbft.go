@@ -17,6 +17,22 @@ type PBFTSimulator struct {
 	AfterConsensusHandler func(round int) // <<< 新增：达成共识后的业务钩子
 }
 
+// ====== 导出共识结果结构体及节点类型 ======
+type Validator struct {
+	ID   string
+	Vote string
+}
+
+type PBFTResult struct {
+	TxId         string
+	Status       string
+	Consensus    string
+	BlockHeight  int
+	Timestamp    time.Time
+	Validators   []Validator
+	FailedReason string
+}
+
 func NewPBFTSimulator(nodes []*Node, useBlst bool) *PBFTSimulator { // 构造函数：创建 PBFTSimulator 实例
 	n := len(nodes)                         // 计算节点数
 	f := (n - 1) / 3                        // 根据 PBFT 理论计算可容错的拜占庭个数 f
