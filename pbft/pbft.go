@@ -192,3 +192,29 @@ func (s *PBFTSimulator) RunRound(round int, request []byte) bool {
 		return false // 返回共识失败
 	}
 }
+
+// RunPBFT 为前端服务导出，模拟一次共识并返回结果
+func RunPBFT(txId string, amount int) PBFTResult {
+	height := 10000 + rand.Intn(50)
+	validators := []Validator{
+		{ID: "node1", Vote: "commit"},
+		{ID: "node2", Vote: "commit"},
+		{ID: "node3", Vote: "commit"},
+		{ID: "node4", Vote: "commit"},
+	}
+	status := "已确认"
+	reason := ""
+	if amount <= 0 {
+		status = "失败"
+		reason = "金额异常"
+	}
+	return PBFTResult{
+		TxId:         txId,
+		Status:       status,
+		Consensus:    "pbft",
+		BlockHeight:  height,
+		Timestamp:    time.Now(),
+		Validators:   validators,
+		FailedReason: reason,
+	}
+}
