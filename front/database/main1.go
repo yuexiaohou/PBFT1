@@ -291,7 +291,6 @@ func main() {
                 updatePBFTResult(nowTxId, "失败", "pbft", pbftResult.BlockHeight, validators, reason)
                 c.JSON(400, gin.H{"msg": reason})
             }
-        })
 
 		// ====== 高亮: 实际用pbft包算法模拟一次共识/区块 ======
         		if status == "成功" {
@@ -309,7 +308,7 @@ func main() {
         			updatePBFTResult(nowTxId, "失败", "pbft", 10001, validators, "余额不足")
         			c.JSON(400, gin.H{"msg": "余额不足"})
         		}
-        	})
+            })
 
 	api.GET("/trade/history", func(c *gin.Context) {
 		username := c.Query("username")
