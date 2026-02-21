@@ -60,24 +60,6 @@ var (
 	latestBlock PBFTBlock
 	pbftMu sync.RWMutex
 )
-// ============== PBFT相关结构体与状态缓存 ======== 高亮新增 END ==========
-
-// ========= 高亮: 基于pbft包真实算法接口的调用wrap =========
-func callPBFTConsensus(txId string, amount int) PBFTConsensusResult {
-	// 例如：利用PBFT1/pbft包里的接口进行共识模拟，返回结果结构体
-	// 这里只是演示如何调用，实际以pbft包导出的接口为准
-	// 假设pbft包暴露RunPBFT函数或Simulator对象，参数需要你对pbft.go做部分api导出设计
-	result := pbft.RunPBFT(txId, amount)
-	return PBFTConsensusResult{
-		TxId:        result.TxId,
-		Status:      result.Status,
-		Consensus:   result.Consensus,
-		BlockHeight: result.BlockHeight,
-		Timestamp:   result.Timestamp,
-		Validators:  convertValidators(result.Validators),
-		FailedReason: result.FailedReason,
-	}
-}
 
 // 转换 pbft.Result.Validators 到页面需要的形式
 func convertValidators(origin []pbft.Validator) []PBFTValidator {
@@ -274,9 +256,6 @@ func main() {
             nowTxId := fmt.Sprintf("%s_%d", username, time.Now().UnixNano())
             pbftResult := pbft.RunPBFT(nowTxId, req.Amount)
             validators := convertValidators(pbftResult.Validators)
-            for _, v := range pbftResult.Validators {
-                validators = append(validators, PBFTValidator{ID: v.ID, Vote: v.Vote})
-            }
             // ====== 高亮结束 ======
 
             if status == "成功" && pbftResult.Status == "已确认" {
