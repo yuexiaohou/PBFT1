@@ -253,27 +253,45 @@ func main() {
 			return
 		}
 		var b Balance
-		db.Where("user_id = ?", user.ID).First(&b)
-		status := "成功"
-		if req.Type == "buy" {
-			if b.Balance < req.Amount {
-				status = "失败"
-			} else {
-				b.Balance -= req.Amount
-				db.Save(&b)
-			}
-		} else {
-			b.Balance += req.Amount
-			db.Save(&b)
-		}
-		db.Create(&TradeHistory{
-			UserID: user.ID, Type: req.Type, Amount: req.Amount, Time: time.Now(), Status: status,
-		})
-		if status == "成功" {
-			c.JSON(200, gin.H{"msg": "操作成功"})
-		} else {
-			c.JSON(400, gin.H{"msg": "余额不足"})
-		}
+            db.Where("user_id = ?", user.ID).First(&b)
+            status := "成功"
+            if req.Type == "buy" {
+                if b.Balance < req.Amount {
+                    status = "失败"
+                } else {
+                    b.Balance -= req.Amount
+                    db.Save(&b)
+                }
+            } else {
+                b.Balance += req.Amount
+                db.Save(&b)
+            }
+            db.Create(&TradeHistory{
+                UserID: user.ID, Type: req.Type, Amount: req.Amount, Time: time.Now(), Status: status,
+            })
+
+            // ====== 高亮新增: 声明并赋值 nowTxId 与 pbftResult ======
+            nowTxId := fmt.Sprintf("%s_%d", username, time.Now().UnixNano())
+            pbftResult := pbft.RunPBFT(nowTxId, req.Amount)
+            validators := []PBFTValidator{}
+            for _, v := range pbftResult.Validators {
+                validators = append(validators, PBFTValidator{ID: v.ID, Vote: v.Vote})
+            }
+            // ====== 高亮结束 ======
+
+            if status == "成功" && pbftResult.Status == "已确认" {
+                updatePBFTResult(pbftResult.TxId, pbftResult.Status, pbftResult.Consensus, pbftResult.BlockHeight, validators, pbftResult.FailedReason)
+                updatePBFTBlock(pbftResult.BlockHeight, req.Amount)
+                c.JSON(200, gin.H{"msg": "操作成功"})
+            } else {
+                reason := pbftResult.FailedReason
+                if status != "成功" {
+                    reason = "余额不足"
+                }
+                updatePBFTResult(nowTxId, "失败", "pbft", pbftResult.BlockHeight, validators, reason)
+                c.JSON(400, gin.H{"msg": reason})
+            }
+        })
 
 		// ====== 高亮: 实际用pbft包算法模拟一次共识/区块 ======
         		if status == "成功" {
