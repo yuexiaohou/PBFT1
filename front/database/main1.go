@@ -295,7 +295,7 @@ func main() {
 		// ====== 高亮: 实际用pbft包算法模拟一次共识/区块 ======
         		if status == "成功" {
         			pbftResult = callPBFTConsensus(nowTxId, req.Amount)
-        			updatePBFTResult(pbftResult.TxId, pbftResult.Status, pbftResult.Consensus, pbftResult.BlockHeight, pbftResult.Validators, "")
+        			updatePBFTResult(pbftResult.TxId, pbftResult.Status, pbftResult.Consensus, pbftResult.BlockHeight, validators, "")
         			updatePBFTBlock(pbftResult.BlockHeight, 36)
         			c.JSON(200, gin.H{"msg": "操作成功"})
         		} else {
