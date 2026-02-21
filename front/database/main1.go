@@ -62,6 +62,32 @@ var (
 )
 // ============== PBFT相关结构体与状态缓存 ======== 高亮新增 END ==========
 
+// ========= 高亮: 基于pbft包真实算法接口的调用wrap =========
+func callPBFTConsensus(txId string, amount int) PBFTConsensusResult {
+	// 例如：利用PBFT1/pbft包里的接口进行共识模拟，返回结果结构体
+	// 这里只是演示如何调用，实际以pbft包导出的接口为准
+	// 假设pbft包暴露RunPBFT函数或Simulator对象，参数需要你对pbft.go做部分api导出设计
+	result := pbft.RunPBFT(txId, amount)
+	return PBFTConsensusResult{
+		TxId:        result.TxId,
+		Status:      result.Status,
+		Consensus:   result.Consensus,
+		BlockHeight: result.BlockHeight,
+		Timestamp:   result.Timestamp,
+		Validators:  convertValidators(result.Validators),
+		FailedReason: result.FailedReason,
+	}
+}
+
+// 转换 pbft.Result.Validators 到页面需要的形式
+func convertValidators(origin []pbft.Validator) []PBFTValidator {
+	r := make([]PBFTValidator, 0, len(origin))
+	for _, v := range origin {
+		r = append(r, PBFTValidator{ID: v.ID, Vote: v.Vote})
+	}
+	return r
+}
+
 // 数据库连接
 func dbConnect() *gorm.DB {
 	dsn := "root:111111@tcp(127.0.0.1:3306)/yourdb?charset=utf8mb4&parseTime=True&loc=Local"
@@ -249,36 +275,23 @@ func main() {
 			c.JSON(400, gin.H{"msg": "余额不足"})
 		}
 
-		// ========== 高亮: 在交易后写入模拟PBFT共识结果/区块信息 ==========
-		validators := []PBFTValidator{
-			{ID: "node1", Vote: "commit"},
-			{ID: "node2", Vote: "commit"},
-			{ID: "node3", Vote: "commit"},
-			{ID: "node4", Vote: "commit"},
-		}
-		if status == "成功" {
-			updatePBFTResult(
-				fmt.Sprintf("%s_%d", username, time.Now().UnixNano()),
-				"已确认",
-				"pbft",
-				10001,
-				validators,
-				"",
-			)
-			updatePBFTBlock(10001, 36)
-			c.JSON(200, gin.H{"msg": "操作成功"})
-		} else {
-			updatePBFTResult(
-				fmt.Sprintf("%s_%d", username, time.Now().UnixNano()),
-				"失败",
-				"pbft",
-				10001,
-				validators,
-				"余额不足",
-			)
-			c.JSON(400, gin.H{"msg": "余额不足"})
-		}
-	})
+		// ====== 高亮: 实际用pbft包算法模拟一次共识/区块 ======
+        		if status == "成功" {
+        			pbftResult = callPBFTConsensus(nowTxId, req.Amount)
+        			updatePBFTResult(pbftResult.TxId, pbftResult.Status, pbftResult.Consensus, pbftResult.BlockHeight, pbftResult.Validators, "")
+        			updatePBFTBlock(pbftResult.BlockHeight, 36)
+        			c.JSON(200, gin.H{"msg": "操作成功"})
+        		} else {
+        			validators := []PBFTValidator{
+        				{ID: "node1", Vote: "commit"},
+        				{ID: "node2", Vote: "commit"},
+        				{ID: "node3", Vote: "commit"},
+        				{ID: "node4", Vote: "commit"},
+        			}
+        			updatePBFTResult(nowTxId, "失败", "pbft", 10001, validators, "余额不足")
+        			c.JSON(400, gin.H{"msg": "余额不足"})
+        		}
+        	})
 
 	api.GET("/trade/history", func(c *gin.Context) {
 		username := c.Query("username")
