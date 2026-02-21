@@ -273,7 +273,7 @@ func main() {
             // ====== 高亮新增: 声明并赋值 nowTxId 与 pbftResult ======
             nowTxId := fmt.Sprintf("%s_%d", username, time.Now().UnixNano())
             pbftResult := pbft.RunPBFT(nowTxId, req.Amount)
-            validators := []PBFTValidator{}
+            validators := convertValidators(pbftResult.Validators)
             for _, v := range pbftResult.Validators {
                 validators = append(validators, PBFTValidator{ID: v.ID, Vote: v.Vote})
             }
