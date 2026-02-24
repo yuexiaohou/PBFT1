@@ -13,6 +13,33 @@ import ( // 导入所需的标准库
 	// ==== 电力交易相关 END ====
 )
 
+func saveConsensusResult(round int, sim *PBFTSimulator, filename string) {
+	leader := sim.SelectLeader(round)
+	status := "成功"
+	if leader == nil || !leader.IsActive() {
+		status = "失败"
+	}
+	result := map[string]interface{}{
+		"TxId": fmt.Sprintf("round%d", round),
+		"Status": status,
+		"Consensus": "pbft",
+		"BlockHeight": round,
+		"Timestamp": time.Now(),
+		"Validators": []map[string]interface{}{},
+		"FailedReason": "",
+	}
+	for _, nd := range sim.nodes {
+		if nd.IsActive() {
+			result["Validators"] = append(result["Validators"].([]map[string]interface{}), map[string]interface{}{
+				"ID": fmt.Sprintf("node%d", nd.ID),
+				"Vote": "commit",
+			})
+		}
+	}
+	data, _ := json.Marshal(result)
+	_ = os.WriteFile(filename, data, 0644)
+}
+
 func main() { // main 函数为程序入口
 	// 指定是否使用 blst 库（若要用 blst，需要用 -tags blst 编译且 useBlst=true）
     numNodes := flag.Int("nodes", 100, "节点总数") // 设置节点总数参数，默认100
@@ -155,7 +182,7 @@ func main() { // main 函数为程序入口
     		}
     	}
     	// ==== 电力交易相关 END ====
-
+        saveConsensusResult(r, sim, "/tmp/pbft_result.json")
         time.Sleep(200 * time.Millisecond) // 暂停 200 毫秒，控制节奏方便观察
     }
 

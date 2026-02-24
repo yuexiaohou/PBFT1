@@ -314,6 +314,19 @@ func main() {
 		c.JSON(200, gin.H{"records": out})
 	})
 
+    api.GET("/pbft/result", func(c *gin.Context) {
+		data, err := ioutil.ReadFile("/tmp/pbft_result.json")
+		if err != nil {
+			c.JSON(500, gin.H{"msg": "无法读取PBFT集群同步结果", "error": err.Error()})
+			return
+		}
+		var result interface{}
+		if err := json.Unmarshal(data, &result); err != nil {
+			c.JSON(500, gin.H{"msg": "PBFT结果解析失败", "error": err.Error()})
+			return
+		}
+		c.JSON(200, result)
+	})
 	// ========== 高亮: PBFT前端API接口 ==========
 
 	r.Run(":5000")
