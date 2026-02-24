@@ -38,7 +38,8 @@ func saveConsensusResult(round int, sim *PBFTSimulator, filename string) {
 		}
 	}
 	data, _ := json.Marshal(result)
-	_ = os.WriteFile(filename, data, 0644)
+	err := os.WriteFile(filename, data, 0644)
+    fmt.Println(">>> write result to:", filename, "err=", err)
 }
 
 func main() { // main 函数为程序入口
