@@ -8,6 +8,7 @@ import ( // 导入所需的标准库
     "encoding/csv" // 读写 CSV 文件
     "os"           // 操作系统功能（如文件）
     "strconv"      // 字符串与基本类型转换
+    "encoding/json"
 	// ==== 电力交易相关 START ====
 	// 假定 trade.go 在同目录，并已加入工程
 	// ==== 电力交易相关 END ====
