@@ -110,6 +110,9 @@ func updatePBFTBlock(height int, confirmedTxs int) {
 // ========== PBFT状态更新函数 ========= 高亮新增 END =========
 
 func main() {
+    // ===== 高亮新增: 自动后台启动PBFT仿真 =====
+	go pbft.RunPBFTSimulator(100, -1, 0.05, 20) // 100节点，自动以 5% 恶性节点，模拟20轮
+	// ===== 高亮结束 =====
 	db := dbConnect()
 	r := gin.Default()
 
