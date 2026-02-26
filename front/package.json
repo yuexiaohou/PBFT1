@@ -14,9 +14,9 @@
     "react-scripts": "^5.0.1"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test"
+    "start": "concurrently \"npm run react-start\" \"npm run backend-start\"",
+    "react-start": "react-scripts start",
+    "backend-start": "cd ../database && go run main1.go"
   },
   "proxy": "http://localhost:5000",
   "browserslist": {
