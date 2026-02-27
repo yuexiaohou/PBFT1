@@ -119,6 +119,17 @@ func main() {
 
 	api := r.Group("/api")
 
+	// ====== 高亮：新增 PBFT block 接口 BEGIN ======
+    api.GET("/pbft/block", func(c *gin.Context) {
+    pbftMu.RLock()
+    defer pbftMu.RUnlock()
+    if latestBlock.Height == 0 {
+        c.JSON(404, gin.H{"msg": "尚无区块"})
+        return
+    }
+    c.JSON(200, latestBlock)
+    })
+
 	// ====== 高亮：新增 PBFT result 接口 BEGIN ======
     api.GET("/pbft/result", func(c *gin.Context) {
 	pbftMu.RLock()

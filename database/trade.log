@@ -796,3 +796,878 @@
   ID:86 Price:524.45 Qty:9.00 By:User_1
   ID:68 Price:526.71 Qty:9.04 By:User_1
   ID:124 Price:536.79 Qty:9.39 By:User_3
+[TRADE] 2026-02-27T23:48:51+08:00 | BuyID:0 SellID:1 Price:510.27 Qty:5.35
+[TRADE] 2026-02-27T23:48:51+08:00 | BuyID:0 SellID:3 Price:518.56 Qty:5.66
+[2026-02-27T23:48:51+08:00] --- Node 0 Order Book ---
+-- Buy Orders --
+  ID:2 Price:499.17 Qty:5.24 By:Carol
+-- Sell Orders --
+  ID:3 Price:516.65 Qty:6.66 By:David
+[TRADE] 2026-02-27T23:48:52+08:00 | BuyID:9 SellID:7 Price:502.40 Qty:4.25
+[TRADE] 2026-02-27T23:48:52+08:00 | BuyID:9 SellID:10 Price:507.48 Qty:8.22
+[TRADE] 2026-02-27T23:48:52+08:00 | BuyID:11 SellID:10 Price:499.64 Qty:1.78
+[2026-02-27T23:48:52+08:00] --- Node 0 Order Book ---
+-- Buy Orders --
+  ID:11 Price:499.90 Qty:2.26 By:Carol
+  ID:8 Price:474.80 Qty:13.83 By:User_4
+  ID:6 Price:471.30 Qty:11.44 By:User_2
+  ID:4 Price:456.45 Qty:14.78 By:User_0
+-- Sell Orders --
+  ID:12 Price:514.30 Qty:11.59 By:David
+  ID:3 Price:516.65 Qty:6.66 By:David
+[TRADE] 2026-02-27T23:48:54+08:00 | BuyID:18 SellID:19 Price:505.65 Qty:6.46
+[TRADE] 2026-02-27T23:48:54+08:00 | BuyID:18 SellID:21 Price:511.37 Qty:3.60
+[TRADE] 2026-02-27T23:48:54+08:00 | BuyID:15 SellID:21 Price:511.07 Qty:8.02
+[2026-02-27T23:48:54+08:00] --- Node 0 Order Book ---
+-- Buy Orders --
+  ID:15 Price:511.99 Qty:5.74 By:User_2
+  ID:17 Price:510.81 Qty:13.45 By:User_4
+  ID:20 Price:503.50 Qty:4.12 By:Carol
+  ID:11 Price:499.90 Qty:2.26 By:Carol
+  ID:13 Price:482.91 Qty:13.23 By:User_0
+  ID:8 Price:474.80 Qty:13.83 By:User_4
+  ID:6 Price:471.30 Qty:11.44 By:User_2
+  ID:4 Price:456.45 Qty:14.78 By:User_0
+-- Sell Orders --
+  ID:12 Price:514.30 Qty:11.59 By:David
+  ID:3 Price:516.65 Qty:6.66 By:David
+  ID:14 Price:517.91 Qty:3.31 By:User_1
+  ID:16 Price:535.04 Qty:10.53 By:User_3
+[TRADE] 2026-02-27T23:48:55+08:00 | BuyID:27 SellID:28 Price:510.46 Qty:10.92
+[TRADE] 2026-02-27T23:48:55+08:00 | BuyID:27 SellID:12 Price:515.86 Qty:1.39
+[2026-02-27T23:48:55+08:00] --- Node 0 Order Book ---
+-- Buy Orders --
+  ID:15 Price:511.99 Qty:5.74 By:User_2
+  ID:17 Price:510.81 Qty:13.45 By:User_4
+  ID:20 Price:503.50 Qty:4.12 By:Carol
+  ID:29 Price:500.85 Qty:4.31 By:Carol
+  ID:11 Price:499.90 Qty:2.26 By:Carol
+  ID:26 Price:499.53 Qty:9.48 By:User_4
+  ID:22 Price:483.08 Qty:13.87 By:User_0
+  ID:13 Price:482.91 Qty:13.23 By:User_0
+  ID:8 Price:474.80 Qty:13.83 By:User_4
+  ID:6 Price:471.30 Qty:11.44 By:User_2
+  ID:4 Price:456.45 Qty:14.78 By:User_0
+-- Sell Orders --
+  ID:12 Price:514.30 Qty:3.21 By:David
+  ID:30 Price:515.96 Qty:9.68 By:David
+  ID:3 Price:516.65 Qty:6.66 By:David
+  ID:14 Price:517.91 Qty:3.31 By:User_1
+  ID:23 Price:525.29 Qty:4.11 By:User_1
+  ID:16 Price:535.04 Qty:10.53 By:User_3
+[TRADE] 2026-02-27T23:48:56+08:00 | BuyID:36 SellID:37 Price:513.22 Qty:5.37
+[TRADE] 2026-02-27T23:48:56+08:00 | BuyID:36 SellID:12 Price:521.22 Qty:0.87
+[TRADE] 2026-02-27T23:48:56+08:00 | BuyID:36 SellID:30 Price:522.05 Qty:4.12
+[2026-02-27T23:48:56+08:00] --- Node 0 Order Book ---
+-- Buy Orders --
+  ID:15 Price:511.99 Qty:5.74 By:User_2
+  ID:17 Price:510.81 Qty:13.45 By:User_4
+  ID:20 Price:503.50 Qty:4.12 By:Carol
+  ID:29 Price:500.85 Qty:4.31 By:Carol
+  ID:11 Price:499.90 Qty:2.26 By:Carol
+  ID:26 Price:499.53 Qty:9.48 By:User_4
+  ID:38 Price:492.65 Qty:4.41 By:Carol
+  ID:35 Price:492.20 Qty:12.21 By:User_4
+  ID:22 Price:483.08 Qty:13.87 By:User_0
+  ID:13 Price:482.91 Qty:13.23 By:User_0
+  ID:8 Price:474.80 Qty:13.83 By:User_4
+  ID:33 Price:471.78 Qty:11.74 By:User_2
+  ID:6 Price:471.30 Qty:11.44 By:User_2
+  ID:4 Price:456.45 Qty:14.78 By:User_0
+-- Sell Orders --
+  ID:30 Price:515.96 Qty:5.56 By:David
+  ID:39 Price:516.38 Qty:12.45 By:David
+  ID:3 Price:516.65 Qty:6.66 By:David
+  ID:14 Price:517.91 Qty:3.31 By:User_1
+  ID:23 Price:525.29 Qty:4.11 By:User_1
+  ID:34 Price:525.78 Qty:4.51 By:User_3
+  ID:16 Price:535.04 Qty:10.53 By:User_3
+[TRADE] 2026-02-27T23:48:57+08:00 | BuyID:45 SellID:48 Price:511.29 Qty:9.80
+[2026-02-27T23:48:57+08:00] --- Node 0 Order Book ---
+-- Buy Orders --
+  ID:45 Price:512.29 Qty:0.88 By:Alice
+  ID:15 Price:511.99 Qty:5.74 By:User_2
+  ID:17 Price:510.81 Qty:13.45 By:User_4
+  ID:20 Price:503.50 Qty:4.12 By:Carol
+  ID:29 Price:500.85 Qty:4.31 By:Carol
+  ID:11 Price:499.90 Qty:2.26 By:Carol
+  ID:26 Price:499.53 Qty:9.48 By:User_4
+  ID:47 Price:496.53 Qty:5.83 By:Carol
+  ID:38 Price:492.65 Qty:4.41 By:Carol
+  ID:35 Price:492.20 Qty:12.21 By:User_4
+  ID:22 Price:483.08 Qty:13.87 By:User_0
+  ID:13 Price:482.91 Qty:13.23 By:User_0
+  ID:8 Price:474.80 Qty:13.83 By:User_4
+  ID:33 Price:471.78 Qty:11.74 By:User_2
+  ID:6 Price:471.30 Qty:11.44 By:User_2
+  ID:4 Price:456.45 Qty:14.78 By:User_0
+-- Sell Orders --
+  ID:46 Price:512.87 Qty:9.00 By:Bob
+  ID:39 Price:516.38 Qty:3.25 By:David
+  ID:3 Price:516.65 Qty:6.66 By:David
+  ID:14 Price:517.91 Qty:3.31 By:User_1
+  ID:23 Price:525.29 Qty:4.11 By:User_1
+  ID:34 Price:525.78 Qty:4.51 By:User_3
+  ID:16 Price:535.04 Qty:10.53 By:User_3
+[TRADE] 2026-02-27T23:48:58+08:00 | BuyID:54 SellID:55 Price:512.18 Qty:5.05
+[TRADE] 2026-02-27T23:48:58+08:00 | BuyID:54 SellID:46 Price:513.27 Qty:6.15
+[2026-02-27T23:48:58+08:00] --- Node 0 Order Book ---
+-- Buy Orders --
+  ID:45 Price:512.29 Qty:0.69 By:Alice
+  ID:15 Price:511.99 Qty:5.74 By:User_2
+  ID:17 Price:510.81 Qty:13.45 By:User_4
+  ID:20 Price:503.50 Qty:4.12 By:Carol
+  ID:56 Price:502.53 Qty:5.13 By:Carol
+  ID:29 Price:500.85 Qty:4.31 By:Carol
+  ID:11 Price:499.90 Qty:2.26 By:Carol
+  ID:26 Price:499.53 Qty:9.48 By:User_4
+  ID:47 Price:496.53 Qty:5.83 By:Carol
+  ID:38 Price:492.65 Qty:4.41 By:Carol
+  ID:35 Price:492.20 Qty:12.21 By:User_4
+  ID:49 Price:488.26 Qty:6.86 By:User_0
+  ID:22 Price:483.08 Qty:13.87 By:User_0
+  ID:13 Price:482.91 Qty:13.23 By:User_0
+  ID:8 Price:474.80 Qty:13.83 By:User_4
+  ID:33 Price:471.78 Qty:11.74 By:User_2
+  ID:6 Price:471.30 Qty:11.44 By:User_2
+  ID:4 Price:456.45 Qty:14.78 By:User_0
+-- Sell Orders --
+  ID:46 Price:512.87 Qty:2.85 By:Bob
+  ID:39 Price:516.38 Qty:3.25 By:David
+  ID:3 Price:516.65 Qty:6.66 By:David
+  ID:14 Price:517.91 Qty:3.31 By:User_1
+  ID:57 Price:519.57 Qty:9.08 By:David
+  ID:23 Price:525.29 Qty:4.11 By:User_1
+  ID:34 Price:525.78 Qty:4.51 By:User_3
+  ID:16 Price:535.04 Qty:10.53 By:User_3
+[TRADE] 2026-02-27T23:48:59+08:00 | BuyID:45 SellID:64 Price:504.56 Qty:0.69
+[TRADE] 2026-02-27T23:48:59+08:00 | BuyID:63 SellID:64 Price:504.44 Qty:4.42
+[2026-02-27T23:48:59+08:00] --- Node 0 Order Book ---
+-- Buy Orders --
+  ID:63 Price:512.06 Qty:7.39 By:Alice
+  ID:15 Price:511.99 Qty:5.74 By:User_2
+  ID:17 Price:510.81 Qty:13.45 By:User_4
+  ID:20 Price:503.50 Qty:4.12 By:Carol
+  ID:56 Price:502.53 Qty:5.13 By:Carol
+  ID:29 Price:500.85 Qty:4.31 By:Carol
+  ID:11 Price:499.90 Qty:2.26 By:Carol
+  ID:26 Price:499.53 Qty:9.48 By:User_4
+  ID:47 Price:496.53 Qty:5.83 By:Carol
+  ID:38 Price:492.65 Qty:4.41 By:Carol
+  ID:35 Price:492.20 Qty:12.21 By:User_4
+  ID:65 Price:490.09 Qty:5.39 By:Carol
+  ID:49 Price:488.26 Qty:6.86 By:User_0
+  ID:22 Price:483.08 Qty:13.87 By:User_0
+  ID:13 Price:482.91 Qty:13.23 By:User_0
+  ID:8 Price:474.80 Qty:13.83 By:User_4
+  ID:33 Price:471.78 Qty:11.74 By:User_2
+  ID:6 Price:471.30 Qty:11.44 By:User_2
+  ID:62 Price:461.34 Qty:11.12 By:User_4
+  ID:4 Price:456.45 Qty:14.78 By:User_0
+-- Sell Orders --
+  ID:3 Price:516.65 Qty:4.60 By:David
+  ID:66 Price:516.98 Qty:10.18 By:David
+  ID:14 Price:517.91 Qty:3.31 By:User_1
+  ID:57 Price:519.57 Qty:9.08 By:David
+  ID:23 Price:525.29 Qty:4.11 By:User_1
+  ID:34 Price:525.78 Qty:4.51 By:User_3
+  ID:16 Price:535.04 Qty:10.53 By:User_3
+[TRADE] 2026-02-27T23:49:01+08:00 | BuyID:72 SellID:73 Price:510.38 Qty:10.38
+[TRADE] 2026-02-27T23:49:01+08:00 | BuyID:72 SellID:75 Price:517.17 Qty:1.62
+[2026-02-27T23:49:01+08:00] --- Node 0 Order Book ---
+-- Buy Orders --
+  ID:15 Price:511.99 Qty:3.99 By:User_2
+  ID:17 Price:510.81 Qty:13.45 By:User_4
+  ID:20 Price:503.50 Qty:4.12 By:Carol
+  ID:56 Price:502.53 Qty:5.13 By:Carol
+  ID:29 Price:500.85 Qty:4.31 By:Carol
+  ID:11 Price:499.90 Qty:2.26 By:Carol
+  ID:26 Price:499.53 Qty:9.48 By:User_4
+  ID:47 Price:496.53 Qty:5.83 By:Carol
+  ID:74 Price:494.41 Qty:4.90 By:Carol
+  ID:38 Price:492.65 Qty:4.41 By:Carol
+  ID:35 Price:492.20 Qty:12.21 By:User_4
+  ID:65 Price:490.09 Qty:5.39 By:Carol
+  ID:49 Price:488.26 Qty:6.86 By:User_0
+  ID:22 Price:483.08 Qty:13.87 By:User_0
+  ID:13 Price:482.91 Qty:13.23 By:User_0
+  ID:69 Price:474.83 Qty:13.12 By:User_2
+  ID:8 Price:474.80 Qty:13.83 By:User_4
+  ID:67 Price:472.21 Qty:8.72 By:User_0
+  ID:33 Price:471.78 Qty:11.74 By:User_2
+  ID:6 Price:471.30 Qty:11.44 By:User_2
+  ID:62 Price:461.34 Qty:11.12 By:User_4
+  ID:4 Price:456.45 Qty:14.78 By:User_0
+-- Sell Orders --
+  ID:75 Price:514.24 Qty:8.18 By:David
+  ID:3 Price:516.65 Qty:4.60 By:David
+  ID:66 Price:516.98 Qty:10.18 By:David
+  ID:14 Price:517.91 Qty:3.31 By:User_1
+  ID:57 Price:519.57 Qty:9.08 By:David
+  ID:23 Price:525.29 Qty:4.11 By:User_1
+  ID:34 Price:525.78 Qty:4.51 By:User_3
+  ID:16 Price:535.04 Qty:10.53 By:User_3
+[TRADE] 2026-02-27T23:49:02+08:00 | BuyID:81 SellID:82 Price:505.23 Qty:9.08
+[TRADE] 2026-02-27T23:49:02+08:00 | BuyID:81 SellID:84 Price:513.03 Qty:1.09
+[TRADE] 2026-02-27T23:49:02+08:00 | BuyID:15 SellID:84 Price:511.40 Qty:3.99
+[TRADE] 2026-02-27T23:49:02+08:00 | BuyID:17 SellID:84 Price:510.81 Qty:5.40
+[2026-02-27T23:49:02+08:00] --- Node 0 Order Book ---
+-- Buy Orders --
+  ID:17 Price:510.81 Qty:8.05 By:User_4
+  ID:20 Price:503.50 Qty:4.12 By:Carol
+  ID:56 Price:502.53 Qty:5.13 By:Carol
+  ID:29 Price:500.85 Qty:4.31 By:Carol
+  ID:11 Price:499.90 Qty:2.26 By:Carol
+  ID:26 Price:499.53 Qty:9.48 By:User_4
+  ID:76 Price:498.77 Qty:10.96 By:User_0
+  ID:47 Price:496.53 Qty:5.83 By:Carol
+  ID:74 Price:494.41 Qty:4.90 By:Carol
+  ID:83 Price:492.83 Qty:4.31 By:Carol
+  ID:38 Price:492.65 Qty:4.41 By:Carol
+  ID:35 Price:492.20 Qty:12.21 By:User_4
+  ID:65 Price:490.09 Qty:5.39 By:Carol
+  ID:49 Price:488.26 Qty:6.86 By:User_0
+  ID:22 Price:483.08 Qty:13.87 By:User_0
+  ID:13 Price:482.91 Qty:13.23 By:User_0
+  ID:69 Price:474.83 Qty:13.12 By:User_2
+  ID:8 Price:474.80 Qty:13.83 By:User_4
+  ID:80 Price:472.55 Qty:7.43 By:User_4
+  ID:67 Price:472.21 Qty:8.72 By:User_0
+  ID:33 Price:471.78 Qty:11.74 By:User_2
+  ID:6 Price:471.30 Qty:11.44 By:User_2
+  ID:62 Price:461.34 Qty:11.12 By:User_4
+  ID:4 Price:456.45 Qty:14.78 By:User_0
+-- Sell Orders --
+  ID:75 Price:514.24 Qty:0.44 By:David
+  ID:3 Price:516.65 Qty:4.60 By:David
+  ID:66 Price:516.98 Qty:10.18 By:David
+  ID:14 Price:517.91 Qty:3.31 By:User_1
+  ID:57 Price:519.57 Qty:9.08 By:David
+  ID:23 Price:525.29 Qty:4.11 By:User_1
+  ID:34 Price:525.78 Qty:4.51 By:User_3
+  ID:16 Price:535.04 Qty:10.53 By:User_3
+  ID:77 Price:539.43 Qty:11.75 By:User_1
+[TRADE] 2026-02-27T23:49:03+08:00 | BuyID:85 SellID:91 Price:509.91 Qty:7.21
+[2026-02-27T23:49:03+08:00] --- Node 0 Order Book ---
+-- Buy Orders --
+  ID:85 Price:512.91 Qty:7.10 By:User_0
+  ID:17 Price:510.81 Qty:8.05 By:User_4
+  ID:89 Price:510.57 Qty:6.59 By:User_4
+  ID:90 Price:508.93 Qty:11.92 By:Alice
+  ID:20 Price:503.50 Qty:4.12 By:Carol
+  ID:56 Price:502.53 Qty:5.13 By:Carol
+  ID:29 Price:500.85 Qty:4.31 By:Carol
+  ID:11 Price:499.90 Qty:2.26 By:Carol
+  ID:92 Price:499.74 Qty:5.96 By:Carol
+  ID:26 Price:499.53 Qty:9.48 By:User_4
+  ID:76 Price:498.77 Qty:10.96 By:User_0
+  ID:47 Price:496.53 Qty:5.83 By:Carol
+  ID:74 Price:494.41 Qty:4.90 By:Carol
+  ID:83 Price:492.83 Qty:4.31 By:Carol
+  ID:38 Price:492.65 Qty:4.41 By:Carol
+  ID:35 Price:492.20 Qty:12.21 By:User_4
+  ID:65 Price:490.09 Qty:5.39 By:Carol
+  ID:49 Price:488.26 Qty:6.86 By:User_0
+  ID:22 Price:483.08 Qty:13.87 By:User_0
+  ID:13 Price:482.91 Qty:13.23 By:User_0
+  ID:69 Price:474.83 Qty:13.12 By:User_2
+  ID:8 Price:474.80 Qty:13.83 By:User_4
+  ID:80 Price:472.55 Qty:7.43 By:User_4
+  ID:67 Price:472.21 Qty:8.72 By:User_0
+  ID:33 Price:471.78 Qty:11.74 By:User_2
+  ID:6 Price:471.30 Qty:11.44 By:User_2
+  ID:62 Price:461.34 Qty:11.12 By:User_4
+  ID:4 Price:456.45 Qty:14.78 By:User_0
+-- Sell Orders --
+  ID:93 Price:513.75 Qty:10.70 By:David
+  ID:3 Price:516.65 Qty:4.34 By:David
+  ID:66 Price:516.98 Qty:10.18 By:David
+  ID:14 Price:517.91 Qty:3.31 By:User_1
+  ID:57 Price:519.57 Qty:9.08 By:David
+  ID:23 Price:525.29 Qty:4.11 By:User_1
+  ID:34 Price:525.78 Qty:4.51 By:User_3
+  ID:88 Price:532.59 Qty:9.09 By:User_3
+  ID:16 Price:535.04 Qty:10.53 By:User_3
+  ID:77 Price:539.43 Qty:11.75 By:User_1
+[TRADE] 2026-02-27T23:49:04+08:00 | BuyID:99 SellID:100 Price:510.79 Qty:6.10
+[2026-02-27T23:49:04+08:00] --- Node 0 Order Book ---
+-- Buy Orders --
+  ID:99 Price:511.96 Qty:4.32 By:Alice
+  ID:17 Price:510.81 Qty:0.03 By:User_4
+  ID:89 Price:510.57 Qty:6.59 By:User_4
+  ID:90 Price:508.93 Qty:11.92 By:Alice
+  ID:20 Price:503.50 Qty:4.12 By:Carol
+  ID:94 Price:503.38 Qty:9.89 By:User_0
+  ID:56 Price:502.53 Qty:5.13 By:Carol
+  ID:29 Price:500.85 Qty:4.31 By:Carol
+  ID:11 Price:499.90 Qty:2.26 By:Carol
+  ID:92 Price:499.74 Qty:5.96 By:Carol
+  ID:26 Price:499.53 Qty:9.48 By:User_4
+  ID:76 Price:498.77 Qty:10.96 By:User_0
+  ID:47 Price:496.53 Qty:5.83 By:Carol
+  ID:98 Price:495.67 Qty:14.27 By:User_4
+  ID:96 Price:494.52 Qty:5.67 By:User_2
+  ID:74 Price:494.41 Qty:4.90 By:Carol
+  ID:101 Price:493.38 Qty:4.15 By:Carol
+  ID:83 Price:492.83 Qty:4.31 By:Carol
+  ID:38 Price:492.65 Qty:4.41 By:Carol
+  ID:35 Price:492.20 Qty:12.21 By:User_4
+  ID:65 Price:490.09 Qty:5.39 By:Carol
+  ID:49 Price:488.26 Qty:6.86 By:User_0
+  ID:22 Price:483.08 Qty:13.87 By:User_0
+  ID:13 Price:482.91 Qty:13.23 By:User_0
+  ID:69 Price:474.83 Qty:13.12 By:User_2
+  ID:8 Price:474.80 Qty:13.83 By:User_4
+  ID:80 Price:472.55 Qty:7.43 By:User_4
+  ID:67 Price:472.21 Qty:8.72 By:User_0
+  ID:33 Price:471.78 Qty:11.74 By:User_2
+  ID:6 Price:471.30 Qty:11.44 By:User_2
+  ID:62 Price:461.34 Qty:11.12 By:User_4
+  ID:4 Price:456.45 Qty:14.78 By:User_0
+-- Sell Orders --
+  ID:93 Price:513.75 Qty:10.70 By:David
+  ID:3 Price:516.65 Qty:4.34 By:David
+  ID:66 Price:516.98 Qty:10.18 By:David
+  ID:102 Price:517.41 Qty:12.88 By:David
+  ID:14 Price:517.91 Qty:3.31 By:User_1
+  ID:57 Price:519.57 Qty:9.08 By:David
+  ID:23 Price:525.29 Qty:4.11 By:User_1
+  ID:34 Price:525.78 Qty:4.51 By:User_3
+  ID:88 Price:532.59 Qty:9.09 By:User_3
+  ID:16 Price:535.04 Qty:10.53 By:User_3
+  ID:77 Price:539.43 Qty:11.75 By:User_1
+[TRADE] 2026-02-27T23:49:06+08:00 | BuyID:108 SellID:109 Price:509.93 Qty:10.63
+[TRADE] 2026-02-27T23:49:06+08:00 | BuyID:108 SellID:111 Price:515.77 Qty:0.46
+[TRADE] 2026-02-27T23:49:06+08:00 | BuyID:89 SellID:111 Price:510.49 Qty:3.82
+[2026-02-27T23:49:06+08:00] --- Node 0 Order Book ---
+-- Buy Orders --
+  ID:90 Price:508.93 Qty:11.92 By:Alice
+  ID:20 Price:503.50 Qty:4.12 By:Carol
+  ID:94 Price:503.38 Qty:9.89 By:User_0
+  ID:56 Price:502.53 Qty:5.13 By:Carol
+  ID:107 Price:501.02 Qty:13.02 By:User_4
+  ID:29 Price:500.85 Qty:4.31 By:Carol
+  ID:11 Price:499.90 Qty:2.26 By:Carol
+  ID:110 Price:499.87 Qty:4.14 By:Carol
+  ID:92 Price:499.74 Qty:5.96 By:Carol
+  ID:26 Price:499.53 Qty:9.48 By:User_4
+  ID:76 Price:498.77 Qty:10.96 By:User_0
+  ID:47 Price:496.53 Qty:5.83 By:Carol
+  ID:98 Price:495.67 Qty:14.27 By:User_4
+  ID:96 Price:494.52 Qty:5.67 By:User_2
+  ID:74 Price:494.41 Qty:4.90 By:Carol
+  ID:101 Price:493.38 Qty:4.15 By:Carol
+  ID:83 Price:492.83 Qty:4.31 By:Carol
+  ID:38 Price:492.65 Qty:4.41 By:Carol
+  ID:35 Price:492.20 Qty:12.21 By:User_4
+  ID:65 Price:490.09 Qty:5.39 By:Carol
+  ID:49 Price:488.26 Qty:6.86 By:User_0
+  ID:22 Price:483.08 Qty:13.87 By:User_0
+  ID:13 Price:482.91 Qty:13.23 By:User_0
+  ID:69 Price:474.83 Qty:13.12 By:User_2
+  ID:8 Price:474.80 Qty:13.83 By:User_4
+  ID:80 Price:472.55 Qty:7.43 By:User_4
+  ID:67 Price:472.21 Qty:8.72 By:User_0
+  ID:33 Price:471.78 Qty:11.74 By:User_2
+  ID:6 Price:471.30 Qty:11.44 By:User_2
+  ID:103 Price:470.89 Qty:11.67 By:User_0
+  ID:62 Price:461.34 Qty:11.12 By:User_4
+  ID:4 Price:456.45 Qty:14.78 By:User_0
+-- Sell Orders --
+  ID:111 Price:510.41 Qty:6.30 By:David
+  ID:93 Price:513.75 Qty:10.70 By:David
+  ID:3 Price:516.65 Qty:4.34 By:David
+  ID:66 Price:516.98 Qty:10.18 By:David
+  ID:102 Price:517.41 Qty:12.88 By:David
+  ID:14 Price:517.91 Qty:3.31 By:User_1
+  ID:57 Price:519.57 Qty:9.08 By:David
+  ID:23 Price:525.29 Qty:4.11 By:User_1
+  ID:34 Price:525.78 Qty:4.51 By:User_3
+  ID:88 Price:532.59 Qty:9.09 By:User_3
+  ID:16 Price:535.04 Qty:10.53 By:User_3
+  ID:77 Price:539.43 Qty:11.75 By:User_1
+[2026-02-27T23:49:07+08:00] --- Node 0 Order Book ---
+-- Buy Orders --
+  ID:116 Price:509.35 Qty:14.66 By:User_4
+  ID:90 Price:508.93 Qty:11.92 By:Alice
+  ID:20 Price:503.50 Qty:4.12 By:Carol
+  ID:94 Price:503.38 Qty:9.89 By:User_0
+  ID:56 Price:502.53 Qty:5.13 By:Carol
+  ID:107 Price:501.02 Qty:13.02 By:User_4
+  ID:119 Price:500.94 Qty:5.63 By:Carol
+  ID:29 Price:500.85 Qty:4.31 By:Carol
+  ID:117 Price:500.78 Qty:12.22 By:Alice
+  ID:11 Price:499.90 Qty:2.26 By:Carol
+  ID:110 Price:499.87 Qty:4.14 By:Carol
+  ID:92 Price:499.74 Qty:5.96 By:Carol
+  ID:26 Price:499.53 Qty:9.48 By:User_4
+  ID:76 Price:498.77 Qty:10.96 By:User_0
+  ID:47 Price:496.53 Qty:5.83 By:Carol
+  ID:98 Price:495.67 Qty:14.27 By:User_4
+  ID:96 Price:494.52 Qty:5.67 By:User_2
+  ID:74 Price:494.41 Qty:4.90 By:Carol
+  ID:101 Price:493.38 Qty:4.15 By:Carol
+  ID:83 Price:492.83 Qty:4.31 By:Carol
+  ID:38 Price:492.65 Qty:4.41 By:Carol
+  ID:35 Price:492.20 Qty:12.21 By:User_4
+  ID:65 Price:490.09 Qty:5.39 By:Carol
+  ID:49 Price:488.26 Qty:6.86 By:User_0
+  ID:22 Price:483.08 Qty:13.87 By:User_0
+  ID:13 Price:482.91 Qty:13.23 By:User_0
+  ID:69 Price:474.83 Qty:13.12 By:User_2
+  ID:8 Price:474.80 Qty:13.83 By:User_4
+  ID:80 Price:472.55 Qty:7.43 By:User_4
+  ID:67 Price:472.21 Qty:8.72 By:User_0
+  ID:33 Price:471.78 Qty:11.74 By:User_2
+  ID:6 Price:471.30 Qty:11.44 By:User_2
+  ID:103 Price:470.89 Qty:11.67 By:User_0
+  ID:112 Price:465.28 Qty:12.96 By:User_0
+  ID:62 Price:461.34 Qty:11.12 By:User_4
+  ID:4 Price:456.45 Qty:14.78 By:User_0
+-- Sell Orders --
+  ID:118 Price:509.96 Qty:5.16 By:Bob
+  ID:111 Price:510.41 Qty:3.12 By:David
+  ID:93 Price:513.75 Qty:10.70 By:David
+  ID:3 Price:516.65 Qty:4.34 By:David
+  ID:66 Price:516.98 Qty:10.18 By:David
+  ID:102 Price:517.41 Qty:12.88 By:David
+  ID:14 Price:517.91 Qty:3.31 By:User_1
+  ID:57 Price:519.57 Qty:9.08 By:David
+  ID:120 Price:519.95 Qty:8.74 By:David
+  ID:113 Price:522.74 Qty:5.88 By:User_1
+  ID:23 Price:525.29 Qty:4.11 By:User_1
+  ID:34 Price:525.78 Qty:4.51 By:User_3
+  ID:88 Price:532.59 Qty:9.09 By:User_3
+  ID:16 Price:535.04 Qty:10.53 By:User_3
+  ID:77 Price:539.43 Qty:11.75 By:User_1
+[TRADE] 2026-02-27T23:49:07+08:00 | BuyID:126 SellID:127 Price:511.77 Qty:9.57
+[TRADE] 2026-02-27T23:49:07+08:00 | BuyID:126 SellID:118 Price:516.06 Qty:2.16
+[2026-02-27T23:49:07+08:00] --- Node 0 Order Book ---
+-- Buy Orders --
+  ID:116 Price:509.35 Qty:1.00 By:User_4
+  ID:90 Price:508.93 Qty:11.92 By:Alice
+  ID:20 Price:503.50 Qty:4.12 By:Carol
+  ID:94 Price:503.38 Qty:9.89 By:User_0
+  ID:56 Price:502.53 Qty:5.13 By:Carol
+  ID:125 Price:501.55 Qty:14.37 By:User_4
+  ID:107 Price:501.02 Qty:13.02 By:User_4
+  ID:119 Price:500.94 Qty:5.63 By:Carol
+  ID:29 Price:500.85 Qty:4.31 By:Carol
+  ID:117 Price:500.78 Qty:12.22 By:Alice
+  ID:11 Price:499.90 Qty:2.26 By:Carol
+  ID:110 Price:499.87 Qty:4.14 By:Carol
+  ID:92 Price:499.74 Qty:5.96 By:Carol
+  ID:26 Price:499.53 Qty:9.48 By:User_4
+  ID:128 Price:499.45 Qty:5.11 By:Carol
+  ID:76 Price:498.77 Qty:10.96 By:User_0
+  ID:47 Price:496.53 Qty:5.83 By:Carol
+  ID:98 Price:495.67 Qty:14.27 By:User_4
+  ID:96 Price:494.52 Qty:5.67 By:User_2
+  ID:74 Price:494.41 Qty:4.90 By:Carol
+  ID:123 Price:494.06 Qty:5.41 By:User_2
+  ID:101 Price:493.38 Qty:4.15 By:Carol
+  ID:83 Price:492.83 Qty:4.31 By:Carol
+  ID:38 Price:492.65 Qty:4.41 By:Carol
+  ID:35 Price:492.20 Qty:12.21 By:User_4
+  ID:65 Price:490.09 Qty:5.39 By:Carol
+  ID:49 Price:488.26 Qty:6.86 By:User_0
+  ID:22 Price:483.08 Qty:13.87 By:User_0
+  ID:13 Price:482.91 Qty:13.23 By:User_0
+  ID:121 Price:481.28 Qty:12.46 By:User_0
+  ID:69 Price:474.83 Qty:13.12 By:User_2
+  ID:8 Price:474.80 Qty:13.83 By:User_4
+  ID:80 Price:472.55 Qty:7.43 By:User_4
+  ID:67 Price:472.21 Qty:8.72 By:User_0
+  ID:33 Price:471.78 Qty:11.74 By:User_2
+  ID:6 Price:471.30 Qty:11.44 By:User_2
+  ID:103 Price:470.89 Qty:11.67 By:User_0
+  ID:112 Price:465.28 Qty:12.96 By:User_0
+  ID:62 Price:461.34 Qty:11.12 By:User_4
+  ID:4 Price:456.45 Qty:14.78 By:User_0
+-- Sell Orders --
+  ID:118 Price:509.96 Qty:2.99 By:Bob
+  ID:111 Price:510.41 Qty:3.12 By:David
+  ID:129 Price:513.20 Qty:12.42 By:David
+  ID:93 Price:513.75 Qty:10.70 By:David
+  ID:3 Price:516.65 Qty:4.34 By:David
+  ID:66 Price:516.98 Qty:10.18 By:David
+  ID:102 Price:517.41 Qty:12.88 By:David
+  ID:14 Price:517.91 Qty:3.31 By:User_1
+  ID:57 Price:519.57 Qty:9.08 By:David
+  ID:120 Price:519.95 Qty:8.74 By:David
+  ID:113 Price:522.74 Qty:5.88 By:User_1
+  ID:23 Price:525.29 Qty:4.11 By:User_1
+  ID:34 Price:525.78 Qty:4.51 By:User_3
+  ID:88 Price:532.59 Qty:9.09 By:User_3
+  ID:16 Price:535.04 Qty:10.53 By:User_3
+  ID:77 Price:539.43 Qty:11.75 By:User_1
+[TRADE] 2026-02-27T23:49:08+08:00 | BuyID:90 SellID:136 Price:504.88 Qty:0.57
+[TRADE] 2026-02-27T23:49:08+08:00 | BuyID:20 SellID:136 Price:502.16 Qty:4.12
+[TRADE] 2026-02-27T23:49:08+08:00 | BuyID:94 SellID:136 Price:502.11 Qty:2.06
+[2026-02-27T23:49:08+08:00] --- Node 0 Order Book ---
+-- Buy Orders --
+  ID:94 Price:503.38 Qty:7.83 By:User_0
+  ID:56 Price:502.53 Qty:5.13 By:Carol
+  ID:125 Price:501.55 Qty:14.37 By:User_4
+  ID:135 Price:501.40 Qty:12.97 By:Alice
+  ID:107 Price:501.02 Qty:13.02 By:User_4
+  ID:119 Price:500.94 Qty:5.63 By:Carol
+  ID:29 Price:500.85 Qty:4.31 By:Carol
+  ID:117 Price:500.78 Qty:12.22 By:Alice
+  ID:11 Price:499.90 Qty:2.26 By:Carol
+  ID:110 Price:499.87 Qty:4.14 By:Carol
+  ID:92 Price:499.74 Qty:5.96 By:Carol
+  ID:26 Price:499.53 Qty:9.48 By:User_4
+  ID:128 Price:499.45 Qty:5.11 By:Carol
+  ID:76 Price:498.77 Qty:10.96 By:User_0
+  ID:47 Price:496.53 Qty:5.83 By:Carol
+  ID:137 Price:495.70 Qty:4.63 By:Carol
+  ID:98 Price:495.67 Qty:14.27 By:User_4
+  ID:96 Price:494.52 Qty:5.67 By:User_2
+  ID:74 Price:494.41 Qty:4.90 By:Carol
+  ID:123 Price:494.06 Qty:5.41 By:User_2
+  ID:101 Price:493.38 Qty:4.15 By:Carol
+  ID:83 Price:492.83 Qty:4.31 By:Carol
+  ID:38 Price:492.65 Qty:4.41 By:Carol
+  ID:35 Price:492.20 Qty:12.21 By:User_4
+  ID:132 Price:491.24 Qty:7.30 By:User_2
+  ID:134 Price:491.21 Qty:12.48 By:User_4
+  ID:65 Price:490.09 Qty:5.39 By:Carol
+  ID:49 Price:488.26 Qty:6.86 By:User_0
+  ID:22 Price:483.08 Qty:13.87 By:User_0
+  ID:13 Price:482.91 Qty:13.23 By:User_0
+  ID:121 Price:481.28 Qty:12.46 By:User_0
+  ID:69 Price:474.83 Qty:13.12 By:User_2
+  ID:8 Price:474.80 Qty:13.83 By:User_4
+  ID:80 Price:472.55 Qty:7.43 By:User_4
+  ID:67 Price:472.21 Qty:8.72 By:User_0
+  ID:33 Price:471.78 Qty:11.74 By:User_2
+  ID:6 Price:471.30 Qty:11.44 By:User_2
+  ID:130 Price:470.93 Qty:6.76 By:User_0
+  ID:103 Price:470.89 Qty:11.67 By:User_0
+  ID:112 Price:465.28 Qty:12.96 By:User_0
+  ID:62 Price:461.34 Qty:11.12 By:User_4
+  ID:4 Price:456.45 Qty:14.78 By:User_0
+-- Sell Orders --
+  ID:118 Price:509.96 Qty:2.99 By:Bob
+  ID:111 Price:510.41 Qty:3.12 By:David
+  ID:129 Price:513.20 Qty:12.42 By:David
+  ID:138 Price:513.65 Qty:11.44 By:David
+  ID:93 Price:513.75 Qty:10.70 By:David
+  ID:3 Price:516.65 Qty:4.34 By:David
+  ID:66 Price:516.98 Qty:10.18 By:David
+  ID:102 Price:517.41 Qty:12.88 By:David
+  ID:14 Price:517.91 Qty:3.31 By:User_1
+  ID:57 Price:519.57 Qty:9.08 By:David
+  ID:120 Price:519.95 Qty:8.74 By:David
+  ID:113 Price:522.74 Qty:5.88 By:User_1
+  ID:23 Price:525.29 Qty:4.11 By:User_1
+  ID:34 Price:525.78 Qty:4.51 By:User_3
+  ID:88 Price:532.59 Qty:9.09 By:User_3
+  ID:16 Price:535.04 Qty:10.53 By:User_3
+  ID:77 Price:539.43 Qty:11.75 By:User_1
+[2026-02-27T23:49:09+08:00] --- Node 0 Order Book ---
+-- Buy Orders --
+  ID:144 Price:506.31 Qty:10.24 By:Alice
+  ID:56 Price:502.53 Qty:3.60 By:Carol
+  ID:125 Price:501.55 Qty:14.37 By:User_4
+  ID:135 Price:501.40 Qty:12.97 By:Alice
+  ID:107 Price:501.02 Qty:13.02 By:User_4
+  ID:119 Price:500.94 Qty:5.63 By:Carol
+  ID:29 Price:500.85 Qty:4.31 By:Carol
+  ID:117 Price:500.78 Qty:12.22 By:Alice
+  ID:146 Price:499.90 Qty:4.56 By:Carol
+  ID:11 Price:499.90 Qty:2.26 By:Carol
+  ID:110 Price:499.87 Qty:4.14 By:Carol
+  ID:92 Price:499.74 Qty:5.96 By:Carol
+  ID:26 Price:499.53 Qty:9.48 By:User_4
+  ID:128 Price:499.45 Qty:5.11 By:Carol
+  ID:76 Price:498.77 Qty:10.96 By:User_0
+  ID:47 Price:496.53 Qty:5.83 By:Carol
+  ID:137 Price:495.70 Qty:4.63 By:Carol
+  ID:98 Price:495.67 Qty:14.27 By:User_4
+  ID:96 Price:494.52 Qty:5.67 By:User_2
+  ID:74 Price:494.41 Qty:4.90 By:Carol
+  ID:123 Price:494.06 Qty:5.41 By:User_2
+  ID:101 Price:493.38 Qty:4.15 By:Carol
+  ID:83 Price:492.83 Qty:4.31 By:Carol
+  ID:38 Price:492.65 Qty:4.41 By:Carol
+  ID:35 Price:492.20 Qty:12.21 By:User_4
+  ID:132 Price:491.24 Qty:7.30 By:User_2
+  ID:134 Price:491.21 Qty:12.48 By:User_4
+  ID:65 Price:490.09 Qty:5.39 By:Carol
+  ID:49 Price:488.26 Qty:6.86 By:User_0
+  ID:22 Price:483.08 Qty:13.87 By:User_0
+  ID:13 Price:482.91 Qty:13.23 By:User_0
+  ID:121 Price:481.28 Qty:12.46 By:User_0
+  ID:141 Price:477.34 Qty:13.78 By:User_2
+  ID:69 Price:474.83 Qty:13.12 By:User_2
+  ID:8 Price:474.80 Qty:13.83 By:User_4
+  ID:80 Price:472.55 Qty:7.43 By:User_4
+  ID:67 Price:472.21 Qty:8.72 By:User_0
+  ID:33 Price:471.78 Qty:11.74 By:User_2
+  ID:6 Price:471.30 Qty:11.44 By:User_2
+  ID:130 Price:470.93 Qty:6.76 By:User_0
+  ID:103 Price:470.89 Qty:11.67 By:User_0
+  ID:139 Price:465.84 Qty:14.32 By:User_0
+  ID:112 Price:465.28 Qty:12.96 By:User_0
+  ID:62 Price:461.34 Qty:11.12 By:User_4
+  ID:4 Price:456.45 Qty:14.78 By:User_0
+-- Sell Orders --
+  ID:118 Price:509.96 Qty:2.99 By:Bob
+  ID:147 Price:510.34 Qty:9.87 By:David
+  ID:111 Price:510.41 Qty:3.12 By:David
+  ID:129 Price:513.20 Qty:12.42 By:David
+  ID:138 Price:513.65 Qty:11.44 By:David
+  ID:93 Price:513.75 Qty:10.70 By:David
+  ID:145 Price:514.12 Qty:6.43 By:Bob
+  ID:3 Price:516.65 Qty:4.34 By:David
+  ID:66 Price:516.98 Qty:10.18 By:David
+  ID:102 Price:517.41 Qty:12.88 By:David
+  ID:14 Price:517.91 Qty:3.31 By:User_1
+  ID:57 Price:519.57 Qty:9.08 By:David
+  ID:120 Price:519.95 Qty:8.74 By:David
+  ID:113 Price:522.74 Qty:5.88 By:User_1
+  ID:23 Price:525.29 Qty:4.11 By:User_1
+  ID:34 Price:525.78 Qty:4.51 By:User_3
+  ID:88 Price:532.59 Qty:9.09 By:User_3
+  ID:16 Price:535.04 Qty:10.53 By:User_3
+  ID:77 Price:539.43 Qty:11.75 By:User_1
+[2026-02-27T23:49:11+08:00] --- Node 0 Order Book ---
+-- Buy Orders --
+  ID:144 Price:506.31 Qty:10.24 By:Alice
+  ID:56 Price:502.53 Qty:3.60 By:Carol
+  ID:153 Price:501.57 Qty:12.95 By:Alice
+  ID:125 Price:501.55 Qty:14.37 By:User_4
+  ID:135 Price:501.40 Qty:12.97 By:Alice
+  ID:107 Price:501.02 Qty:13.02 By:User_4
+  ID:119 Price:500.94 Qty:5.63 By:Carol
+  ID:29 Price:500.85 Qty:4.31 By:Carol
+  ID:117 Price:500.78 Qty:12.22 By:Alice
+  ID:146 Price:499.90 Qty:4.56 By:Carol
+  ID:11 Price:499.90 Qty:2.26 By:Carol
+  ID:110 Price:499.87 Qty:4.14 By:Carol
+  ID:92 Price:499.74 Qty:5.96 By:Carol
+  ID:26 Price:499.53 Qty:9.48 By:User_4
+  ID:128 Price:499.45 Qty:5.11 By:Carol
+  ID:76 Price:498.77 Qty:10.96 By:User_0
+  ID:47 Price:496.53 Qty:5.83 By:Carol
+  ID:137 Price:495.70 Qty:4.63 By:Carol
+  ID:98 Price:495.67 Qty:14.27 By:User_4
+  ID:96 Price:494.52 Qty:5.67 By:User_2
+  ID:74 Price:494.41 Qty:4.90 By:Carol
+  ID:123 Price:494.06 Qty:5.41 By:User_2
+  ID:101 Price:493.38 Qty:4.15 By:Carol
+  ID:83 Price:492.83 Qty:4.31 By:Carol
+  ID:38 Price:492.65 Qty:4.41 By:Carol
+  ID:35 Price:492.20 Qty:12.21 By:User_4
+  ID:132 Price:491.24 Qty:7.30 By:User_2
+  ID:134 Price:491.21 Qty:12.48 By:User_4
+  ID:155 Price:490.86 Qty:4.22 By:Carol
+  ID:65 Price:490.09 Qty:5.39 By:Carol
+  ID:49 Price:488.26 Qty:6.86 By:User_0
+  ID:22 Price:483.08 Qty:13.87 By:User_0
+  ID:13 Price:482.91 Qty:13.23 By:User_0
+  ID:121 Price:481.28 Qty:12.46 By:User_0
+  ID:148 Price:480.27 Qty:14.27 By:User_0
+  ID:141 Price:477.34 Qty:13.78 By:User_2
+  ID:69 Price:474.83 Qty:13.12 By:User_2
+  ID:8 Price:474.80 Qty:13.83 By:User_4
+  ID:80 Price:472.55 Qty:7.43 By:User_4
+  ID:67 Price:472.21 Qty:8.72 By:User_0
+  ID:33 Price:471.78 Qty:11.74 By:User_2
+  ID:6 Price:471.30 Qty:11.44 By:User_2
+  ID:130 Price:470.93 Qty:6.76 By:User_0
+  ID:103 Price:470.89 Qty:11.67 By:User_0
+  ID:150 Price:467.74 Qty:12.46 By:User_2
+  ID:139 Price:465.84 Qty:14.32 By:User_0
+  ID:112 Price:465.28 Qty:12.96 By:User_0
+  ID:62 Price:461.34 Qty:11.12 By:User_4
+  ID:4 Price:456.45 Qty:14.78 By:User_0
+-- Sell Orders --
+  ID:156 Price:510.20 Qty:9.30 By:David
+  ID:147 Price:510.34 Qty:4.06 By:David
+  ID:111 Price:510.41 Qty:3.12 By:David
+  ID:129 Price:513.20 Qty:12.42 By:David
+  ID:138 Price:513.65 Qty:11.44 By:David
+  ID:93 Price:513.75 Qty:10.70 By:David
+  ID:145 Price:514.12 Qty:6.43 By:Bob
+  ID:154 Price:514.60 Qty:9.44 By:Bob
+  ID:3 Price:516.65 Qty:4.34 By:David
+  ID:66 Price:516.98 Qty:10.18 By:David
+  ID:102 Price:517.41 Qty:12.88 By:David
+  ID:14 Price:517.91 Qty:3.31 By:User_1
+  ID:57 Price:519.57 Qty:9.08 By:David
+  ID:120 Price:519.95 Qty:8.74 By:David
+  ID:113 Price:522.74 Qty:5.88 By:User_1
+  ID:23 Price:525.29 Qty:4.11 By:User_1
+  ID:34 Price:525.78 Qty:4.51 By:User_3
+  ID:88 Price:532.59 Qty:9.09 By:User_3
+  ID:16 Price:535.04 Qty:10.53 By:User_3
+  ID:151 Price:539.29 Qty:5.45 By:User_3
+  ID:77 Price:539.43 Qty:11.75 By:User_1
+[TRADE] 2026-02-27T23:49:12+08:00 | BuyID:162 SellID:163 Price:504.92 Qty:5.79
+[TRADE] 2026-02-27T23:49:12+08:00 | BuyID:162 SellID:156 Price:510.55 Qty:4.30
+[2026-02-27T23:49:12+08:00] --- Node 0 Order Book ---
+-- Buy Orders --
+  ID:144 Price:506.31 Qty:10.24 By:Alice
+  ID:56 Price:502.53 Qty:3.60 By:Carol
+  ID:153 Price:501.57 Qty:12.95 By:Alice
+  ID:125 Price:501.55 Qty:14.37 By:User_4
+  ID:135 Price:501.40 Qty:12.97 By:Alice
+  ID:107 Price:501.02 Qty:13.02 By:User_4
+  ID:119 Price:500.94 Qty:5.63 By:Carol
+  ID:29 Price:500.85 Qty:4.31 By:Carol
+  ID:117 Price:500.78 Qty:12.22 By:Alice
+  ID:146 Price:499.90 Qty:4.56 By:Carol
+  ID:11 Price:499.90 Qty:2.26 By:Carol
+  ID:110 Price:499.87 Qty:4.14 By:Carol
+  ID:92 Price:499.74 Qty:5.96 By:Carol
+  ID:26 Price:499.53 Qty:9.48 By:User_4
+  ID:128 Price:499.45 Qty:5.11 By:Carol
+  ID:164 Price:499.05 Qty:4.37 By:Carol
+  ID:76 Price:498.77 Qty:10.96 By:User_0
+  ID:47 Price:496.53 Qty:5.83 By:Carol
+  ID:137 Price:495.70 Qty:4.63 By:Carol
+  ID:98 Price:495.67 Qty:14.27 By:User_4
+  ID:96 Price:494.52 Qty:5.67 By:User_2
+  ID:161 Price:494.41 Qty:5.50 By:User_4
+  ID:74 Price:494.41 Qty:4.90 By:Carol
+  ID:123 Price:494.06 Qty:5.41 By:User_2
+  ID:101 Price:493.38 Qty:4.15 By:Carol
+  ID:83 Price:492.83 Qty:4.31 By:Carol
+  ID:38 Price:492.65 Qty:4.41 By:Carol
+  ID:35 Price:492.20 Qty:12.21 By:User_4
+  ID:132 Price:491.24 Qty:7.30 By:User_2
+  ID:134 Price:491.21 Qty:12.48 By:User_4
+  ID:155 Price:490.86 Qty:4.22 By:Carol
+  ID:65 Price:490.09 Qty:5.39 By:Carol
+  ID:49 Price:488.26 Qty:6.86 By:User_0
+  ID:22 Price:483.08 Qty:13.87 By:User_0
+  ID:13 Price:482.91 Qty:13.23 By:User_0
+  ID:121 Price:481.28 Qty:12.46 By:User_0
+  ID:148 Price:480.27 Qty:14.27 By:User_0
+  ID:141 Price:477.34 Qty:13.78 By:User_2
+  ID:69 Price:474.83 Qty:13.12 By:User_2
+  ID:8 Price:474.80 Qty:13.83 By:User_4
+  ID:80 Price:472.55 Qty:7.43 By:User_4
+  ID:67 Price:472.21 Qty:8.72 By:User_0
+  ID:33 Price:471.78 Qty:11.74 By:User_2
+  ID:6 Price:471.30 Qty:11.44 By:User_2
+  ID:130 Price:470.93 Qty:6.76 By:User_0
+  ID:103 Price:470.89 Qty:11.67 By:User_0
+  ID:150 Price:467.74 Qty:12.46 By:User_2
+  ID:139 Price:465.84 Qty:14.32 By:User_0
+  ID:112 Price:465.28 Qty:12.96 By:User_0
+  ID:157 Price:463.38 Qty:7.37 By:User_0
+  ID:62 Price:461.34 Qty:11.12 By:User_4
+  ID:4 Price:456.45 Qty:14.78 By:User_0
+-- Sell Orders --
+  ID:156 Price:510.20 Qty:0.46 By:David
+  ID:147 Price:510.34 Qty:4.06 By:David
+  ID:111 Price:510.41 Qty:3.12 By:David
+  ID:160 Price:512.61 Qty:4.11 By:User_3
+  ID:129 Price:513.20 Qty:12.42 By:David
+  ID:138 Price:513.65 Qty:11.44 By:David
+  ID:93 Price:513.75 Qty:10.70 By:David
+  ID:145 Price:514.12 Qty:6.43 By:Bob
+  ID:154 Price:514.60 Qty:9.44 By:Bob
+  ID:3 Price:516.65 Qty:4.34 By:David
+  ID:66 Price:516.98 Qty:10.18 By:David
+  ID:165 Price:517.19 Qty:11.94 By:David
+  ID:102 Price:517.41 Qty:12.88 By:David
+  ID:14 Price:517.91 Qty:3.31 By:User_1
+  ID:57 Price:519.57 Qty:9.08 By:David
+  ID:120 Price:519.95 Qty:8.74 By:David
+  ID:113 Price:522.74 Qty:5.88 By:User_1
+  ID:23 Price:525.29 Qty:4.11 By:User_1
+  ID:34 Price:525.78 Qty:4.51 By:User_3
+  ID:88 Price:532.59 Qty:9.09 By:User_3
+  ID:16 Price:535.04 Qty:10.53 By:User_3
+  ID:151 Price:539.29 Qty:5.45 By:User_3
+  ID:77 Price:539.43 Qty:11.75 By:User_1
+[TRADE] 2026-02-27T23:49:13+08:00 | BuyID:171 SellID:167 Price:511.65 Qty:7.02
+[TRADE] 2026-02-27T23:49:13+08:00 | BuyID:171 SellID:156 Price:512.51 Qty:0.46
+[TRADE] 2026-02-27T23:49:13+08:00 | BuyID:171 SellID:147 Price:512.58 Qty:4.06
+[TRADE] 2026-02-27T23:49:13+08:00 | BuyID:171 SellID:111 Price:512.61 Qty:1.01
+[2026-02-27T23:49:13+08:00] --- Node 0 Order Book ---
+-- Buy Orders --
+  ID:144 Price:506.31 Qty:10.24 By:Alice
+  ID:56 Price:502.53 Qty:3.60 By:Carol
+  ID:153 Price:501.57 Qty:12.95 By:Alice
+  ID:125 Price:501.55 Qty:14.37 By:User_4
+  ID:135 Price:501.40 Qty:12.97 By:Alice
+  ID:107 Price:501.02 Qty:13.02 By:User_4
+  ID:119 Price:500.94 Qty:5.63 By:Carol
+  ID:29 Price:500.85 Qty:4.31 By:Carol
+  ID:117 Price:500.78 Qty:12.22 By:Alice
+  ID:146 Price:499.90 Qty:4.56 By:Carol
+  ID:11 Price:499.90 Qty:2.26 By:Carol
+  ID:110 Price:499.87 Qty:4.14 By:Carol
+  ID:92 Price:499.74 Qty:5.96 By:Carol
+  ID:26 Price:499.53 Qty:9.48 By:User_4
+  ID:128 Price:499.45 Qty:5.11 By:Carol
+  ID:164 Price:499.05 Qty:4.37 By:Carol
+  ID:76 Price:498.77 Qty:10.96 By:User_0
+  ID:47 Price:496.53 Qty:5.83 By:Carol
+  ID:173 Price:496.22 Qty:5.34 By:Carol
+  ID:137 Price:495.70 Qty:4.63 By:Carol
+  ID:98 Price:495.67 Qty:14.27 By:User_4
+  ID:96 Price:494.52 Qty:5.67 By:User_2
+  ID:161 Price:494.41 Qty:5.50 By:User_4
+  ID:74 Price:494.41 Qty:4.90 By:Carol
+  ID:123 Price:494.06 Qty:5.41 By:User_2
+  ID:101 Price:493.38 Qty:4.15 By:Carol
+  ID:83 Price:492.83 Qty:4.31 By:Carol
+  ID:38 Price:492.65 Qty:4.41 By:Carol
+  ID:35 Price:492.20 Qty:12.21 By:User_4
+  ID:132 Price:491.24 Qty:7.30 By:User_2
+  ID:134 Price:491.21 Qty:12.48 By:User_4
+  ID:155 Price:490.86 Qty:4.22 By:Carol
+  ID:65 Price:490.09 Qty:5.39 By:Carol
+  ID:49 Price:488.26 Qty:6.86 By:User_0
+  ID:22 Price:483.08 Qty:13.87 By:User_0
+  ID:13 Price:482.91 Qty:13.23 By:User_0
+  ID:121 Price:481.28 Qty:12.46 By:User_0
+  ID:148 Price:480.27 Qty:14.27 By:User_0
+  ID:141 Price:477.34 Qty:13.78 By:User_2
+  ID:69 Price:474.83 Qty:13.12 By:User_2
+  ID:8 Price:474.80 Qty:13.83 By:User_4
+  ID:80 Price:472.55 Qty:7.43 By:User_4
+  ID:67 Price:472.21 Qty:8.72 By:User_0
+  ID:33 Price:471.78 Qty:11.74 By:User_2
+  ID:6 Price:471.30 Qty:11.44 By:User_2
+  ID:130 Price:470.93 Qty:6.76 By:User_0
+  ID:103 Price:470.89 Qty:11.67 By:User_0
+  ID:150 Price:467.74 Qty:12.46 By:User_2
+  ID:139 Price:465.84 Qty:14.32 By:User_0
+  ID:112 Price:465.28 Qty:12.96 By:User_0
+  ID:157 Price:463.38 Qty:7.37 By:User_0
+  ID:62 Price:461.34 Qty:11.12 By:User_4
+  ID:170 Price:458.91 Qty:5.05 By:User_4
+  ID:168 Price:458.26 Qty:9.00 By:User_2
+  ID:4 Price:456.45 Qty:14.78 By:User_0
+-- Sell Orders --
+  ID:111 Price:510.41 Qty:2.12 By:David
+  ID:172 Price:512.53 Qty:6.06 By:Bob
+  ID:160 Price:512.61 Qty:4.11 By:User_3
+  ID:129 Price:513.20 Qty:12.42 By:David
+  ID:138 Price:513.65 Qty:11.44 By:David
+  ID:93 Price:513.75 Qty:10.70 By:David
+  ID:174 Price:513.98 Qty:11.22 By:David
+  ID:145 Price:514.12 Qty:6.43 By:Bob
+  ID:154 Price:514.60 Qty:9.44 By:Bob
+  ID:3 Price:516.65 Qty:4.34 By:David
+  ID:66 Price:516.98 Qty:10.18 By:David
+  ID:165 Price:517.19 Qty:11.94 By:David
+  ID:102 Price:517.41 Qty:12.88 By:David
+  ID:14 Price:517.91 Qty:3.31 By:User_1
+  ID:57 Price:519.57 Qty:9.08 By:David
+  ID:120 Price:519.95 Qty:8.74 By:David
+  ID:113 Price:522.74 Qty:5.88 By:User_1
+  ID:23 Price:525.29 Qty:4.11 By:User_1
+  ID:34 Price:525.78 Qty:4.51 By:User_3
+  ID:88 Price:532.59 Qty:9.09 By:User_3
+  ID:16 Price:535.04 Qty:10.53 By:User_3
+  ID:151 Price:539.29 Qty:5.45 By:User_3
+  ID:77 Price:539.43 Qty:11.75 By:User_1
