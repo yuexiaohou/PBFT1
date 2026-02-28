@@ -301,8 +301,7 @@ func main() {
             		   // ======================= 【高亮】END =======================
             		})
                 c.JSON(200, gin.H{"msg": "操作成功"})
-            }
-            else {
+            }else {
                 reason := pbftResult.FailedReason
                 if status != "成功" {
                     reason = "余额不足"
