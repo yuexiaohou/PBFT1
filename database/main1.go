@@ -297,7 +297,7 @@ func main() {
             db.Create(&TradeHistory{
             		UserID: user.ID, Type: req.Type, Amount: req.Amount, Time: time.Now(), Status: status,
             		   // ===================== 【高亮】写入成交价和节点 =======================
-            		   Price: tra==dePrice, Node: tradeNode,
+            		   Price: tradePrice, Node: tradeNode,
             		   // ======================= 【高亮】END =======================
             		})
                 c.JSON(200, gin.H{"msg": "操作成功"})
