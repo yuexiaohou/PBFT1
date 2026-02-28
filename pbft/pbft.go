@@ -32,6 +32,8 @@ type PBFTResult struct {
 	Timestamp    time.Time
 	Validators   []Validator
 	FailedReason string
+	Price        float64      // <== 新增：成交价
+    LeaderNode   string       // <== 新增：撮合节点
 }
 
 func NewPBFTSimulator(nodes []*Node, useBlst bool) *PBFTSimulator { // 构造函数：创建 PBFTSimulator 实例
