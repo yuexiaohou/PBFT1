@@ -31,6 +31,8 @@ type TradeHistory struct {
 	Amount int
 	Time   time.Time
 	Status string    `gorm:"size:20"`
+	Price  float64   `gorm:"column:price"`   // <== 新增：成交价格
+    Node   string    `gorm:"column:node"`    // <== 新增：成交节点
 }
 
 // ============== PBFT相关结构体与状态缓存 ======== 高亮新增 START ==========
@@ -47,6 +49,10 @@ type PBFTConsensusResult struct {
 	Timestamp    time.Time       `json:"timestamp"`
 	Validators   []PBFTValidator `json:"validators"`
 	FailedReason string          `json:"failedReason,omitempty"`
+	// ======================= 【高亮】如需补充，PBFT共识结果也可加入价格与节点字段 =======================
+    Price      float64          `json:"price,omitempty"`   // <== 可选用于 PBFTResult 前端展示
+    LeaderNode string           `json:"leaderNode,omitempty"`
+    // ======================= 【高亮】END =======================
 }
 
 type PBFTBlock struct {
@@ -231,6 +237,9 @@ func main() {
 		// 添加充值历史
 		db.Create(&TradeHistory{
 			UserID: user.ID, Type: "充值", Amount: req.Amount, Time: time.Now(), Status: "成功",
+			// ======================= 【高亮】充值可无价格与节点 =======================
+            Price: 0, Node: "",
+            // ======================= 【高亮】END =======================
 		})
 		c.JSON(200, gin.H{"msg": "充值成功"})
 	})
@@ -276,13 +285,24 @@ func main() {
             nowTxId := fmt.Sprintf("%s_%d", username, time.Now().UnixNano())
             pbftResult := pbft.RunPBFT(nowTxId, req.Amount)
             validators := convertValidators(pbftResult.Validators)
+            // ======================= 【高亮】交易记入价格和撮合节点 =======================
+            tradePrice := pbftResult.Price      // pbft模拟器需返回 Price 字段
+            tradeNode  := pbftResult.LeaderNode // pbft模拟器需返回 LeaderNode 字段
+            // ======================= 【高亮】END =======================
             // ====== 高亮结束 ======
 
             if status == "成功" && pbftResult.Status == "已确认" {
                 updatePBFTResult(pbftResult.TxId, pbftResult.Status, pbftResult.Consensus, pbftResult.BlockHeight, validators, pbftResult.FailedReason)
                 updatePBFTBlock(pbftResult.BlockHeight, req.Amount)
+            db.Create(&TradeHistory{
+            		UserID: user.ID, Type: req.Type, Amount: req.Amount, Time: time.Now(), Status: status,
+            		   // ===================== 【高亮】写入成交价和节点 =======================
+            		   Price: tra==dePrice, Node: tradeNode,
+            		   // ======================= 【高亮】END =======================
+            		})
                 c.JSON(200, gin.H{"msg": "操作成功"})
-            } else {
+            }
+            else {
                 reason := pbftResult.FailedReason
                 if status != "成功" {
                     reason = "余额不足"
@@ -327,6 +347,8 @@ func main() {
 			out = append(out, gin.H{
 				"type":   r.Type,
 				"amount": r.Amount,
+		        "price":  r.Price,     // <== 新增
+        		"node":   r.Node,      // <== 新增
 				"time":   r.Time.Format("2006-01-02 15:04:05"),
 				"status": r.Status,
 			})
