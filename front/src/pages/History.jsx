@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import HistoryIcon from "@mui/icons-material/History";
 // ========== 【高亮】引入 LineChart 图表组件 ==========
-import { LineChart } from '@mui/x-charts';
+import {LineChart, ScatterChart} from '@mui/x-charts';
 // ========== 【高亮】END ==========
 
 function statusColor(status) {
@@ -52,18 +52,26 @@ export default function History() {
                     <HistoryIcon fontSize="large" color="primary" sx={{ mr: 1 }} />
                     <Typography variant="h5">历史交易记录</Typography>
                 </Box>
-                {/* ========== 【高亮】历史价格趋势图表展示 ========== */}
-                {priceTrend.length > 1 && (
-                    <Box sx={{ mb: 2 }}>
-                        <Typography variant="body1" mb={1}>成交价格趋势</Typography>
-                        <LineChart
-                            xAxis={[{ label: '交易序号' }]}
-                            series={[{ data: priceTrend.map(pt => pt.y), label: "成交价" }]}
+                {/* ========== 【高亮】价格趋势点图 ========== */}
+                {pricePoints.length > 0 &&
+                    <Box sx={{mb:3}}>
+                        <Typography variant="body1" mb={1}>成交价格走势 (点击数据点看卖出节点)</Typography>
+                        <ScatterChart
                             width={500}
-                            height={200}
+                            height={220}
+                            series={[
+                                {
+                                    data: pricePoints,
+                                    label: "成交价",
+                                    markerLabel: d => `卖出节点: ${d.label}`,
+                                    color: "#1976d2",
+                                }
+                            ]}
+                            xAxis={[{label: "成交序号"}]}
+                            yAxis={[{ label: '成交价格' }]}
                         />
                     </Box>
-                )}
+                }
                 {/* ========== 【高亮】END ========== */}
                 <TableContainer>
                     <Table>
@@ -73,7 +81,7 @@ export default function History() {
                                 <TableCell>数量</TableCell>
                                 {/* ========== 【高亮】新增表头 ========= */}
                                 <TableCell>成交价格</TableCell>
-                                <TableCell>成交节点</TableCell>
+                                <TableCell>卖出节点</TableCell>
                                 {/* ========== 【高亮】END ========= */}
                                 <TableCell>时间</TableCell>
                                 <TableCell>状态</TableCell>
@@ -84,13 +92,9 @@ export default function History() {
                                 <TableRow key={i}>
                                     <TableCell>{r.type}</TableCell>
                                     <TableCell>{r.amount}</TableCell>
-                                    {/* ========== 【高亮】新增表格数据 ========= */}
-                                    <TableCell>
-                                        {r.price !== undefined && r.price !== null ? Number(r.price).toFixed(2) : "-"}
-                                    </TableCell>
-                                    <TableCell>
-                                        {r.node || "-"}
-                                    </TableCell>
+                                    {/* ========== 【高亮】数据字段 ========= */}
+                                    <TableCell>{r.price ? Number(r.price).toFixed(2) : "-"}</TableCell>
+                                    <TableCell>{r.sellNode || "-"}</TableCell>
                                     {/* ========== 【高亮】END ========= */}
                                     <TableCell>{r.time}</TableCell>
                                     <TableCell>

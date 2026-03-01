@@ -291,6 +291,23 @@ func main() {
             // ======================= 【高亮】END =======================
             // ====== 高亮结束 ======
 
+            // =========== 【高亮】成交价格与卖出节点模拟 =============
+            var tradePrice float64
+            var sellNode string
+            	if req.Type == "buy" && status == "成功" {
+            		if pbftResult.Price != 0 {
+            			tradePrice = pbftResult.Price
+            		} else {
+            			tradePrice = float64(500 + rand.Intn(20)) // 随机模拟价格
+            		}
+                    if pbftResult.SellNode != "" {
+            			sellNode = pbftResult.SellNode
+            		} else {
+            			sellNode = fmt.Sprintf("node-%d", rand.Intn(100)) // 随机100节点
+            		}
+                }
+            // =========== 【高亮】END =============
+
             if status == "成功" && pbftResult.Status == "已确认" {
                 updatePBFTResult(pbftResult.TxId, pbftResult.Status, pbftResult.Consensus, pbftResult.BlockHeight, validators, pbftResult.FailedReason)
                 updatePBFTBlock(pbftResult.BlockHeight, req.Amount)
