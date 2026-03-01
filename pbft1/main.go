@@ -51,8 +51,6 @@ func RunPBFTSimulator(numNodes int, maliciousCount int, maliciousRatio float64, 
 	}
 
 	sim := NewPBFTSimulator(nodes, useBlst)
-	sim.mmax = mmax
-    sim.mmin = mmin
 	sim.ComputeTiers()
 
 	fmt.Println("Initial node statuses:")
