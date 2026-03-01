@@ -40,6 +40,7 @@ func NewBlstBLS(id int) BLS {
 // NewNode 创建并返回一个新的 Node 实例
 // 参数：id 节点 id，throughput 吞吐量，isMalicious 是否恶意，useBlst 是否使用 blst 实现
 func NewNode(id int, throughput float64, isMalicious bool, useBlst bool) *Node {
+    blsImpl := NewBlstBLS(id)
 	var bl BLS
 	if useBlst {
 		// 若要求使用 blst 实现，则创建对应实现
@@ -54,7 +55,7 @@ func NewNode(id int, throughput float64, isMalicious bool, useBlst bool) *Node {
 		IsMalicious: isMalicious,  // 是否恶意
 		Throughput: throughput,    // 吞吐量
 		Tier:       TierNormal,    // 默认等级为 Normal
-		bls:        bl,            // BLS 签名实现
+		bls:        blsImpl,            // BLS 签名实现
 		active:     true,          // 默认激活
 	}
 }
@@ -105,20 +106,17 @@ func (n *Node) UpdateReward(success bool) {
 	n.mu.Lock()         // 获取互斥锁，保护对 m 和 active 的并发访问
 	defer n.mu.Unlock() // 延迟释放锁
 
-	if success {
-		// 操作成功则增加奖励值
+    if success {
 		n.m++
+		if n.m >= MMax {
+			n.m = MMax - 1
+			n.active = true
+		}
 	} else {
-		// 操作失败则减少奖励值
 		n.m--
-	}
-	// 如果 m 超过 MMax，为防止中心化将 m 重置为初始值 InitialM
-	if n.m > MMax {
-		n.m = InitialM // 防止某些节点过度积累导致中心化风险
-	}
-	// 若 m 低于 MMin，则将节点标记为 inactive（被排除）
-	if n.m < MMin {
-		n.active = false // 判为恶意并排除（或失去资格）
+		if n.m < MMin {
+			n.active = false
+		}
 	}
 }
 

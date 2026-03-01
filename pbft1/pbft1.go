@@ -16,6 +16,8 @@ type PBFTSimulator struct {
 	f       int     // 最大容忍拜占庭节点数 (f)
 	useBlst bool    // 是否使用 BLS（布鲁姆/聚合签名）库的标志
 	AfterConsensusHandler func(round int) // <<< 新增：达成共识后的业务钩子
+	mmax     int        // ============ 高亮 新增：最大信誉阈值（系统中心趋势） ============
+    mmin     int        // ============ 高亮 新增：最低阀值（恶意节点判定） ============
 }
 
 // ====== 导出共识结果结构体及节点类型 ======
