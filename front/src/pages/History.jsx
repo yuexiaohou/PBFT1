@@ -38,6 +38,12 @@ export default function History() {
         fetchRecords();
     }, []);
 
+    // ========== 【高亮】修复：原代码引用了 pricePoints 但未定义，这里补充定义 ==========
+    const pricePoints = records
+        .filter(r => r.price !== null && r.price !== undefined && !isNaN(Number(r.price)))
+        .map((r, i) => ({ x: i + 1, y: Number(r.price), label: r.node || "-" }));
+    // ========== 【高亮】END ==========
+
     // ========== 【高亮】生成价格趋势数据 ==========
     const priceTrend = records
         .filter(r => r.price && !isNaN(r.price))
@@ -94,7 +100,7 @@ export default function History() {
                                     <TableCell>{r.amount}</TableCell>
                                     {/* ========== 【高亮】数据字段 ========= */}
                                     <TableCell>{r.price ? Number(r.price).toFixed(2) : "-"}</TableCell>
-                                    <TableCell>{r.sellNode || "-"}</TableCell>
+                                    <TableCell>{r.node || "-"}</TableCell>
                                     {/* ========== 【高亮】END ========= */}
                                     <TableCell>{r.time}</TableCell>
                                     <TableCell>
