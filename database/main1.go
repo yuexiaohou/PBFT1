@@ -288,7 +288,6 @@ func main() {
             validators := convertValidators(pbftResult.Validators)
             // ======================= 【高亮】交易记入价格和撮合节点 =======================
             tradePrice := pbftResult.Price      // pbft模拟器需返回 Price 字段
-            tradeNode  := pbftResult.LeaderNode // pbft模拟器需返回 LeaderNode 字段
             // ======================= 【高亮】END =======================
             // =========== 【高亮】成交价格与卖出节点模拟 =============
             // ==========【高亮】获取卖出节点（LeaderNode）==========
@@ -313,7 +312,7 @@ func main() {
             db.Create(&TradeHistory{
             		UserID: user.ID, Type: req.Type, Amount: req.Amount, Time: time.Now(), Status: status,Node: sellNode,
             		   // ===================== 【高亮】写入成交价和节点 =======================
-            		   Price: tradePrice, Node: tradeNode,
+            		   Price: tradePrice,
             		   // ======================= 【高亮】END =======================
             		})
                 c.JSON(200, gin.H{"msg": "操作成功"})
