@@ -3,6 +3,7 @@ package main
 import (
 	"time"
 	"sync" // ========= 高亮: 新增
+	"flag" // ========= 高亮: 新增参数命令支持（本次变动） ==========
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -34,6 +35,9 @@ type TradeHistory struct {
 	Status string    `gorm:"size:20"`
 	Price  float64   `gorm:"column:price"`   // <== 新增：成交价格
     Node   string    `gorm:"column:node"`    // <== 新增：成交节点
+    Round      int       `gorm:"index"`        // ========== 高亮：添加共识轮次 ==========
+    BuyerNode  string    // ========== 高亮：购入模拟节点 ==========
+    SellerNode string    // ========== 高亮：售出模拟节点 ==========
 }
 
 // ============== PBFT相关结构体与状态缓存 ======== 高亮新增 START ==========
@@ -66,6 +70,10 @@ var (
 	latestPBFTResult PBFTConsensusResult
 	latestBlock PBFTBlock
 	pbftMu sync.RWMutex
+	// ========== 高亮：用于存放每轮撮合结果的全局变量 ==========
+    roundMatchResults []TradeHistory
+    roundOverview     []struct {Round int; MinPrice float64; Buyer, Seller string; SuccessRate float64}
+    // ========== 高亮END ==========
 )
 
 // 转换 pbft.Result.Validators 到页面需要的形式
@@ -115,9 +123,29 @@ func updatePBFTBlock(height int, confirmedTxs int) {
 // ========== PBFT状态更新函数 ========= 高亮新增 END =========
 
 func main() {
-    // ===== 高亮新增: 自动后台启动PBFT仿真 =====
-	go pbft.RunPBFTSimulator(100, -1, 0.05, 20) // 100节点，自动以 5% 恶性节点，模拟20轮
-	// ===== 高亮结束 =====
+    // ========= 高亮：命令行参数替代固定参数（支持配置） ========
+	numNodes := flag.Int("nodes", 100, "number of PBFT nodes")
+	totalRounds := flag.Int("rounds", 20, "number of consensus rounds")
+	simMalRatio := flag.Float64("maliciousRatio", 0.05, "malicious node ratio")
+	flag.Parse()
+	// ========= 高亮END ==========
+
+    // ====== 高亮:采用算法包统一调用仿真函数（主改动，替换原内部仿真逻辑）======
+	go func() {
+		db := dbConnect()
+		// 下面直接调用 PBFT 仿真算法，并获取每一轮的撮合结果，模块化！
+		matchResults, overviewResults := pbft.RunPBFTConsensusAndMatching(*numNodes, *totalRounds, *simMalRatio)
+
+		// 全局变量保存供前端调用
+		roundMatchResults = matchResults
+		roundOverview = overviewResults
+
+		// 持久化撮合结果到数据库
+		for _, h := range matchResults {
+			db.Create(&h)
+		}
+	}()
+    // ====== 高亮END ======
 	db := dbConnect()
 	r := gin.Default()
 
@@ -324,19 +352,19 @@ func main() {
             }
 
 		// ====== 高亮: 实际用pbft包算法模拟一次共识/区块 ======
-        		if status == "成功" {
-        			updatePBFTResult(pbftResult.TxId, pbftResult.Status, pbftResult.Consensus, pbftResult.BlockHeight, validators, "")
-        			updatePBFTBlock(pbftResult.BlockHeight, 36)
-        			c.JSON(200, gin.H{"msg": "操作成功"})
-        		} else {
-        			validators := []PBFTValidator{
-        				{ID: "node1", Vote: "commit"},
-        				{ID: "node2", Vote: "commit"},
-        				{ID: "node3", Vote: "commit"},
-        				{ID: "node4", Vote: "commit"},
-        			}
-        			updatePBFTResult(nowTxId, "失败", "pbft", 10001, validators, "余额不足")
-        			c.JSON(400, gin.H{"msg": "余额不足"})
+        	if status == "成功" {
+        	    updatePBFTResult(pbftResult.TxId, pbftResult.Status, pbftResult.Consensus, pbftResult.BlockHeight, validators, "")
+        	    updatePBFTBlock(pbftResult.BlockHeight, 36)
+        		c.JSON(200, gin.H{"msg": "操作成功"})
+        	} else {
+        		validators := []PBFTValidator{
+        			{ID: "node1", Vote: "commit"},
+        			{ID: "node2", Vote: "commit"},
+        			{ID: "node3", Vote: "commit"},
+        			{ID: "node4", Vote: "commit"},
+        		}
+                updatePBFTResult(nowTxId, "失败", "pbft", 10001, validators, "余额不足")
+        		c.JSON(400, gin.H{"msg": "余额不足"})
         		}
             })
 
@@ -367,7 +395,22 @@ func main() {
 		}
 		c.JSON(200, gin.H{"records": out})
 	})
-
+	// ========== 高亮：撮合图表接口1：最低价格随轮次变化 ==========
+	api.GET("/trade/pricechart", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"rounds": roundOverview,
+		})
+	})
+	// ========== 高亮：撮合图表接口2：每轮撮合率随轮次变化 ==========
+	api.GET("/trade/successrate", func(c *gin.Context) {
+		x := []int{}
+		y := []float64{}
+		for _, rv := range roundOverview {
+			x = append(x, rv.Round)
+			y = append(y, rv.SuccessRate)
+		}
+		c.JSON(200, gin.H{"x": x, "y": y})
+	})
 	// ========== 高亮: PBFT前端API接口 ==========
 
 	r.Run(":5000")
