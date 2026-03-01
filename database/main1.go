@@ -293,28 +293,26 @@ func main() {
             // ==========【高亮】获取卖出节点（LeaderNode）==========
             sellNode := pbftResult.LeaderNode
             if req.Type == "buy" && status == "成功" {
-               if pbftResult.Price != 0 {
-            	  tradePrice = pbftResult.Price
-               } else {
-            	  tradePrice = float64(500 + rand.Intn(20)) // 随机模拟价格
-            	  }
-                  if pbftResult.SellNode != "" {
-            		 sellNode = pbftResult.SellNode
-            	  } else {
-            		sellNode = fmt.Sprintf("node-%d", rand.Intn(100)) // 随机100节点
-            	  }
-               }
+			if pbftResult.Price != 0 {
+				tradePrice = pbftResult.Price
+			} else {
+				tradePrice = float64(500 + rand.Intn(20))
+			}
+		    }
             // =========== 【高亮】END =============
 
             if status == "成功" && pbftResult.Status == "已确认" {
                 updatePBFTResult(pbftResult.TxId, pbftResult.Status, pbftResult.Consensus, pbftResult.BlockHeight, validators, pbftResult.FailedReason)
                 updatePBFTBlock(pbftResult.BlockHeight, req.Amount)
-            db.Create(&TradeHistory{
-            		UserID: user.ID, Type: req.Type, Amount: req.Amount, Time: time.Now(), Status: status,Node: sellNode,
-            		   // ===================== 【高亮】写入成交价和节点 =======================
-            		   Price: tradePrice,
-            		   // ======================= 【高亮】END =======================
-            		})
+			db.Create(&TradeHistory{
+				UserID: user.ID,
+				Type: req.Type,
+				Amount: req.Amount,
+				Time: time.Now(),
+				Status: status,
+				Price: tradePrice,
+				Node: sellNode, // 只用 LeaderNode
+			})
                 c.JSON(200, gin.H{"msg": "操作成功"})
             }else {
                 reason := pbftResult.FailedReason
