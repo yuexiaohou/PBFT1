@@ -292,7 +292,6 @@ func main() {
             // ====== 高亮结束 ======
 
             // =========== 【高亮】成交价格与卖出节点模拟 =============
-            var tradePrice float64
             var sellNode string
             	if req.Type == "buy" && status == "成功" {
             		if pbftResult.Price != 0 {
