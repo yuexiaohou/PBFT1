@@ -219,5 +219,6 @@ func RunPBFT(txId string, amount int) PBFTResult {
 		Timestamp:    time.Now(),
 		Validators:   validators,
 		FailedReason: reason,
+		LeaderNode: leader, // <== 高亮：确保赋值！main1.go会用此字段作为成交/卖出节点
 	}
 }
