@@ -290,7 +290,6 @@ func main() {
             tradeNode  := pbftResult.LeaderNode // pbft模拟器需返回 LeaderNode 字段
             // ======================= 【高亮】END =======================
             // ====== 高亮结束 ======
-
             // =========== 【高亮】成交价格与卖出节点模拟 =============
             var sellNode string
             	if req.Type == "buy" && status == "成功" {
