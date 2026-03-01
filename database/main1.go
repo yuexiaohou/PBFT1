@@ -10,6 +10,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"fmt"          // 格式化输出
 	pbft "PBFT1/pbft1"
+	"math/rand"
 )
 
 type User struct {
