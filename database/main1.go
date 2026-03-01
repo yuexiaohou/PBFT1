@@ -11,6 +11,8 @@ import (
 	"github.com/gin-contrib/cors"
 	"fmt"          // 格式化输出
 	pbft "PBFT1/pbft1"
+	// ===== 高亮-2026-03-01：新增主仿真入口导入 =====
+    pbftmain "PBFT1/pbft1/main" // 假定 main.go 在 pbft1/main.go，如是 pbft1/main.go 改正对应 import 路径
 	"math/rand"
 )
 
@@ -138,82 +140,28 @@ func main() {
     // ========= 高亮：命令行参数替代固定参数（支持配置） ========
 	numNodes := flag.Int("nodes", 100, "number of PBFT nodes")
 	totalRounds := flag.Int("rounds", 20, "number of consensus rounds")
-	simMalRatio := flag.Float64("maliciousRatio", 0.05, "malicious node ratio")
+	simMalRatio := flag.Float64("maliciousRatio", 0.2, "malicious node ratio")
 	flag.Parse()
 	// ========= 高亮END ==========
 
+func main() {
+	// ========= 高亮-2026-03-01: 命令行参数配置 ==========
+	numNodes := flag.Int("nodes", 100, "number of PBFT nodes")
+	totalRounds := flag.Int("rounds", 20, "number of consensus rounds")
+	simMalRatio := flag.Float64("maliciousRatio", 0.2, "malicious node ratio")
+	flag.Parse()
+	// ========= 高亮END ==========
+
+	// ========= 高亮-2026-03-01: 启动仿真算法（统一入口） ==========
 	go func() {
-		db := dbConnect()
-		useBlst := false
-		nodes := make([]*pbft.Node, *numNodes)
-		for i := 0; i < *numNodes; i++ {
-			throughput := 50.0 + rand.Float64()*150.0
-			nodes[i] = pbft.NewNode(i, throughput, false, useBlst)
-		}
-		sim := pbft.NewPBFTSimulator(nodes, useBlst)
-		sim.ComputeTiers()
+		// 启动主仿真流程，核心部分已全部交由main.go控制（不在此重复核心逻辑）
+		// main.go中的RunPBFTSimulator会输出trade.log，建议trade流入数据库时务必有逻辑同步
+		pbftmain.RunPBFTSimulator(*numNodes, -1, *simMalRatio, *totalRounds) // ===== 高亮-2026-03-01：调用入口 =====
 
-		for r := 0; r < *totalRounds; r++ {
-			ob := pbft.NewOrderBook()
-			users := []string{"Alice", "Bob", "Carol", "David"}
-			for i := 0; i < 10; i++ {
-				ob.SubmitOrder(pbft.Buy, 500+rand.Float64()*30, 10+rand.Float64()*3, users[i%len(users)])
-				ob.SubmitOrder(pbft.Sell, 495+rand.Float64()*20, 5+rand.Float64()*6, users[(i+1)%len(users)])
-			}
-			trades := ob.MatchAndClear()
-
-			// ===== 高亮：统计本轮最低成交价及挂单率，推断节点名，不用不存在结构体字段 =====
-			minPrice := 0.0
-			buyer := ""
-			seller := ""
-			if len(trades) > 0 {
-				minPrice = trades[0].Price
-				buyer = fmt.Sprintf("node-%d", trades[0].BuyOrderID)
-				seller = fmt.Sprintf("node-%d", trades[0].SellOrderID)
-				for _, t := range trades {
-					if t.Price < minPrice {
-						minPrice = t.Price
-						buyer = fmt.Sprintf("node-%d", t.BuyOrderID)
-						seller = fmt.Sprintf("node-%d", t.SellOrderID)
-					}
-				}
-			}
-			successRate := float64(len(trades)) / float64(20)
-
-			for _, t := range trades {
-				history := TradeHistory{
-					Type:      "match",
-					Amount:    int(t.Quantity),
-					Time:      t.Timestamp,
-					Status:    "撮合成功",
-					Price:     t.Price,
-					Node:      fmt.Sprintf("node-%d", t.SellOrderID),
-					Round:     r,
-					BuyerNode: fmt.Sprintf("node-%d", t.BuyOrderID),
-					SellerNode: fmt.Sprintf("node-%d", t.SellOrderID),
-				}
-				db.Create(&history)
-			}
-
-			// 全局撮合轮次统计
-			tradeMu.Lock()
-			roundOverview = append(roundOverview, struct {
-				Round      int
-				MinPrice   float64
-				Buyer      string
-				Seller     string
-				SuccessRate float64
-			}{
-				Round: r,
-				MinPrice: minPrice,
-				Buyer: buyer,
-				Seller: seller,
-				SuccessRate: successRate,
-			})
-			tradeMu.Unlock()
-			time.Sleep(100 * time.Millisecond)
-		}
+		// ===== 高亮-2026-03-01: 可在此补充 trade.log->DB 的搬运（如主包未自动写库）
+		// parseTradeLog("trade.log", db) // 可选补充
 	}()
+	// ========= 高亮END ==========
 
 	db := dbConnect()
 	r := gin.Default()
