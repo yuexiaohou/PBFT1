@@ -12,7 +12,7 @@ import (
 	"fmt"          // 格式化输出
 	pbft "PBFT1/pbft1"
 	// ===== 高亮-2026-03-01：新增主仿真入口导入 =====
-    pbftmain "PBFT1/pbft1/main" // 假定 main.go 在 pbft1/main.go，如是 pbft1/main.go 改正对应 import 路径
+    pbftmain "PBFT1/pbft1/pbft1main" // 假定 main.go 在 pbft1/main.go，如是 pbft1/main.go 改正对应 import 路径
 	"math/rand"
 )
 
