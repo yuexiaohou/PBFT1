@@ -41,7 +41,6 @@ func NewBlstBLS(id int) BLS {
 // 参数：id 节点 id，throughput 吞吐量，isMalicious 是否恶意，useBlst 是否使用 blst 实现
 func NewNode(id int, throughput float64, isMalicious bool, useBlst bool) *Node {
     blsImpl := NewBlstBLS(id)
-    var blsImpl BLS
 	if useBlst {
 		blsImpl = NewBlstBLS(id)
 	} else {
