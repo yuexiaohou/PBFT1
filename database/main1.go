@@ -142,15 +142,15 @@ func recordMatchStatsToDB(db *gorm.DB, stats []struct {
 		if trades, ok := matches[s.Round]; ok {
 			for _, t := range trades {
 				history := TradeHistory{
-					Type:      "match",
-					Amount:    int(t.Quantity),
-					Time:      t.Timestamp,
-					Status:    "撮合成功",
-					Price:     t.Price,
-					Node:      t.Node,                // 可以由主节点或撮合节点决定
-					Round:     s.Round,
-					BuyerNode: t.BuyerNode,
-					SellerNode: t.SellerNode,
+                Type:      "match",
+                Amount:    int(t.Quantity),
+                Time:      t.Timestamp,
+                Status:    "撮合成功",
+                Price:     t.Price,
+                Node:      fmt.Sprintf("node-%d", t.SellOrderID),
+                Round:     r,
+                BuyerNode: fmt.Sprintf("node-%d", t.BuyOrderID),
+                SellerNode: fmt.Sprintf("node-%d", t.SellOrderID),
 				}
 				db.Create(&history)
 			}
