@@ -27,17 +27,17 @@ type Balance struct {
 }
 
 type TradeHistory struct {
-	ID     uint      `gorm:"primaryKey"`
-	UserID uint
-	Type   string    `gorm:"size:20"`
-	Amount int
-	Time   time.Time
-	Status string    `gorm:"size:20"`
-	Price  float64   `gorm:"column:price"`   // <== 新增：成交价格
-    Node   string    `gorm:"column:node"`    // <== 新增：成交节点
-    Round      int       `gorm:"index"`        // ========== 高亮：添加共识轮次 ==========
-    BuyerNode  string    // ========== 高亮：购入模拟节点 ==========
-    SellerNode string    // ========== 高亮：售出模拟节点 ==========
+	ID        uint      `gorm:"primaryKey"`
+	UserID    uint
+	Type      string    `gorm:"size:20"`
+	Amount    int
+	Time      time.Time
+	Status    string    `gorm:"size:20"`
+	Price     float64   `gorm:"column:price"`
+	Node      string    `gorm:"column:node"`
+	Round     int       `gorm:"index"` // <== 本次高亮（模拟轮次）
+	BuyerNode string    // <== 本次高亮（买方模拟节点）
+	SellerNode string   // <== 本次高亮（卖方模拟节点
 }
 
 // ============== PBFT相关结构体与状态缓存 ======== 高亮新增 START ==========
