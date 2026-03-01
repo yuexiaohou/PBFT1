@@ -16,6 +16,7 @@ export default function Navigation() {
                     <Link to="/history">历史记录</Link> |
                     <Link to="/pbft">PBFT结果</Link> |
                     <Link to="/blocksearch">区块/溯源</Link> |
+                    <Link to="/matchcharts">撮合统计</Link> |
                     <button onClick={logout}>退出登录</button>
                 </>
             ) : (
