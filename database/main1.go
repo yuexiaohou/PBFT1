@@ -147,10 +147,10 @@ func recordMatchStatsToDB(db *gorm.DB, stats []struct {
                 Time:      t.Timestamp,
                 Status:    "撮合成功",
                 Price:     t.Price,
-                Node:      fmt.Sprintf("node-%d", t.SellOrderID),
+                Node:      sellerNode,
                 Round:     r,
-                BuyerNode: fmt.Sprintf("node-%d", t.BuyOrderID),
-                SellerNode: fmt.Sprintf("node-%d", t.SellOrderID),
+                BuyerNode: buyerNode,
+                SellerNode: sellerNode,
 				}
 				db.Create(&history)
 			}
