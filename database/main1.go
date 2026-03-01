@@ -66,6 +66,18 @@ type PBFTBlock struct {
 	ConfirmedTxs int       `json:"confirmedTxs"`
 }
 
+// ========= 性能与展示缓存 =========
+var (
+	tradeMu         sync.RWMutex // ========== 高亮: 保护全局统计（并发） ==========
+	roundOverview   []struct {
+		Round      int
+		MinPrice   float64
+		Buyer      string
+		Seller     string
+		SuccessRate float64
+	}
+)
+
 var (
 	latestPBFTResult PBFTConsensusResult
 	latestBlock PBFTBlock
@@ -122,6 +134,89 @@ func updatePBFTBlock(height int, confirmedTxs int) {
 }
 // ========== PBFT状态更新函数 ========= 高亮新增 END =========
 
+// ========== 高亮：撮合统计写库的新函数 ==========
+func recordMatchStatsToDB(db *gorm.DB, stats []struct {
+	Round int; MinPrice float64; Buyer, Seller string; SuccessRate float64
+}, matches map[int][]pbft.Trade) {
+	for _, s := range stats {
+		if trades, ok := matches[s.Round]; ok {
+			for _, t := range trades {
+				history := TradeHistory{
+					Type:      "match",
+					Amount:    int(t.Quantity),
+					Time:      t.Timestamp,
+					Status:    "撮合成功",
+					Price:     t.Price,
+					Node:      t.Node,                // 可以由主节点或撮合节点决定
+					Round:     s.Round,
+					BuyerNode: t.BuyerNode,
+					SellerNode: t.SellerNode,
+				}
+				db.Create(&history)
+			}
+		}
+	}
+}
+// ========== 高亮 END ==========
+
+// ========== 高亮: 后台撮合仿真与统计 ==========
+func runPBFTSimToDB(db *gorm.DB, numNodes, rounds int, malRatio float64) {
+	useBlst := false
+	nodes := make([]*pbft.Node, numNodes)
+	for i := 0; i < numNodes; i++ {
+		throughput := 50.0 + rand.Float64()*150.0
+		nodes[i] = pbft.NewNode(i, throughput, false, useBlst)
+	}
+	sim := pbft.NewPBFTSimulator(nodes, useBlst)
+	sim.ComputeTiers()
+	matches := make(map[int][]pbft.Trade)
+	overviewStats := make([]struct {
+		Round int
+		MinPrice float64
+		Buyer    string
+		Seller   string
+		SuccessRate float64
+	}, 0, rounds)
+
+	for r := 0; r < rounds; r++ {
+		if r%5 == 0 && r > 0 {
+			for _, nd := range sim.Nodes() {
+				nd.Throughput = nd.Throughput * (0.9 + rand.Float64()*0.2)
+			}
+			sim.ComputeTiers()
+		}
+		ob := pbft.NewOrderBook()
+		users := []string{"Alice", "Bob", "Carol", "David"}
+		for i := 0; i < 10; i++ {
+			ob.SubmitOrder(pbft.Buy, 500+rand.Float64()*30, 10+rand.Float64()*3, users[i%len(users)])
+			ob.SubmitOrder(pbft.Sell, 495+rand.Float64()*20, 5+rand.Float64()*6, users[(i+1)%len(users)])
+		}
+		trades := ob.MatchAndClear()
+
+		minPrice := 0.0
+		buyer := ""; seller := ""
+		if len(trades) > 0 {
+			minPrice = trades[0].Price
+			buyer = trades[0].BuyerNode
+			seller = trades[0].SellerNode
+			for _, t := range trades {
+				if t.Price < minPrice { minPrice = t.Price; buyer = t.BuyerNode; seller = t.SellerNode }
+			}
+		}
+		successRate := float64(len(trades)) / float64(20)
+		overviewStats = append(overviewStats, struct {
+			Round int; MinPrice float64; Buyer, Seller string; SuccessRate float64
+		}{r, minPrice, buyer, seller, successRate})
+		matches[r] = trades
+	}
+	tradeMu.Lock()
+	roundOverview = overviewStats
+	tradeMu.Unlock()
+	// ========== 高亮：撮合写入数据库 ==========
+	recordMatchStatsToDB(db, overviewStats, matches)
+	// ========== 高亮 END ==========
+}
+
 func main() {
     // ========= 高亮：命令行参数替代固定参数（支持配置） ========
 	numNodes := flag.Int("nodes", 100, "number of PBFT nodes")
@@ -130,20 +225,10 @@ func main() {
 	flag.Parse()
 	// ========= 高亮END ==========
 
-    // ====== 高亮:采用算法包统一调用仿真函数（主改动，替换原内部仿真逻辑）======
 	go func() {
+		// ======= 高亮：自动调用算法层后台仿真流程 =======
 		db := dbConnect()
-		// 下面直接调用 PBFT 仿真算法，并获取每一轮的撮合结果，模块化！
-		matchResults, overviewResults := pbft.RunPBFTConsensusAndMatching(*numNodes, *totalRounds, *simMalRatio)
-
-		// 全局变量保存供前端调用
-		roundMatchResults = matchResults
-		roundOverview = overviewResults
-
-		// 持久化撮合结果到数据库
-		for _, h := range matchResults {
-			db.Create(&h)
-		}
+		runPBFTSimToDB(db, *numNodes, *totalRounds, *malRatio)
 	}()
     // ====== 高亮END ======
 	db := dbConnect()
