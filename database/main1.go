@@ -133,88 +133,6 @@ func updatePBFTBlock(height int, confirmedTxs int) {
 }
 // ========== PBFT状态更新函数 ========= 高亮新增 END =========
 
-// ========== 高亮：撮合统计写库的新函数 ==========
-func recordMatchStatsToDB(db *gorm.DB, stats []struct {
-	Round int; MinPrice float64; Buyer, Seller string; SuccessRate float64
-}, matches map[int][]pbft.Trade) {
-	for _, s := range stats {
-		if trades, ok := matches[s.Round]; ok {
-			for _, t := range trades {
-				history := TradeHistory{
-                Type:      "match",
-                Amount:    int(t.Quantity),
-                Time:      t.Timestamp,
-                Status:    "撮合成功",
-                Price:     t.Price,
-                Node:      sellerNode,
-                Round:     r,
-                BuyerNode: buyerNode,
-                SellerNode: sellerNode,
-				}
-				db.Create(&history)
-			}
-		}
-	}
-}
-// ========== 高亮 END ==========
-
-// ========== 高亮: 后台撮合仿真与统计 ==========
-func runPBFTSimToDB(db *gorm.DB, numNodes, rounds int, malRatio float64) {
-	useBlst := false
-	nodes := make([]*pbft.Node, numNodes)
-	for i := 0; i < numNodes; i++ {
-		throughput := 50.0 + rand.Float64()*150.0
-		nodes[i] = pbft.NewNode(i, throughput, false, useBlst)
-	}
-	sim := pbft.NewPBFTSimulator(nodes, useBlst)
-	sim.ComputeTiers()
-	matches := make(map[int][]pbft.Trade)
-	overviewStats := make([]struct {
-		Round int
-		MinPrice float64
-		Buyer    string
-		Seller   string
-		SuccessRate float64
-	}, 0, rounds)
-
-	for r := 0; r < rounds; r++ {
-		if r%5 == 0 && r > 0 {
-			for _, nd := range sim.Nodes() {
-				nd.Throughput = nd.Throughput * (0.9 + rand.Float64()*0.2)
-			}
-			sim.ComputeTiers()
-		}
-		ob := pbft.NewOrderBook()
-		users := []string{"Alice", "Bob", "Carol", "David"}
-		for i := 0; i < 10; i++ {
-			ob.SubmitOrder(pbft.Buy, 500+rand.Float64()*30, 10+rand.Float64()*3, users[i%len(users)])
-			ob.SubmitOrder(pbft.Sell, 495+rand.Float64()*20, 5+rand.Float64()*6, users[(i+1)%len(users)])
-		}
-		trades := ob.MatchAndClear()
-
-		minPrice := 0.0
-		buyer := ""; seller := ""
-		if len(trades) > 0 {
-			minPrice = trades[0].Price
-			buyer = trades[0].BuyerNode
-			seller = trades[0].SellerNode
-			for _, t := range trades {
-				if t.Price < minPrice { minPrice = t.Price; buyer = t.BuyerNode; seller = t.SellerNode }
-			}
-		}
-		successRate := float64(len(trades)) / float64(20)
-		overviewStats = append(overviewStats, struct {
-			Round int; MinPrice float64; Buyer, Seller string; SuccessRate float64
-		}{r, minPrice, buyer, seller, successRate})
-		matches[r] = trades
-	}
-	tradeMu.Lock()
-	roundOverview = overviewStats
-	tradeMu.Unlock()
-	// ========== 高亮：撮合写入数据库 ==========
-	recordMatchStatsToDB(db, overviewStats, matches)
-	// ========== 高亮 END ==========
-}
 
 func main() {
     // ========= 高亮：命令行参数替代固定参数（支持配置） ========
@@ -225,11 +143,78 @@ func main() {
 	// ========= 高亮END ==========
 
 	go func() {
-		// ======= 高亮：自动调用算法层后台仿真流程 =======
 		db := dbConnect()
-		runPBFTSimToDB(db, *numNodes, *totalRounds, *malRatio)
+		useBlst := false
+		nodes := make([]*pbft.Node, *numNodes)
+		for i := 0; i < *numNodes; i++ {
+			throughput := 50.0 + rand.Float64()*150.0
+			nodes[i] = pbft.NewNode(i, throughput, false, useBlst)
+		}
+		sim := pbft.NewPBFTSimulator(nodes, useBlst)
+		sim.ComputeTiers()
+
+		for r := 0; r < *totalRounds; r++ {
+			ob := pbft.NewOrderBook()
+			users := []string{"Alice", "Bob", "Carol", "David"}
+			for i := 0; i < 10; i++ {
+				ob.SubmitOrder(pbft.Buy, 500+rand.Float64()*30, 10+rand.Float64()*3, users[i%len(users)])
+				ob.SubmitOrder(pbft.Sell, 495+rand.Float64()*20, 5+rand.Float64()*6, users[(i+1)%len(users)])
+			}
+			trades := ob.MatchAndClear()
+
+			// ===== 高亮：统计本轮最低成交价及挂单率，推断节点名，不用不存在结构体字段 =====
+			minPrice := 0.0
+			buyer := ""
+			seller := ""
+			if len(trades) > 0 {
+				minPrice = trades[0].Price
+				buyer = fmt.Sprintf("node-%d", trades[0].BuyOrderID)
+				seller = fmt.Sprintf("node-%d", trades[0].SellOrderID)
+				for _, t := range trades {
+					if t.Price < minPrice {
+						minPrice = t.Price
+						buyer = fmt.Sprintf("node-%d", t.BuyOrderID)
+						seller = fmt.Sprintf("node-%d", t.SellOrderID)
+					}
+				}
+			}
+			successRate := float64(len(trades)) / float64(20)
+
+			for _, t := range trades {
+				history := TradeHistory{
+					Type:      "match",
+					Amount:    int(t.Quantity),
+					Time:      t.Timestamp,
+					Status:    "撮合成功",
+					Price:     t.Price,
+					Node:      fmt.Sprintf("node-%d", t.SellOrderID),
+					Round:     r,
+					BuyerNode: fmt.Sprintf("node-%d", t.BuyOrderID),
+					SellerNode: fmt.Sprintf("node-%d", t.SellOrderID),
+				}
+				db.Create(&history)
+			}
+
+			// 全局撮合轮次统计
+			tradeMu.Lock()
+			roundOverview = append(roundOverview, struct {
+				Round      int
+				MinPrice   float64
+				Buyer      string
+				Seller     string
+				SuccessRate float64
+			}{
+				Round: r,
+				MinPrice: minPrice,
+				Buyer: buyer,
+				Seller: seller,
+				SuccessRate: successRate,
+			})
+			tradeMu.Unlock()
+			time.Sleep(100 * time.Millisecond)
+		}
 	}()
-    // ====== 高亮END ======
+
 	db := dbConnect()
 	r := gin.Default()
 
@@ -471,8 +456,11 @@ func main() {
 			out = append(out, gin.H{
 				"type":   r.Type,
 				"amount": r.Amount,
-		        "price":  r.Price,     // <== 新增
-        		"node":   r.Node,      // <== 新增
+				"price":  r.Price,
+				"node":   r.Node,
+				"round":  r.Round,       // =====高亮：轮次
+				"buyerNode": r.BuyerNode, // =====高亮：买节点
+				"sellerNode": r.SellerNode,// =====高亮：卖节点
 				"time":   r.Time.Format("2006-01-02 15:04:05"),
 				"status": r.Status,
 			})
