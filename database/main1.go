@@ -134,15 +134,6 @@ func updatePBFTBlock(height int, confirmedTxs int) {
 }
 // ========== PBFT状态更新函数 ========= 高亮新增 END =========
 
-
-func main() {
-    // ========= 高亮：命令行参数替代固定参数（支持配置） ========
-	numNodes := flag.Int("nodes", 100, "number of PBFT nodes")
-	totalRounds := flag.Int("rounds", 20, "number of consensus rounds")
-	simMalRatio := flag.Float64("maliciousRatio", 0.2, "malicious node ratio")
-	flag.Parse()
-	// ========= 高亮END ==========
-
 func main() {
 	// ========= 高亮-2026-03-01: 命令行参数配置 ==========
 	numNodes := flag.Int("nodes", 100, "number of PBFT nodes")
