@@ -201,32 +201,30 @@ func (s *PBFTSimulator) RunRound(round int, request []byte) bool {
 }
 
 // RunPBFT 为前端服务导出，模拟一次共识并返回结果
+// ========== 高亮修正: RunPBFT内部必须新建节点池��不能直接使用 main1.go 的 nodes全局） ==========
 func RunPBFT(txId string, amount int) PBFTResult {
-	height := 10000 + rand.Intn(50)
-	validators := []Validator{
-		{ID: "node1", Vote: "commit"},
-		{ID: "node2", Vote: "commit"},
-		{ID: "node3", Vote: "commit"},
-		{ID: "node4", Vote: "commit"},
+	// ========== 高亮：每次前端API请求需新建节点池 ==========
+	nodes := make([]*Node, 100) // 固定模拟100个节点，与main1.go一致
+	for i := 0; i < 100; i++ {
+		nodes[i] = NewNode(i, 100+rand.Float64()*100, false, true)
 	}
-    sim := NewPBFTSimulator(nodes, true)
-	// ========== 高亮：确保 leader 已经定义 ==========
-	leader := sim.SelectLeader(1)
+	sim := NewPBFTSimulator(nodes, true)
 	// ========== 高亮结束 ==========
+	leader := sim.SelectLeader(1)
+	success := sim.RunRound(1, []byte(txId))
 	status := "已确认"
-	reason := ""
-	if amount <= 0 {
+	if !success {
 		status = "失败"
-		reason = "金额异常"
 	}
 	return PBFTResult{
 		TxId:         txId,
 		Status:       status,
 		Consensus:    "pbft",
-		BlockHeight:  height,
+		BlockHeight:  10001 + rand.Intn(20),
 		Timestamp:    time.Now(),
-		Validators:   validators,
-		FailedReason: reason,
-		LeaderNode: leader, // <== 高亮：确保赋值！main1.go会用此字段作为成交/卖出节点
+		Validators:   nil,
+		FailedReason: "",
+		Price:        500 + rand.Float64()*50,
+		LeaderNode:   leader.String(), // ====== 高亮：LeaderNode字段为string类型，leader需转成字符串 ======
 	}
 }
