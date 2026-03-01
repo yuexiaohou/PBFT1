@@ -41,13 +41,11 @@ func NewBlstBLS(id int) BLS {
 // 参数：id 节点 id，throughput 吞吐量，isMalicious 是否恶意，useBlst 是否使用 blst 实现
 func NewNode(id int, throughput float64, isMalicious bool, useBlst bool) *Node {
     blsImpl := NewBlstBLS(id)
-	var bl BLS
+    var blsImpl BLS
 	if useBlst {
-		// 若要求使用 blst 实现，则创建对应实现
-		bl = NewBlstBLS(id)
+		blsImpl = NewBlstBLS(id)
 	} else {
-		// 否则使用简单的 BLS stub（可能用于测试或模拟）
-		bl = NewSimpleBLSStub(id)
+		blsImpl = NewSimpleBLSStub(id)
 	}
 	return &Node{
 		ID:         id,            // 设置节点 ID
@@ -60,11 +58,13 @@ func NewNode(id int, throughput float64, isMalicious bool, useBlst bool) *Node {
 	}
 }
 
+// 格式化输出
 // String 返回节点的可读字符串表示，便于调试和日志记录
 func (n *Node) String() string {
 	return fmt.Sprintf("Node-%02d(m=%d, tier=%v, tp=%.2f, mal=%v, active=%v)", n.ID, n.m, n.Tier, n.Throughput, n.IsMalicious, n.active)
 }
 
+// 节点签名
 // Sign 对给定消息进行签名，返回签名字节切片或错误。
 // 该方法会根据节点是否恶意模拟不同的行为与延迟。
 func (n *Node) Sign(message []byte) ([]byte, error) {
