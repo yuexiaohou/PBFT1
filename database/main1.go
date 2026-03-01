@@ -289,8 +289,10 @@ func main() {
             tradePrice := pbftResult.Price      // pbft模拟器需返回 Price 字段
             tradeNode  := pbftResult.LeaderNode // pbft模拟器需返回 LeaderNode 字段
             // ======================= 【高亮】END =======================
-            // ====== 高亮结束 ======
             // =========== 【高亮】成交价格与卖出节点模拟 =============
+            // ==========【高亮】获取卖出节点（LeaderNode）==========
+            sellNode := pbftResult.LeaderNode
+            // ==========【高亮】END==========
             var sellNode string
             	if req.Type == "buy" && status == "成功" {
             		if pbftResult.Price != 0 {
@@ -310,7 +312,7 @@ func main() {
                 updatePBFTResult(pbftResult.TxId, pbftResult.Status, pbftResult.Consensus, pbftResult.BlockHeight, validators, pbftResult.FailedReason)
                 updatePBFTBlock(pbftResult.BlockHeight, req.Amount)
             db.Create(&TradeHistory{
-            		UserID: user.ID, Type: req.Type, Amount: req.Amount, Time: time.Now(), Status: status,
+            		UserID: user.ID, Type: req.Type, Amount: req.Amount, Time: time.Now(), Status: status,Node: sellNode,
             		   // ===================== 【高亮】写入成交价和节点 =======================
             		   Price: tradePrice, Node: tradeNode,
             		   // ======================= 【高亮】END =======================
