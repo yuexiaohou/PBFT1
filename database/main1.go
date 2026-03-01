@@ -84,7 +84,6 @@ var (
 	pbftMu sync.RWMutex
 	// ========== 高亮：用于存放每轮撮合结果的全局变量 ==========
     roundMatchResults []TradeHistory
-    roundOverview     []struct {Round int; MinPrice float64; Buyer, Seller string; SuccessRate float64}
     // ========== 高亮END ==========
 )
 
