@@ -209,6 +209,10 @@ func RunPBFT(txId string, amount int) PBFTResult {
 		{ID: "node3", Vote: "commit"},
 		{ID: "node4", Vote: "commit"},
 	}
+    sim := NewPBFTSimulator(nodes, true)
+	// ========== 高亮：确保 leader 已经定义 ==========
+	leader := sim.SelectLeader(1)
+	// ========== 高亮结束 ==========
 	status := "已确认"
 	reason := ""
 	if amount <= 0 {
