@@ -146,7 +146,7 @@ func main() {
 	go func() {
 		// 启动主仿真流程，核心部分已全部交由main.go控制（不在此重复核心逻辑）
 		// main.go中的RunPBFTSimulator会输出trade.log，建议trade流入数据库时务必有逻辑同步
-		pbftmain.RunPBFTSimulator(*numNodes, -1, *simMalRatio, *totalRounds) // ===== 高亮-2026-03-01：调用入口 =====
+		pbft.RunPBFTSimulator(*numNodes, -1, *simMalRatio, *totalRounds) // ===== 高亮-2026-03-01：调用入口 =====
 
 		// ===== 高亮-2026-03-01: 可在此补充 trade.log->DB 的搬运（如主包未自动写库）
 		// parseTradeLog("trade.log", db) // 可选补充
