@@ -470,14 +470,6 @@ func main() {
 // === 2026-03-03 高亮新增: 启动时自动模拟撮合轮次（正式项目应由业务流程驱动） ===
 	simulateRounds(db, 30)
 
-	r.GET("/api/trade/pricechart", func(c *gin.Context) {
-		// === 2026-03-03 高亮新增: 保证输出为数组而不是null ===
-		if roundOverview == nil {
-			roundOverview = []RoundStat{}
-		}
-		c.JSON(200, gin.H{"rounds": roundOverview})
-	})
-
 	// ========== 高亮：撮合图表接口1：最低价格随轮次变化 ==========
 	api.GET("/trade/pricechart", func(c *gin.Context) {
 		c.JSON(200, gin.H{
