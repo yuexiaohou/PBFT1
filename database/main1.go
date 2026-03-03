@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"gorm.io/driver/sqlite"
 	"golang.org/x/crypto/bcrypt"
 	"github.com/gin-contrib/cors"
 	"fmt"          // 格式化输出
@@ -97,9 +96,6 @@ var (
     roundMatchResults []TradeHistory
     // ========== 高亮END ==========
 )
-
-// === 2026-03-03 高亮新增: 全局轮次统计缓存 ===
-var roundOverview []RoundStat
 
 // 转换 pbft.Result.Validators 到页面需要的形式
 func convertValidators(origin []pbft.Validator) []PBFTValidator {
