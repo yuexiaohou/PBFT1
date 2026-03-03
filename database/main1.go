@@ -207,6 +207,9 @@ func main() {
 // === 2026-03-03 高亮新增: 启动时自动模拟撮合轮次（正式项目应由业务流程驱动） ===
 	simulateRounds(db, 30)
 	fmt.Printf("roundOverview len = %d\n", len(roundOverview)) // === 2026-03-03 高亮调试 ===
+	for _, rv := range roundOverview {
+            fmt.Printf("round stat: %+v\n", rv)
+        }
 
 	// ========= 高亮-2026-03-01: 启动仿真算法（统一入口） ==========
 	go func() {
