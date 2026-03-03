@@ -215,8 +215,7 @@ func main() {
 	// ========= 高亮END ==========
 
 // === 2026-03-03 高亮新增: 启动时自动模拟撮合轮次（正式项目应由业务流程驱动） ===
-	simulateRounds(30)
-
+    simulateRounds(db, 30)
 	db := dbConnect()
 	//==调用web界面
 	r := gin.Default()
