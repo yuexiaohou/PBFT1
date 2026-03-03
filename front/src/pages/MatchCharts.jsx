@@ -1,11 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Paper, Typography, Box } from "@mui/material";
-import { LineChart, ScatterChart } from "@mui/x-charts"; // 保证已安装
-// ======== 2026-03-04 高亮：引入 PieChart，如需饼图 ========
-// import PBFTPieChart from '../components/PBFTPieChart';
-// ======== 高亮 END ========
+import { LineChart, ScatterChart } from "@mui/x-charts"; // 保证依赖已安装
 
-// ======== 2026-03-04 高亮：统计最低价格散点图 ========
 function PriceMinChart({ rounds }) {
     if (!rounds || rounds.length === 0) return <Typography color="text.secondary" sx={{ py:5 }}>暂无撮合统计数据</Typography>;
     const data = rounds.map(r => ({
@@ -20,6 +16,7 @@ function PriceMinChart({ rounds }) {
                     data,
                     label: "最低成交价",
                     markerLabel: d => `第${d.x}轮: ${d.y.toFixed(2)} (${d.label})`,
+                    color: 'blue', // ==========高亮：蓝色
                 }
             ]}
             xAxis={[{ label: "共识轮数", data: data.map(d => d.x) }]}
@@ -30,19 +27,21 @@ function PriceMinChart({ rounds }) {
     );
 }
 
-// ======== 2026-03-04 高亮：撮合成功率折线图 ========
 function SuccessRateChart({ rounds }) {
     if (!rounds || rounds.length === 0) return null;
+    // ======= 2026-03-04 高亮：挂单成功率数据转百分比并精度保留 ==========
+    const x = rounds.map(r => r.round);
+    const y = rounds.map(r => parseFloat((r.successRate * 100).toFixed(2))); // 必须是数字
     return (
         <LineChart
             series={[
                 {
-                    data: rounds.map(r => ({ x: r.round, y: (r.successRate * 100).toFixed(2), label: `${r.buyerNode}→${r.sellerNode}` }),
-                    ),
+                    data: y,
                     label: "挂单成功率(%)",
+                    color: 'blue', // ==========高亮：线条蓝色
                 }
             ]}
-            xAxis={[{ label: "共识轮数", data: rounds.map(r => r.round) }]}
+            xAxis={[{ label: "共识轮数", data: x }]}
             yAxis={[{ label: "成功率 (%)" }]}
             width={600}
             height={260}
@@ -50,20 +49,18 @@ function SuccessRateChart({ rounds }) {
     );
 }
 
-// ======== 2026-03-04 高亮：撮合统计主页面 ========
 export default function MatchCharts() {
     const [rounds, setRounds] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // ======== 2026-03-04 高亮：拉取数据，并调试打印 ========
     useEffect(() => {
         async function fetchCharts() {
             setLoading(true);
             try {
-                const res = await fetch("/api/trade/pricechart"); // 直接API路径
+                const res = await fetch("/api/trade/pricechart");
                 const data = await res.json();
                 setRounds(data.rounds || []);
-                // ======== 2026-03-04 高亮：调试输出 ========
+                // ==== 2026-03-04 高亮调试输出 ====
                 console.log("撮合统计 rounds 数据:", data.rounds);
             } catch (err) {
                 setRounds([]);
@@ -73,7 +70,6 @@ export default function MatchCharts() {
         fetchCharts();
     }, []);
 
-    // ======== 2026-03-04 高亮：页面渲染 ========
     return (
         <Box sx={{ my: 4, mx: "auto", maxWidth: 700 }}>
             <Paper sx={{ p: 3 }}>
@@ -85,6 +81,7 @@ export default function MatchCharts() {
                                 <Typography variant="subtitle1" gutterBottom>各轮次最低成交价格与节点</Typography>
                                 <PriceMinChart rounds={rounds} />
                                 <Typography variant="subtitle1" mt={3} gutterBottom>每轮撮合成功率（%）</Typography>
+                                {/* ======= 2026-03-04 高亮: 修复折线数据映射格式 ======= */}
                                 <SuccessRateChart rounds={rounds} />
                             </>
                     )
