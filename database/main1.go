@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"gorm.io/driver/sqlite"
 	"golang.org/x/crypto/bcrypt"
 	"github.com/gin-contrib/cors"
 	"fmt"          // 格式化输出
@@ -67,6 +68,15 @@ type PBFTBlock struct {
 	ConfirmedTxs int       `json:"confirmedTxs"`
 }
 
+// === 2026-03-03 高亮新增: 轮次统计结构定义 ===
+type RoundStat struct {
+	Round       int     `json:"round"`
+	MinPrice    float64 `json:"minPrice"`
+	BuyerNode   string  `json:"buyerNode"`
+	SellerNode  string  `json:"sellerNode"`
+	SuccessRate float64 `json:"successRate"`
+}
+
 // ========= 性能与展示缓存 =========
 var (
 	tradeMu         sync.RWMutex // ========== 高亮: 保护全局统计（并发） ==========
@@ -87,6 +97,9 @@ var (
     roundMatchResults []TradeHistory
     // ========== 高亮END ==========
 )
+
+// === 2026-03-03 高亮新增: 全局轮次统计缓存 ===
+var roundOverview []RoundStat
 
 // 转换 pbft.Result.Validators 到页面需要的形式
 func convertValidators(origin []pbft.Validator) []PBFTValidator {
@@ -133,6 +146,65 @@ func updatePBFTBlock(height int, confirmedTxs int) {
 	}
 }
 // ========== PBFT状态更新函数 ========= 高亮新增 END =========
+
+// === 2026-03-03 高亮新增: 撮合仿真核心逻辑示例 ===
+func simulateRounds(db *gorm.DB, totalRounds int) {
+	for r := 1; r <= totalRounds; r++ {
+		trades := make([]TradeHistory, 0)
+		successCount := 0
+		minPrice := math.MaxFloat64
+		var minBuyer, minSeller string
+
+		numTrades := rand.Intn(5) + 5 // 每轮随机产生5~9个交易
+		for i := 0; i < numTrades; i++ {
+			buyer := fmt.Sprintf("Node-%02d", rand.Intn(20))
+			seller := fmt.Sprintf("Node-%02d", rand.Intn(20))
+			price := rand.Float64()*500 + 30 // 随机价格30~530
+			amount := rand.Intn(50) + 10
+			status := "失败"
+			if rand.Float64() < 0.7 { // 70%概率成交
+				status = "成功"
+				successCount++
+				if price < minPrice {
+					minPrice = price
+					minBuyer = buyer
+					minSeller = seller
+				}
+			}
+			trade := TradeHistory{
+				UserID:     1,
+				Type:       "buy",
+				Amount:     amount,
+				Time:       time.Now(),
+				Status:     status,
+				Price:      price,
+				Node:       buyer,
+				Round:      r,             // === 2026-03-03 高亮新增 ===
+				BuyerNode:  buyer,         // === 2026-03-03 高亮新增 ===
+				SellerNode: seller,        // === 2026-03-03 高亮新增 ===
+			}
+			trades = append(trades, trade)
+			db.Create(&trade)
+		}
+
+		if minPrice == math.MaxFloat64 { minPrice = 0 }
+		successRate := 0.0
+		if numTrades > 0 {
+			successRate = float64(successCount) / float64(numTrades)
+		}
+
+		roundOverview = append(roundOverview, RoundStat{
+			Round:       r,
+			MinPrice:    minPrice,
+			BuyerNode:   minBuyer,
+			SellerNode:  minSeller,
+			SuccessRate: successRate,
+		})
+		// 可以输出一行日志
+		fmt.Printf("[模拟轮 %d] 最低价: %v 买方: %s 卖方: %s 成功挂单率: %.2f%%\n",
+			r, minPrice, minBuyer, minSeller, successRate*100)
+	}
+}
 
 func main() {
 	// ========= 高亮-2026-03-01: 命令行参数配置 ==========
@@ -405,6 +477,18 @@ func main() {
 		}
 		c.JSON(200, gin.H{"records": out})
 	})
+
+// === 2026-03-03 高亮新增: 启动时自动模拟撮合轮次（正式项目应由业务流程驱动） ===
+	simulateRounds(db, 30)
+
+	r.GET("/api/trade/pricechart", func(c *gin.Context) {
+		// === 2026-03-03 高亮新增: 保证输出为数组而不是null ===
+		if roundOverview == nil {
+			roundOverview = []RoundStat{}
+		}
+		c.JSON(200, gin.H{"rounds": roundOverview})
+	})
+
 	// ========== 高亮：撮合图表接口1：最低价格随轮次变化 ==========
 	api.GET("/trade/pricechart", func(c *gin.Context) {
 		c.JSON(200, gin.H{
