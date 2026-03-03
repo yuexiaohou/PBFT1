@@ -78,16 +78,8 @@ type RoundStat struct {
 }
 
 // ========= 性能与展示缓存 =========
-var (
-	tradeMu         sync.RWMutex // ========== 高亮: 保护全局统计（并发） ==========
-	roundOverview   []struct {
-		Round      int
-		MinPrice   float64
-		Buyer      string
-		Seller     string
-		SuccessRate float64
-	}
-)
+var tradeMu   sync.RWMutex // ========== 高亮: 保护全局统计（并发） ==========
+var roundOverview []RoundStat
 
 var (
 	latestPBFTResult PBFTConsensusResult
