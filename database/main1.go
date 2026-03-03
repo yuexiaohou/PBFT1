@@ -214,7 +214,11 @@ func main() {
 	}()
 	// ========= 高亮END ==========
 
+// === 2026-03-03 高亮新增: 启动时自动模拟撮合轮次（正式项目应由业务流程驱动） ===
+	simulateRounds(30)
+
 	db := dbConnect()
+	//==调用web界面
 	r := gin.Default()
 
 	// 允许前端跨域
@@ -466,9 +470,6 @@ func main() {
 		}
 		c.JSON(200, gin.H{"records": out})
 	})
-
-// === 2026-03-03 高亮新增: 启动时自动模拟撮合轮次（正式项目应由业务流程驱动） ===
-	simulateRounds(db, 30)
 
 	// ========== 高亮：撮合图表接口1：最低价格随轮次变化 ==========
 	api.GET("/trade/pricechart", func(c *gin.Context) {
