@@ -13,6 +13,7 @@ import (
 	pbft "PBFT1/pbft1"
 	// ===== 高亮-2026-03-01：新增主仿真入口导入 =====
 	"math/rand"
+	"math"
 )
 
 type User struct {
