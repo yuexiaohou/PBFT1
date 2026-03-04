@@ -8,7 +8,7 @@ import Navigation from "./components/Navigation";
 import PBFTResult from "./pages/PBFTResult";
 import BlockSearch from "./pages/BlockSearch";
 import MatchCharts from "./pages/MatchCharts";
-import PerformanceCharts from './pages/PerformanceCharts';
+import PerformanceCharts from "./pages/PerformanceCharts";
 
 function App() {
     const isAuthenticated = !!localStorage.getItem("token"); // 仅做简单示例
@@ -26,7 +26,7 @@ function App() {
                 <Route path="/pbft" element={isAuthenticated ? <PBFTResult /> : <Navigate to="/login" />} />
                 <Route path="/blocksearch" element={isAuthenticated ? <BlockSearch /> : <Navigate to="/login" />} />
                 <Route path="/matchcharts" element={isAuthenticated ? <MatchCharts /> : <Navigate to="/login" />} />
-                <Route path="/performance" element={<PerformanceCharts />} />
+                <Route path="/performancecharts" element={isAuthenticated ? <PerformanceCharts /> : <Navigate to="/login" />} />
             </Routes>
         </BrowserRouter>
     );
