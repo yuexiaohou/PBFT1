@@ -143,48 +143,76 @@ func updatePBFTBlock(height int, confirmedTxs int) {
 }
 // ========== PBFT状态更新函数 ========= 高亮新增 END =========
 
-// ==== 2026-03-04 高亮：各算法性能挂单率模拟/聚合 ====
-func simulateAllAlgos(totalRounds int) {
+// === 2026-03-04 高亮: 性能模拟统一入口传 db ===
+func simulateAllAlgos(db *gorm.DB, totalRounds int) {
 	allAlgoStats = map[string][]RoundStat{
-		"pbft":  simulatePBFT(totalRounds),
-		"pos":   simulatePOS(totalRounds),
-		"raft":  simulateRAFT(totalRounds),
-		"custom": simulateCUSTOM(totalRounds),
+		"pbft":  simulatePBFT(db, totalRounds),      // === 2026-03-04 高亮 ===
+		"pos":   simulatePOS(db, totalRounds),       // === 2026-03-04 高亮 ===
+		"raft":  simulateRAFT(db, totalRounds),      // === 2026-03-04 高亮 ===
+		"custom": simulateCUSTOM(db, totalRounds),   // === 2026-03-04 高亮 ===
 	}
 }
 
 // 你实际业务算法可换为真实聚合，只要最终返回[]RoundStat即可
-func simulatePBFT(rounds int) []RoundStat {
+// ==== 2026-03-04 高亮: PBFT 节点池参与业务 ====
+func simulatePBFT(db *gorm.DB, totalRounds int) []RoundStat {
 	var arr []RoundStat
-	for i := 1; i <= rounds; i++ {
-		// 假如调用PBFT.RunPBFT模拟/业务轮次输出
-		res := PBFT.RunPBFT(fmt.Sprintf("txid-%d", i), 100)
-		succ := 0
-		for _, v := range res.Validators {
-			if v.Vote == "commit" { succ++ }
+	var users []User
+	db.Find(&users) // === 2026-03-04 高亮: 节点池(用户池)查询 ===
+	for i := 1; i <= totalRounds; i++ {
+		active := 0
+		for _, u := range users {
+			var b Balance
+			db.Where("user_id = ?", u.ID).First(&b) // === 2026-03-04 高亮: 每节点余额/状态参与统计 ===
+			if b.Balance >= 100 { active++ }
 		}
-		successRate := float64(succ) / float64(len(res.Validators))
-		arr = append(arr, RoundStat{Round: i, SuccessRate: successRate})
+		rate := 0.6 + rand.Float64()*0.3
+		if len(users) > 0 {
+			rate = float64(active) / float64(len(users)) // === 2026-03-04 高亮: 按Active节点比例算挂单率 ===
+		}
+		arr = append(arr, RoundStat{Round: i, SuccessRate: rate})
 	}
 	return arr
 }
 
-func simulatePOS(rounds int) []RoundStat {
+// ==== 2026-03-04 高亮: POS 节点池参与业务 ====
+func simulatePOS(db *gorm.DB, totalRounds int) []RoundStat {
 	var arr []RoundStat
-	for i := 1; i <= rounds; i++ {
-		// 假如调用POS.RunPOS/聚合
-		successRate := rand.Float64()*0.5 + 0.4
-		arr = append(arr, RoundStat{Round: i, SuccessRate: successRate})
+	var users []User
+	db.Find(&users) // === 2026-03-04 高亮 ===
+	for i := 1; i <= totalRounds; i++ {
+		active := 0
+		for _, u := range users {
+			var b Balance
+			db.Where("user_id = ?", u.ID).First(&b) // === 高亮 ===
+			if b.Balance > 50 { active++ }
+		}
+		rate := 0.45 + rand.Float64()*0.4
+		if len(users) > 0 {
+			rate = float64(active) / float64(len(users)) // === 高亮 ===
+		}
+		arr = append(arr, RoundStat{Round: i, SuccessRate: rate})
 	}
 	return arr
 }
 
-func simulateRAFT(rounds int) []RoundStat {
+// ==== 2026-03-04 高亮: RAFT 节点池参与业务 ====
+func simulateRAFT(db *gorm.DB, totalRounds int) []RoundStat {
 	var arr []RoundStat
-	for i := 1; i <= rounds; i++ {
-		// 假如调用RAFT算法仿真
-		successRate := rand.Float64()*0.35 + 0.55
-		arr = append(arr, RoundStat{Round: i, SuccessRate: successRate})
+	var users []User
+	db.Find(&users) // === 高亮 ===
+	for i := 1; i <= totalRounds; i++ {
+		active := 0
+		for _, u := range users {
+			var b Balance
+			db.Where("user_id = ?", u.ID).First(&b) // === 高亮 ===
+			if b.Balance > 20 { active++ }
+		}
+		rate := 0.5 + rand.Float64()*0.3
+		if len(users) > 0 {
+			rate = float64(active) / float64(len(users)) // === 高亮 ===
+		}
+		arr = append(arr, RoundStat{Round: i, SuccessRate: rate})
 	}
 	return arr
 }
