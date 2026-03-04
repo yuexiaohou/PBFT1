@@ -17,6 +17,7 @@ export default function Navigation() {
                     <Link to="/pbft">PBFT结果</Link> |
                     <Link to="/blocksearch">区块/溯源</Link> |
                     <Link to="/matchcharts">撮合统计</Link> |
+                    <Link to="/performance">性能特性</Link> {/* === 2026-03-04 高亮新增 === */}
                     <button onClick={logout}>退出登录</button>
                 </>
             ) : (
