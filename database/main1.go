@@ -218,7 +218,10 @@ func simulateRAFT(db *gorm.DB, totalRounds int) []RoundStat {
 }
 
 // === 2026-03-03 高亮新增: 撮合仿真核心逻辑示例 ===
-func simulateCUSTOM(db *gorm.DB, totalRounds int) {
+func simulateCUSTOM(db *gorm.DB, totalRounds int) []RoundStat {
+    var arr []RoundStat
+    var users []User
+    db.Find(&users)
 	for r := 1; r <= totalRounds; r++ {
 		trades := make([]TradeHistory, 0)
 		successCount := 0
