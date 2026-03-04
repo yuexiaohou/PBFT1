@@ -77,6 +77,11 @@ type RoundStat struct {
 	SuccessRate float64 `json:"successRate"`
 }
 
+type AlgoStat struct {
+	Algo   string      `json:"algo"`
+	Rounds []RoundStat `json:"rounds"`
+}
+
 // ========= 性能与展示缓存 =========
 var tradeMu   sync.RWMutex // ========== 高亮: 保护全局统计（并发） ==========
 var roundOverview []RoundStat
@@ -89,6 +94,8 @@ var (
     roundMatchResults []TradeHistory
     // ========== 高亮END ==========
 )
+
+var allAlgoStats map[string][]RoundStat
 
 // 转换 pbft.Result.Validators 到页面需要的形式
 func convertValidators(origin []pbft.Validator) []PBFTValidator {
@@ -136,8 +143,54 @@ func updatePBFTBlock(height int, confirmedTxs int) {
 }
 // ========== PBFT状态更新函数 ========= 高亮新增 END =========
 
+// ==== 2026-03-04 高亮：各算法性能挂单率模拟/聚合 ====
+func simulateAllAlgos(totalRounds int) {
+	allAlgoStats = map[string][]RoundStat{
+		"pbft":  simulatePBFT(totalRounds),
+		"pos":   simulatePOS(totalRounds),
+		"raft":  simulateRAFT(totalRounds),
+		"custom": simulateCUSTOM(totalRounds),
+	}
+}
+
+// 你实际业务算法可换为真实聚合，只要最终返回[]RoundStat即可
+func simulatePBFT(rounds int) []RoundStat {
+	var arr []RoundStat
+	for i := 1; i <= rounds; i++ {
+		// 假如调用PBFT.RunPBFT模拟/业务轮次输出
+		res := PBFT.RunPBFT(fmt.Sprintf("txid-%d", i), 100)
+		succ := 0
+		for _, v := range res.Validators {
+			if v.Vote == "commit" { succ++ }
+		}
+		successRate := float64(succ) / float64(len(res.Validators))
+		arr = append(arr, RoundStat{Round: i, SuccessRate: successRate})
+	}
+	return arr
+}
+
+func simulatePOS(rounds int) []RoundStat {
+	var arr []RoundStat
+	for i := 1; i <= rounds; i++ {
+		// 假如调用POS.RunPOS/聚合
+		successRate := rand.Float64()*0.5 + 0.4
+		arr = append(arr, RoundStat{Round: i, SuccessRate: successRate})
+	}
+	return arr
+}
+
+func simulateRAFT(rounds int) []RoundStat {
+	var arr []RoundStat
+	for i := 1; i <= rounds; i++ {
+		// 假如调用RAFT算法仿真
+		successRate := rand.Float64()*0.35 + 0.55
+		arr = append(arr, RoundStat{Round: i, SuccessRate: successRate})
+	}
+	return arr
+}
+
 // === 2026-03-03 高亮新增: 撮合仿真核心逻辑示例 ===
-func simulateRounds(db *gorm.DB, totalRounds int) {
+func simulateCUSTOM(db *gorm.DB, totalRounds int) {
 	for r := 1; r <= totalRounds; r++ {
 		trades := make([]TradeHistory, 0)
 		successCount := 0
@@ -205,7 +258,7 @@ func main() {
 
 	db := dbConnect()
 // === 2026-03-03 高亮新增: 启动时自动模拟撮合轮次（正式项目应由业务流程驱动） ===
-	simulateRounds(db, 30)
+	simulateCUSTOM(db, 30)
 	fmt.Printf("roundOverview len = %d\n", len(roundOverview)) // === 2026-03-03 高亮调试 ===
 	for _, rv := range roundOverview {
             fmt.Printf("round stat: %+v\n", rv)
