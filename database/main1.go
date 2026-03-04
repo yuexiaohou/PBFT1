@@ -258,7 +258,8 @@ func main() {
 
 	db := dbConnect()
 // === 2026-03-03 高亮新增: 启动时自动模拟撮合轮次（正式项目应由业务流程驱动） ===
-	simulateCUSTOM(db, 30)
+// ==== 2026-03-04 高亮：调用聚合填充所有算法 ====
+	simulateAllAlgos(db, 30)
 	fmt.Printf("roundOverview len = %d\n", len(roundOverview)) // === 2026-03-03 高亮调试 ===
 	for _, rv := range roundOverview {
             fmt.Printf("round stat: %+v\n", rv)
