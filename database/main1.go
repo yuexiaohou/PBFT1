@@ -277,6 +277,7 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int) []RoundStat {
 		fmt.Printf("[模拟轮 %d] 最低价: %v 买方: %s 卖方: %s 成功挂单率: %.2f%%\n",
 			r, minPrice, minBuyer, minSeller, successRate*100)
 	}
+   return arr // <== 结尾必须加return
 }
 
 func main() {
