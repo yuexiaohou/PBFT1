@@ -82,9 +82,34 @@ type AlgoStat struct {
 	Rounds []RoundStat `json:"rounds"`
 }
 
+// ======================= 2026-03-04 高亮新增：性能特性扩展结构 BEGIN =======================
+
+// 错误节点使用率（0~1）采样点
+type ErrorRatePoint struct {
+	Round     int     `json:"round"`
+	ErrorRate float64 `json:"errorRate"`
+}
+
+// 主节点转换次数采样点
+type LeaderChangePoint struct {
+	Round         int `json:"round"`
+	LeaderChanges int `json:"leaderChanges"`
+}
+
+type AlgoErrorStat struct {
+	Algo   string           `json:"algo"`
+	Points []ErrorRatePoint `json:"points"`
+}
+
+type AlgoLeaderChangeStat struct {
+	Algo   string              `json:"algo"`
+	Points []LeaderChangePoint `json:"points"`
+}
+
+// ======================= 2026-03-04 高亮新增：性能特性扩展结构 END =======================
+
 // ========= 性能与展示缓存 =========
 var tradeMu   sync.RWMutex // ========== 高亮: 保护全局统计（并发） ==========
-var roundOverview []RoundStat
 
 var (
 	latestPBFTResult PBFTConsensusResult
@@ -95,7 +120,12 @@ var (
     // ========== 高亮END ==========
 )
 
+// ======================= 后端代码，绘图的相关代码=======================
 var allAlgoStats map[string][]RoundStat
+// ======================= 2026-03-04 高亮新增：性能特性扩展缓存 BEGIN =======================
+var allAlgoErrorRateStats map[string][]ErrorRatePoint
+var allAlgoLeaderChangeStats map[string][]LeaderChangePoint
+// ======================= 2026-03-04 高亮新增：性能特性扩展缓存 END =======================
 
 // 转换 pbft.Result.Validators 到页面需要的形式
 func convertValidators(origin []pbft.Validator) []PBFTValidator {
@@ -143,6 +173,81 @@ func updatePBFTBlock(height int, confirmedTxs int) {
 }
 // ========== PBFT状态更新函数 ========= 高亮新增 END =========
 
+
+// ======================= 2026-03-04 高亮新增：错误节点使用率模拟 BEGIN =======================
+func simulateErrorRateForAlgo(algo string, maliciousRatio float64) []ErrorRatePoint {
+	rounds := []int{10, 100, 1000, 10000}
+	points := make([]ErrorRatePoint, 0, len(rounds))
+
+	// 基线（按算法区分），并与 maliciousRatio 相关
+	base := 0.10
+	switch algo {
+	case "pbft":
+		base = 0.08 + maliciousRatio*0.35
+	case "pos":
+		base = 0.05 + maliciousRatio*0.20
+	case "raft":
+		base = 0.03 + maliciousRatio*0.15
+	case "custom":
+		base = 0.10 + maliciousRatio*0.25
+	default:
+		base = 0.08 + maliciousRatio*0.20
+	}
+
+	for _, r := range rounds {
+		// 随轮数增大，假设系统逐步抑制错误节点使用率（示例）
+		decay := 1.0 - (math.Log10(float64(r)) / 10.0) // r=10 -> ~0.9, 10000 -> ~0.6 左右
+		v := base * decay
+
+		// 小噪声
+		v = v + (rand.Float64()-0.5)*0.03
+
+		// clamp [0,1]
+		if v < 0 {
+			v = 0
+		}
+		if v > 1 {
+			v = 1
+		}
+
+		points = append(points, ErrorRatePoint{Round: r, ErrorRate: v})
+	}
+	return points
+}
+// ======================= 2026-03-04 高亮新增：错误节点使用率模拟 END =======================
+
+
+// ======================= 2026-03-04 高亮新增：主节点转换次数模拟 BEGIN =======================
+func simulateLeaderChangesForAlgo(algo string, maliciousRatio float64) []LeaderChangePoint {
+	rounds := []int{10, 100, 1000, 10000}
+	points := make([]LeaderChangePoint, 0, len(rounds))
+
+	// 基线（按算法区分），并与 maliciousRatio 相关
+	base := 0.001
+	switch algo {
+	case "pbft":
+		base = 0.002 + maliciousRatio*0.020
+	case "pos":
+		base = 0.0012 + maliciousRatio*0.006
+	case "raft":
+		base = 0.0008 + maliciousRatio*0.004
+	case "custom":
+		base = 0.0016 + maliciousRatio*0.010
+	default:
+		base = 0.001
+	}
+
+	for _, r := range rounds {
+		v := int(float64(r)*base + rand.Float64()*3.0)
+		if v < 0 {
+			v = 0
+		}
+		points = append(points, LeaderChangePoint{Round: r, LeaderChanges: v})
+	}
+	return points
+}
+// ======================= 2026-03-04 高亮新增：主节点转换次数模拟 END =======================
+
 // === 2026-03-04 高亮: 性能模拟统一入口传 db ===
 func simulateAllAlgos(db *gorm.DB, totalRounds int) {
 	allAlgoStats = map[string][]RoundStat{
@@ -152,6 +257,33 @@ func simulateAllAlgos(db *gorm.DB, totalRounds int) {
 		"custom": simulateCUSTOM(db, totalRounds),   // === 2026-03-04 高亮 ===
 	}
 }
+
+// ======================= 2026-03-04 高亮修正：simulateAllAlgos 增加 maliciousRatio 参数 BEGIN =======================
+func simulateAllAlgos(db *gorm.DB, totalRounds int, maliciousRatio float64) {
+	allAlgoStats = map[string][]RoundStat{
+		"pbft":   simulatePBFT(db, totalRounds),
+		"pos":    simulatePOS(db, totalRounds),
+		"raft":   simulateRAFT(db, totalRounds),
+		"custom": simulateCUSTOM(db, totalRounds),
+	}
+
+	// ===== 高亮新增：缓存错误节点使用率（round=10/100/1000/10000）=====
+	allAlgoErrorRateStats = map[string][]ErrorRatePoint{
+		"pbft":   simulateErrorRateForAlgo("pbft", maliciousRatio),
+		"pos":    simulateErrorRateForAlgo("pos", maliciousRatio),
+		"raft":   simulateErrorRateForAlgo("raft", maliciousRatio),
+		"custom": simulateErrorRateForAlgo("custom", maliciousRatio),
+	}
+
+	// ===== 高亮新增：缓存主节点转换次数（round=10/100/1000/10000）=====
+	allAlgoLeaderChangeStats = map[string][]LeaderChangePoint{
+		"pbft":   simulateLeaderChangesForAlgo("pbft", maliciousRatio),
+		"pos":    simulateLeaderChangesForAlgo("pos", maliciousRatio),
+		"raft":   simulateLeaderChangesForAlgo("raft", maliciousRatio),
+		"custom": simulateLeaderChangesForAlgo("custom", maliciousRatio),
+	}
+}
+// ======================= 2026-03-04 高亮修正：simulateAllAlgos 增加 maliciousRatio 参数 END =======================
 
 // 你实际业务算法可换为真实聚合，只要最终返回[]RoundStat即可
 // ==== 2026-03-04 高亮: PBFT 节点池参与业务 ====
@@ -266,7 +398,7 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int) []RoundStat {
 			successRate = float64(successCount) / float64(numTrades)
 		}
 
-		roundOverview = append(roundOverview, RoundStat{
+        arr = append(arr, RoundStat{
 			Round:       r,
 			MinPrice:    minPrice,
 			BuyerNode:   minBuyer,
@@ -291,7 +423,7 @@ func main() {
 	db := dbConnect()
 // === 2026-03-03 高亮新增: 启动时自动模拟撮合轮次（正式项目应由业务流程驱动） ===
 // ==== 2026-03-04 高亮：调用聚合填充所有算法 ====
-	simulateAllAlgos(db, 30)
+	simulateAllAlgos(db, 30, *simMalRatio)
 	fmt.Printf("roundOverview len = %d\n", len(roundOverview)) // === 2026-03-03 高亮调试 ===
 	for _, rv := range roundOverview {
             fmt.Printf("round stat: %+v\n", rv)
@@ -578,6 +710,85 @@ func main() {
 		c.JSON(200, gin.H{"x": x, "y": y})
 	})
 	// ========== 高亮: PBFT前端API接口 ==========
+
+	// ======================= 2026-03-04 高亮新增：性能特性接口 BEGIN =======================
+
+    // GET /api/performance
+    // - 不带 algo 或 algo=all：返回 { algos: [{ algo, rounds:[{round,successRate,...}]}] }
+    // - 带 algo=pbft|pos|raft|custom：返回 { algo, rounds:[...] }
+    api.GET("/performance", func(c *gin.Context) {
+    	tradeMu.RLock()
+    	defer tradeMu.RUnlock()
+
+    	if allAlgoStats == nil {
+    		c.JSON(200, gin.H{"algos": []AlgoStat{}})
+    		return
+    	}
+
+    	algo := c.Query("algo")
+    	if algo != "" && algo != "all" {
+    		rounds, ok := allAlgoStats[algo]
+    		if !ok {
+    			c.JSON(404, gin.H{"msg": "unknown algo", "algo": algo})
+    			return
+    		}
+    		c.JSON(200, gin.H{"algo": algo, "rounds": rounds})
+    		return
+    	}
+
+    	out := make([]AlgoStat, 0, 4)
+    	order := []string{"pbft", "pos", "raft", "custom"}
+    	for _, k := range order {
+    		if rounds, ok := allAlgoStats[k]; ok {
+    			out = append(out, AlgoStat{Algo: k, Rounds: rounds})
+    		}
+    	}
+    	c.JSON(200, gin.H{"algos": out})
+    })
+
+    // GET /api/performance/errorrate
+    // 返回 { algos: [{algo, points:[{round,errorRate}]}] }，round=10/100/1000/10000
+    api.GET("/performance/errorrate", func(c *gin.Context) {
+    	tradeMu.RLock()
+    	defer tradeMu.RUnlock()
+
+    	if allAlgoErrorRateStats == nil {
+    		c.JSON(200, gin.H{"algos": []AlgoErrorStat{}})
+    		return
+    	}
+
+    	out := make([]AlgoErrorStat, 0, 4)
+    	order := []string{"pbft", "pos", "raft", "custom"}
+    	for _, k := range order {
+    		if pts, ok := allAlgoErrorRateStats[k]; ok {
+    			out = append(out, AlgoErrorStat{Algo: k, Points: pts})
+    		}
+    	}
+    	c.JSON(200, gin.H{"algos": out})
+    })
+
+    // GET /api/performance/leaderchanges
+    // 返回 { algos: [{algo, points:[{round,leaderChanges}]}] }，round=10/100/1000/10000
+    api.GET("/performance/leaderchanges", func(c *gin.Context) {
+    	tradeMu.RLock()
+    	defer tradeMu.RUnlock()
+
+    	if allAlgoLeaderChangeStats == nil {
+    		c.JSON(200, gin.H{"algos": []AlgoLeaderChangeStat{}})
+    		return
+    	}
+
+    	out := make([]AlgoLeaderChangeStat, 0, 4)
+    	order := []string{"pbft", "pos", "raft", "custom"}
+    	for _, k := range order {
+    		if pts, ok := allAlgoLeaderChangeStats[k]; ok {
+    			out = append(out, AlgoLeaderChangeStat{Algo: k, Points: pts})
+    		}
+    	}
+    	c.JSON(200, gin.H{"algos": out})
+    })
+
+    // ======================= 2026-03-04 高亮新增：性能特性接口 END =======================
 
 	r.Run(":5000")
 }
