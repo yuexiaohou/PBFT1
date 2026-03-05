@@ -127,6 +127,9 @@ var allAlgoErrorRateStats map[string][]ErrorRatePoint
 var allAlgoLeaderChangeStats map[string][]LeaderChangePoint
 // ======================= 2026-03-04 高亮新增：性能特性扩展缓存 END =======================
 
+// =======================声明全局变量共识轮次，与下方仿真函数中的arr部分变量不矛盾=======================
+var roundOverview []RoundStat
+
 // 转换 pbft.Result.Validators 到页面需要的形式
 func convertValidators(origin []pbft.Validator) []PBFTValidator {
 	r := make([]PBFTValidator, 0, len(origin))
@@ -414,8 +417,8 @@ func main() {
 // === 2026-03-03 高亮新增: 启动时自动模拟撮合轮次（正式项目应由业务流程驱动） ===
 // ==== 2026-03-04 高亮：调用聚合填充所有算法 ====
 	simulateAllAlgos(db, 30, *simMalRatio)
-	fmt.Printf("arr len = %d\n", len(arr) )// === 2026-03-03 高亮调试 ===
-	for _, rv := range arr {
+	fmt.Printf("roundOverview len = %d\n", len(roundOverview) )// === 2026-03-03 高亮调试 ===
+	for _, rv := range roundOverview {
             fmt.Printf("round stat: %+v\n", rv)
         }
 
