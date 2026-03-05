@@ -248,16 +248,6 @@ func simulateLeaderChangesForAlgo(algo string, maliciousRatio float64) []LeaderC
 }
 // ======================= 2026-03-04 高亮新增：主节点转换次数模拟 END =======================
 
-// === 2026-03-04 高亮: 性能模拟统一入口传 db ===
-func simulateAllAlgos(db *gorm.DB, totalRounds int) {
-	allAlgoStats = map[string][]RoundStat{
-		"pbft":  simulatePBFT(db, totalRounds),      // === 2026-03-04 高亮 ===
-		"pos":   simulatePOS(db, totalRounds),       // === 2026-03-04 高亮 ===
-		"raft":  simulateRAFT(db, totalRounds),      // === 2026-03-04 高亮 ===
-		"custom": simulateCUSTOM(db, totalRounds),   // === 2026-03-04 高亮 ===
-	}
-}
-
 // ======================= 2026-03-04 高亮修正：simulateAllAlgos 增加 maliciousRatio 参数 BEGIN =======================
 func simulateAllAlgos(db *gorm.DB, totalRounds int, maliciousRatio float64) {
 	allAlgoStats = map[string][]RoundStat{
