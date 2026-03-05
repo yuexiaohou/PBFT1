@@ -179,7 +179,7 @@ func updatePBFTBlock(height int, confirmedTxs int) {
 
 // ======================= 2026-03-04 高亮新增：错误节点使用率模拟 BEGIN =======================
 func simulateErrorRateForAlgo(algo string, maliciousRatio float64) []ErrorRatePoint {
-	rounds := []int{10, 100, 1000, 10000}
+	rounds := []int{100, 200, 300, 400，500, 600, 700, 800, 900, 1000}
 	points := make([]ErrorRatePoint, 0, len(rounds))
 
 	// 基线（按算法区分），并与 maliciousRatio 相关
@@ -222,7 +222,7 @@ func simulateErrorRateForAlgo(algo string, maliciousRatio float64) []ErrorRatePo
 
 // ======================= 2026-03-04 高亮新增：主节点转换次数模拟 BEGIN =======================
 func simulateLeaderChangesForAlgo(algo string, maliciousRatio float64) []LeaderChangePoint {
-	rounds := []int{10, 100, 1000, 10000}
+	rounds := []int{100, 200, 300, 400，500, 600, 700, 800, 900, 1000}
 	points := make([]LeaderChangePoint, 0, len(rounds))
 
 	// 基线（按算法区分），并与 maliciousRatio 相关
@@ -260,7 +260,7 @@ func simulateAllAlgos(db *gorm.DB, totalRounds int, maliciousRatio float64) {
 		"custom": simulateCUSTOM(db, totalRounds),
 	}
 
-	// ===== 高亮新增：缓存错误节点使用率（round=10/100/1000/10000）=====
+	// ===== 高亮新增：缓存错误节点使用率（round=100/1000）=====
 	allAlgoErrorRateStats = map[string][]ErrorRatePoint{
 		"pbft":   simulateErrorRateForAlgo("pbft", maliciousRatio),
 		"pos":    simulateErrorRateForAlgo("pos", maliciousRatio),
@@ -268,7 +268,7 @@ func simulateAllAlgos(db *gorm.DB, totalRounds int, maliciousRatio float64) {
 		"custom": simulateErrorRateForAlgo("custom", maliciousRatio),
 	}
 
-	// ===== 高亮新增：缓存主节点转换次数（round=10/100/1000/10000）=====
+	// ===== 高亮新增：缓存主节点转换次数（round=100/1000）=====
 	allAlgoLeaderChangeStats = map[string][]LeaderChangePoint{
 		"pbft":   simulateLeaderChangesForAlgo("pbft", maliciousRatio),
 		"pos":    simulateLeaderChangesForAlgo("pos", maliciousRatio),
@@ -740,7 +740,7 @@ func main() {
     })
 
     // GET /api/performance/errorrate
-    // 返回 { algos: [{algo, points:[{round,errorRate}]}] }，round=10/100/1000/10000
+    // 返回 { algos: [{algo, points:[{round,errorRate}]}] }，round=100/1000
     api.GET("/performance/errorrate", func(c *gin.Context) {
     	tradeMu.RLock()
     	defer tradeMu.RUnlock()
@@ -761,7 +761,7 @@ func main() {
     })
 
     // GET /api/performance/leaderchanges
-    // 返回 { algos: [{algo, points:[{round,leaderChanges}]}] }，round=10/100/1000/10000
+    // 返回 { algos: [{algo, points:[{round,leaderChanges}]}] }，round=100/1000
     api.GET("/performance/leaderchanges", func(c *gin.Context) {
     	tradeMu.RLock()
     	defer tradeMu.RUnlock()
