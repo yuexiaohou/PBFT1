@@ -14,6 +14,7 @@ import (
 	// ===== 高亮-2026-03-01：新增主仿真入口导入 =====
 	"math/rand"
 	"math"
+	pos  "PBFT1/pos"
 )
 
 type User struct {
