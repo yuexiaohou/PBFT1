@@ -410,6 +410,7 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int) []RoundStat {
 			// ======================= 【高亮-本次修改】END =======================
 		}
 
+
 		if minPrice == math.MaxFloat64 {
 			minPrice = 0
 		}
