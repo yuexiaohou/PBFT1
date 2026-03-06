@@ -67,7 +67,7 @@ func DefaultSimConfig() SimConfig {
 		StakeMin:         10,
 		StakeMax:         100,
 		OfflineProb:      0.05,
-		MaliciousProb:    0.03,
+		MaliciousProb:    0.20,
 		DoubleSignProb:   0.01,
 		CommitThreshold:  2.0 / 3.0,
 		LeaderReward:     0.8,

@@ -352,31 +352,42 @@ func simulateRAFT(db *gorm.DB, totalRounds int) []RoundStat {
 
 // === 2026-03-03 高亮新增: 撮合仿真核心逻辑示例 ===
 func simulateCUSTOM(db *gorm.DB, totalRounds int) []RoundStat {
-    var arr []RoundStat
-    var users []User
-    db.Find(&users)
+	var arr []RoundStat
+	var users []User
+	db.Find(&users)
+
 	for r := 1; r <= totalRounds; r++ {
-		trades := make([]TradeHistory, 0)
 		successCount := 0
 		minPrice := math.MaxFloat64
 		var minBuyer, minSeller string
 
 		numTrades := rand.Intn(5) + 5 // 每轮随机产生5~9个交易
+
 		for i := 0; i < numTrades; i++ {
 			buyer := fmt.Sprintf("Node-%02d", rand.Intn(20))
 			seller := fmt.Sprintf("Node-%02d", rand.Intn(20))
 			price := rand.Float64()*500 + 30 // 随机价格30~530
 			amount := rand.Intn(50) + 10
+
+			// ======================= 【高亮-本次修改】用 PBFT 共识结果决定交易是否成功 =======================
+			// 为每笔 trade 生成一个 txId，然后用 pbft1.RunPBFT 来判定是否“已确认”
+			txId := fmt.Sprintf("custom-round-%d-trade-%d-%d", r, i, time.Now().UnixNano())
+			pbftRes := pbft.RunPBFT(txId, amount)
+
 			status := "失败"
-			if rand.Float64() < 0.7 { // 70%概率成交
+			if pbftRes.Status == "已确认" {
 				status = "成功"
 				successCount++
+
+				// 注意：minPrice 仍使用撮合生成的 price（你也可以改成 pbftRes.Price）
 				if price < minPrice {
 					minPrice = price
 					minBuyer = buyer
 					minSeller = seller
 				}
 			}
+			// ======================= 【高亮-本次修改】END =======================
+
 			trade := TradeHistory{
 				UserID:     1,
 				Type:       "buy",
@@ -385,21 +396,29 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int) []RoundStat {
 				Status:     status,
 				Price:      price,
 				Node:       buyer,
-				Round:      r,             // === 2026-03-03 高亮新增 ===
-				BuyerNode:  buyer,         // === 2026-03-03 高亮新增 ===
-				SellerNode: seller,        // === 2026-03-03 高亮新增 ===
+				Round:      r,
+				BuyerNode:  buyer,
+				SellerNode: seller,
 			}
-			trades = append(trades, trade)
 			db.Create(&trade)
+
+			// （可选）把最新 PBFT 共识结果也写到缓存里，让 /api/pbft/result 可看到仿真推进
+			// ======================= 【高亮-本次修改】可选：同步 PBFTResult 到全局缓存 =======================
+			validators := convertValidators(pbftRes.Validators)
+			updatePBFTResult(pbftRes.TxId, pbftRes.Status, pbftRes.Consensus, pbftRes.BlockHeight, validators, pbftRes.FailedReason)
+			updatePBFTBlock(pbftRes.BlockHeight, amount)
+			// ======================= 【高亮-本次修改】END =======================
 		}
 
-		if minPrice == math.MaxFloat64 { minPrice = 0 }
+		if minPrice == math.MaxFloat64 {
+			minPrice = 0
+		}
 		successRate := 0.0
 		if numTrades > 0 {
 			successRate = float64(successCount) / float64(numTrades)
 		}
 
-        arr = append(arr, RoundStat{
+		arr = append(arr, RoundStat{
 			Round:       r,
 			MinPrice:    minPrice,
 			BuyerNode:   minBuyer,
@@ -407,18 +426,17 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int) []RoundStat {
 			SuccessRate: successRate,
 		})
 
-    // ======================= 2026-03-06 高亮新增：PBFT 同步到撮合总览（可选）BEGIN =======================
-    tradeMu.Lock()
-    roundOverview = make([]RoundStat, len(arr))
-    copy(roundOverview, arr)
-    tradeMu.Unlock()
-    // ======================= 2026-03-06 高亮新增：PBFT 同步到撮合总览（可选）END =======================
+		// ======================= 2026-03-06 高亮新增：PBFT 同步到撮合总览（可选）BEGIN =======================
+		tradeMu.Lock()
+		roundOverview = make([]RoundStat, len(arr))
+		copy(roundOverview, arr)
+		tradeMu.Unlock()
+		// ======================= 2026-03-06 高亮新增：PBFT 同步到撮合总览（可选）END =======================
 
-		// 可以输出一行日志
 		fmt.Printf("[模拟轮 %d] 最低价: %v 买方: %s 卖方: %s 成功挂单率: %.2f%%\n",
 			r, minPrice, minBuyer, minSeller, successRate*100)
 	}
-   return arr // <== 结尾必须加return
+	return arr
 }
 
 func main() {
