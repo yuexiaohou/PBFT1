@@ -300,23 +300,30 @@ func simulatePBFT(db *gorm.DB, totalRounds int) []RoundStat {
 	return arr
 }
 
-// ==== 2026-03-04 高亮: POS 节点池参与业务 ====
+// ==== 2026-03-06 高亮修正: POS 使用真实 stake 抽取 + 奖惩仿真 ====
 func simulatePOS(db *gorm.DB, totalRounds int) []RoundStat {
-	var arr []RoundStat
-	var users []User
-	db.Find(&users) // === 2026-03-04 高亮 ===
-	for i := 1; i <= totalRounds; i++ {
-		active := 0
-		for _, u := range users {
-			var b Balance
-			db.Where("user_id = ?", u.ID).First(&b) // === 高亮 ===
-			if b.Balance > 50 { active++ }
+	// 这里不依赖数据库 users/balance，避免你数据库数据导致 successRate 恒为 1
+	// 如果你想把 stake 映射到 Balance，也可以后续再扩展
+	cfg := pos.DefaultSimConfig()
+	summaries, _ := pos.RunSimulator(totalRounds, cfg)
+
+	arr := make([]RoundStat, 0, totalRounds)
+	successSoFar := 0
+
+	for _, s := range summaries {
+		if s.Success {
+			successSoFar++
 		}
-		rate := 0.45 + rand.Float64()*0.4
-		if len(users) > 0 {
-			rate = float64(active) / float64(len(users)) // === 高亮 ===
-		}
-		arr = append(arr, RoundStat{Round: i, SuccessRate: rate})
+		// 定义 successRate 为 “截至当前轮的累计成功率”，曲线更平滑
+		rate := float64(successSoFar) / float64(s.Round)
+
+		arr = append(arr, RoundStat{
+			Round:       s.Round,
+			SuccessRate: rate, // 0~1
+			MinPrice:    0,
+			BuyerNode:   "",
+			SellerNode:  "",
+		})
 	}
 	return arr
 }
