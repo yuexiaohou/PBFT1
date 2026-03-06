@@ -128,7 +128,7 @@ var allAlgoLeaderChangeStats map[string][]LeaderChangePoint
 // ======================= 2026-03-04 高亮新增：性能特性扩展缓存 END =======================
 
 // =======================声明全局变量共识轮次，与下方仿真函数中的arr部分变量不矛盾=======================
-var roundOverview []RoundStat
+var roundOverview = make([]RoundStat, 0)
 
 // 转换 pbft.Result.Validators 到页面需要的形式
 func convertValidators(origin []pbft.Validator) []PBFTValidator {
@@ -179,7 +179,7 @@ func updatePBFTBlock(height int, confirmedTxs int) {
 
 // ======================= 2026-03-04 高亮新增：错误节点使用率模拟 BEGIN =======================
 func simulateErrorRateForAlgo(algo string, maliciousRatio float64) []ErrorRatePoint {
-	rounds := []int{100, 200, 300, 400，500, 600, 700, 800, 900, 1000}
+	rounds := []int{100, 200, 300, 400,500, 600, 700, 800, 900, 1000}
 	points := make([]ErrorRatePoint, 0, len(rounds))
 
 	// 基线（按算法区分），并与 maliciousRatio 相关
@@ -222,7 +222,7 @@ func simulateErrorRateForAlgo(algo string, maliciousRatio float64) []ErrorRatePo
 
 // ======================= 2026-03-04 高亮新增：主节点转换次数模拟 BEGIN =======================
 func simulateLeaderChangesForAlgo(algo string, maliciousRatio float64) []LeaderChangePoint {
-	rounds := []int{100, 200, 300, 400，500, 600, 700, 800, 900, 1000}
+	rounds := []int{100, 200, 300, 400,500, 600, 700, 800, 900, 1000}
 	points := make([]LeaderChangePoint, 0, len(rounds))
 
 	// 基线（按算法区分），并与 maliciousRatio 相关
@@ -398,6 +398,14 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int) []RoundStat {
 			SellerNode:  minSeller,
 			SuccessRate: successRate,
 		})
+
+    // ======================= 2026-03-06 高亮新增：PBFT 同步到撮合总览（可选）BEGIN =======================
+    tradeMu.Lock()
+    roundOverview = make([]RoundStat, len(arr))
+    copy(roundOverview, arr)
+    tradeMu.Unlock()
+    // ======================= 2026-03-06 高亮新增：PBFT 同步到撮合总览（可选）END =======================
+
 		// 可以输出一行日志
 		fmt.Printf("[模拟轮 %d] 最低价: %v 买方: %s 卖方: %s 成功挂单率: %.2f%%\n",
 			r, minPrice, minBuyer, minSeller, successRate*100)

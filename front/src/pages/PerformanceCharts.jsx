@@ -13,7 +13,7 @@ const algoNames = [
 const colors = { pbft: "blue", pos: "orange", raft: "green", custom: "purple" };
 
 // ======= 2026-03-05 高亮新增：固定横轴轮数（两张新增图都用这个） =======
-const fixedRounds = [10, 100, 1000, 10000];
+const fixedRounds = [100, 200, 300, 400,500, 600, 700, 800, 900, 1000];
 // ======= 2026-03-05 高亮新增 END =======
 
 export default function PerformanceCharts() {
