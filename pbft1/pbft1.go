@@ -202,32 +202,75 @@ func (s *PBFTSimulator) RunRound(round int, request []byte) bool {
 
 // RunPBFT 为前端服务导出，模拟一次共识并返回结果
 // ========== 高亮修正: RunPBFT内部必须新建节点池��不能直接使用 main1.go 的 nodes全局） ==========
-func RunPBFTWithRound(round int, txId string, amount int) PBFTResult {
-	// ========== 高亮：每次前端API请求需新建节点池 ==========
-	nodes := make([]*Node, 100) // 固定模拟100个节点，与main1.go一致
-	for i := 0; i < 100; i++ {
-		nodes[i] = NewNode(i, 100+rand.Float64()*100, false, true)
+// ======================= 【高亮-2026-03-07】新增：RunPBFTWithRoundAndMaliciousRatio（真正干活） =======================
+// A) 每一轮 round 固定一批恶意节点：用 round 作为随机种子的一部分，保证同一 round 恶意节点集合稳定
+func RunPBFTWithRoundAndMaliciousRatio(round int, txId string, amount int, maliciousRatio float64) PBFTResult {
+	const numNodes = 100
+
+	// ======================= 【高亮-2026-03-07】A方案关键：按 round 固定恶意节点集合（同一轮稳定） =======================
+	// 用 round 做 seed（可以再混入常量避免 seed=0 的特殊性）
+	seed := int64(20260307 + round)
+	rng := rand.New(rand.NewSource(seed))
+	// ======================= 【高亮-2026-03-07】END =======================
+
+	// 恶意节点数量
+	mCount := int(float64(numNodes) * maliciousRatio)
+	if mCount < 0 {
+		mCount = 0
 	}
+	if mCount > numNodes {
+		mCount = numNodes
+	}
+
+	// 生成恶意节点集合（对同一个 round，会稳定）
+	malNodes := make(map[int]bool, mCount)
+	if mCount > 0 {
+		idxs := rng.Perm(numNodes)[:mCount]
+		for _, idx := range idxs {
+			malNodes[idx] = true
+		}
+	}
+
+	// ========== 构建节点池：把 isMal 写入节点 ==========
+	nodes := make([]*Node, numNodes)
+	for i := 0; i < numNodes; i++ {
+		isMal := malNodes[i]
+		nodes[i] = NewNode(i, 100+rng.Float64()*100, isMal, true)
+	}
+
 	sim := NewPBFTSimulator(nodes, true)
-	// ======================= 【高亮-2026-03-07】关键修复：round 不再写死为 1，而是按“交易次数”全局递增 =======================
+	sim.ComputeTiers()
+
 	leader := sim.SelectLeader(round)
 	success := sim.RunRound(round, []byte(txId))
+
 	status := "已确认"
+	reason := ""
 	if !success {
 		status = "失败"
+		reason = "pbft consensus failed"
 	}
+
+	// 建议：BlockHeight 直接等于 round，前端展示更一致
 	return PBFTResult{
 		TxId:         txId,
 		Status:       status,
 		Consensus:    "pbft",
-		BlockHeight:  10001 + rand.Intn(20),
+		BlockHeight:  round,
 		Timestamp:    time.Now(),
 		Validators:   nil,
-		FailedReason: "",
-		Price:        500 + rand.Float64()*50,
-		LeaderNode:   leader.String(), // ====== 高亮：LeaderNode字段为string类型，leader需转成字符串 ======
+		FailedReason: reason,
+		Price:        500 + rng.Float64()*50,
+		LeaderNode:   leader.String(),
 	}
 }
+
+// ======================= 【高亮-2026-03-07】兼容：RunPBFTWithRound（默认 maliciousRatio=0） =======================
+func RunPBFTWithRound(round int, txId string, amount int) PBFTResult {
+	return RunPBFTWithRoundAndMaliciousRatio(round, txId, amount, 0)
+}
+
+// ======================= 【高亮-2026-03-07】兼容：RunPBFT（默认 round=1 且 maliciousRatio=0） =======================
 func RunPBFT(txId string, amount int) PBFTResult {
-	return RunPBFTWithRoundAndMaliciousRatio(1, txId, amount, maliciousRatio)
+	return RunPBFTWithRoundAndMaliciousRatio(1, txId, amount, 0)
 }
