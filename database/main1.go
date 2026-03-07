@@ -11,12 +11,14 @@ import (
 	"github.com/gin-contrib/cors"
 	"fmt"          // 格式化输出
 	pbft "PBFT1/pbft1"
-	// ===== 高亮-2026-03-01：新增主仿真入口导入 =====
+	// ===== 高亮-2026-03-01：新增主仿真入口导入，rand包和math包的作用是用于计算和绘图=====
 	"math/rand"
 	"math"
 	pos  "PBFT1/POS"
+	"sync" // ========= 高亮-2026-03-06: 并发保护（RWMutex）==========
 )
 
+// ==============用户结构体========
 type User struct {
 	ID       uint   `gorm:"primaryKey"`
 	Username string `gorm:"uniqueIndex;size:255"`
@@ -29,6 +31,7 @@ type Balance struct {
 	Balance int
 }
 
+// ==============结构体：交易历史========
 type TradeHistory struct {
 	ID        uint      `gorm:"primaryKey"`
 	UserID    uint
@@ -49,6 +52,7 @@ type PBFTValidator struct {
 	Vote string `json:"vote"`
 }
 
+// ==============结构体：共识结果========
 type PBFTConsensusResult struct {
 	TxId         string          `json:"txId"`
 	Status       string          `json:"status"`
@@ -57,12 +61,12 @@ type PBFTConsensusResult struct {
 	Timestamp    time.Time       `json:"timestamp"`
 	Validators   []PBFTValidator `json:"validators"`
 	FailedReason string          `json:"failedReason,omitempty"`
-	// ======================= 【高亮】如需补充，PBFT共识结果也可加入价格与节点字段 =======================
+	// ======================= PBFT共识结果也可加入价格与节点字段 =======================
     Price      float64          `json:"price,omitempty"`   // <== 可选用于 PBFTResult 前端展示
     LeaderNode string           `json:"leaderNode,omitempty"`
-    // ======================= 【高亮】END =======================
 }
 
+// ==============结构体：区块========
 type PBFTBlock struct {
 	Height       int       `json:"height"`
 	Timestamp    time.Time `json:"timestamp"`
@@ -107,31 +111,23 @@ type AlgoLeaderChangeStat struct {
 	Points []LeaderChangePoint `json:"points"`
 }
 
-// ======================= 2026-03-04 高亮新增：性能特性扩展结构 END =======================
-
 // ========= 性能与展示缓存 =========
 var tradeMu   sync.RWMutex // ========== 高亮: 保护全局统计（并发） ==========
-
 var (
 	latestPBFTResult PBFTConsensusResult
 	latestBlock PBFTBlock
 	pbftMu sync.RWMutex
 	// ========== 高亮：用于存放每轮撮合结果的全局变量 ==========
     roundMatchResults []TradeHistory
-    // ========== 高亮END ==========
 )
-
 // ======================= 后端代码，绘图的相关代码=======================
 var allAlgoStats map[string][]RoundStat
-// ======================= 2026-03-04 高亮新增：性能特性扩展缓存 BEGIN =======================
+// ======================= 2026-03-04 新增：性能特性扩展缓存 BEGIN =======================
 var allAlgoErrorRateStats map[string][]ErrorRatePoint
 var allAlgoLeaderChangeStats map[string][]LeaderChangePoint
-// ======================= 2026-03-04 高亮新增：性能特性扩展缓存 END =======================
-
 // =======================声明全局变量共识轮次，与下方仿真函数中的arr部分变量不矛盾=======================
 var roundOverview = make([]RoundStat, 0)
-
-// 转换 pbft.Result.Validators 到页面需要的形式
+// 转换 pbft.Result.Validators 到页面需要的形式，将pbft1的共识结果传入到前端
 func convertValidators(origin []pbft.Validator) []PBFTValidator {
 	r := make([]PBFTValidator, 0, len(origin))
 	for _, v := range origin {
@@ -175,10 +171,8 @@ func updatePBFTBlock(height int, confirmedTxs int) {
 		ConfirmedTxs: confirmedTxs,
 	}
 }
-// ========== PBFT状态更新函数 ========= 高亮新增 END =========
 
-
-// ======================= 2026-03-04 高亮新增：错误节点使用率模拟 BEGIN =======================
+// ======================= 2026-03-04 新增：错误节点使用率模拟 BEGIN =======================
 func simulateErrorRateForAlgo(algo string, maliciousRatio float64) []ErrorRatePoint {
 	rounds := []int{100, 200, 300, 400,500, 600, 700, 800, 900, 1000}
 	points := make([]ErrorRatePoint, 0, len(rounds))
@@ -218,10 +212,8 @@ func simulateErrorRateForAlgo(algo string, maliciousRatio float64) []ErrorRatePo
 	}
 	return points
 }
-// ======================= 2026-03-04 高亮新增：错误节点使用率模拟 END =======================
 
-
-// ======================= 2026-03-04 高亮新增：主节点转换次数模拟 BEGIN =======================
+// ======================= 2026-03-04 新增：主节点转换次数模拟 BEGIN =======================
 func simulateLeaderChangesForAlgo(algo string, maliciousRatio float64) []LeaderChangePoint {
 	rounds := []int{100, 200, 300, 400,500, 600, 700, 800, 900, 1000}
 	points := make([]LeaderChangePoint, 0, len(rounds))
@@ -250,9 +242,8 @@ func simulateLeaderChangesForAlgo(algo string, maliciousRatio float64) []LeaderC
 	}
 	return points
 }
-// ======================= 2026-03-04 高亮新增：主节点转换次数模拟 END =======================
 
-// ======================= 2026-03-04 高亮修正：simulateAllAlgos 增加 maliciousRatio 参数 BEGIN =======================
+// ======================= 2026-03-04 修正：simulateAllAlgos 增加 maliciousRatio 参数 BEGIN =======================
 func simulateAllAlgos(db *gorm.DB, totalRounds int, maliciousRatio float64) {
 	allAlgoStats = map[string][]RoundStat{
 		"pbft":   simulatePBFT(db, totalRounds),
@@ -277,7 +268,6 @@ func simulateAllAlgos(db *gorm.DB, totalRounds int, maliciousRatio float64) {
 		"custom": simulateLeaderChangesForAlgo("custom", maliciousRatio),
 	}
 }
-// ======================= 2026-03-04 高亮修正：simulateAllAlgos 增加 maliciousRatio 参数 END =======================
 
 // 你实际业务算法可换为真实聚合，只要最终返回[]RoundStat即可
 // ==== 2026-03-04 高亮: PBFT 节点池参与业务 ====
@@ -301,7 +291,7 @@ func simulatePBFT(db *gorm.DB, totalRounds int) []RoundStat {
 	return arr
 }
 
-// ==== 2026-03-06 高亮修正: POS 使用真实 stake 抽取 + 奖惩仿真 ====
+// ==== 2026-03-06 修正: POS 使用真实 stake 抽取 + 奖惩仿真 ====
 func simulatePOS(db *gorm.DB, totalRounds int) []RoundStat {
 	// 这里不依赖数据库 users/balance，避免你数据库数据导致 successRate 恒为 1
 	// 如果你想把 stake 映射到 Balance，也可以后续再扩展
@@ -386,7 +376,6 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int) []RoundStat {
 					minSeller = seller
 				}
 			}
-			// ======================= 【高亮-本次修改】END =======================
 
 			trade := TradeHistory{
 				UserID:     1,
@@ -402,14 +391,13 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int) []RoundStat {
 			}
 			db.Create(&trade)
 
-			// （可选）把最新 PBFT 共识结果也写到缓存里，让 /api/pbft/result 可看到仿真推进
+			// 作用是将 pbft.RunPBFT(txId, amount) 得到的最新结果”写进全局缓存GET /api/pbft/result、GET /api/pbft/block
 			// ======================= 【高亮-本次修改】可选：同步 PBFTResult 到全局缓存 =======================
 			validators := convertValidators(pbftRes.Validators)
 			updatePBFTResult(pbftRes.TxId, pbftRes.Status, pbftRes.Consensus, pbftRes.BlockHeight, validators, pbftRes.FailedReason)
 			updatePBFTBlock(pbftRes.BlockHeight, amount)
 			// ======================= 【高亮-本次修改】END =======================
 		}
-
 
 		if minPrice == math.MaxFloat64 {
 			minPrice = 0
@@ -427,12 +415,11 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int) []RoundStat {
 			SuccessRate: successRate,
 		})
 
-		// ======================= 2026-03-06 高亮新增：PBFT 同步到撮合总览（可选）BEGIN =======================
+		// ======================= 2026-03-06 新增：PBFT 同步到撮合总览（可选）BEGIN =======================
 		tradeMu.Lock()
 		roundOverview = make([]RoundStat, len(arr))
 		copy(roundOverview, arr)
 		tradeMu.Unlock()
-		// ======================= 2026-03-06 高亮新增：PBFT 同步到撮合总览（可选）END =======================
 
 		fmt.Printf("[模拟轮 %d] 最低价: %v 买方: %s 卖方: %s 成功挂单率: %.2f%%\n",
 			r, minPrice, minBuyer, minSeller, successRate*100)
@@ -441,15 +428,14 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int) []RoundStat {
 }
 
 func main() {
-	// ========= 高亮-2026-03-01: 命令行参数配置 ==========
+	// =========2026-03-01: 命令行参数配置 ==========
 	numNodes := flag.Int("nodes", 100, "number of PBFT nodes")
 	totalRounds := flag.Int("rounds", 20, "number of consensus rounds")
 	simMalRatio := flag.Float64("maliciousRatio", 0.2, "malicious node ratio")
 	flag.Parse()
-	// ========= 高亮END ==========
-
+	// =========调用数据库==========
 	db := dbConnect()
-// === 2026-03-03 高亮新增: 启动时自动模拟撮合轮次（正式项目应由业务流程驱动） ===
+// === 2026-03-03 新增: 启动时自动模拟撮合轮次（正式项目应由业务流程驱动） ===
 // ==== 2026-03-04 高亮：调用聚合填充所有算法 ====
 	simulateAllAlgos(db, 30, *simMalRatio)
 	fmt.Printf("roundOverview len = %d\n", len(roundOverview) )// === 2026-03-03 高亮调试 ===
@@ -462,11 +448,9 @@ func main() {
 		// 启动主仿真流程，核心部分已全部交由main.go控制（不在此重复核心逻辑）
 		// main.go中的RunPBFTSimulator会输出trade.log，建议trade流入数据库时务必有逻辑同步
 		pbft.RunPBFTSimulator(*numNodes, -1, *simMalRatio, *totalRounds) // ===== 高亮-2026-03-01：调用入口 =====
-
-		// ===== 高亮-2026-03-01: 可在此补充 trade.log->DB 的搬运（如主包未自动写库）
+		// ===== 2026-03-01: 可在此补充 trade.log->DB 的搬运（如主包未自动写库）
 		// parseTradeLog("trade.log", db) // 可选补充
 	}()
-	// ========= 高亮END ==========
 
 	//==调用web界面
 	r := gin.Default()
@@ -486,7 +470,6 @@ func main() {
 	}
 	c.JSON(200, latestPBFTResult)
     })
-    	// ====== 高亮：新增 PBFT result 接口 END ======
 
     // ====== 高亮：新增 PBFT block 接口 BEGIN ======
      api.GET("/pbft/block", func(c *gin.Context) {
@@ -547,7 +530,6 @@ func main() {
 	})
 
 	// 登录状态校验可用中间件实现，这里简化跳过
-
 	api.GET("/account/balance", func(c *gin.Context) {
 		username := c.Query("username")
 		if username == "" {
@@ -588,9 +570,8 @@ func main() {
 		// 添加充值历史
 		db.Create(&TradeHistory{
 			UserID: user.ID, Type: "充值", Amount: req.Amount, Time: time.Now(), Status: "成功",
-			// ======================= 【高亮】充值可无价格与节点 =======================
+			// =======================充值可无价格与节点 =======================
             Price: 0, Node: "",
-            // ======================= 【高亮】END =======================
 		})
 		c.JSON(200, gin.H{"msg": "充值成功"})
 	})
@@ -628,67 +609,66 @@ func main() {
                 b.Balance += req.Amount
                 db.Save(&b)
             }
-            db.Create(&TradeHistory{
-                UserID: user.ID, Type: req.Type, Amount: req.Amount, Time: time.Now(), Status: status,
-            })
+        // 2) 每次交易生成 txId，跑PBFT共识
+		nowTxId := fmt.Sprintf("%s_%d", username, time.Now().UnixNano())
+		pbftResult := pbft.RunPBFT(nowTxId, req.Amount)
+		validators := convertValidators(pbftResult.Validators)
+		// 3) 价格与节点（leader）
+		tradePrice := pbftResult.Price
+		if tradePrice == 0 {
+			tradePrice = float64(500 + rand.Intn(20)) // fallback（当PBFT未返回价格）
+		}
+		sellNode := pbftResult.LeaderNode
 
-            // ====== 高亮新增: 声明并赋值 nowTxId 与 pbftResult ======
-            nowTxId := fmt.Sprintf("%s_%d", username, time.Now().UnixNano())
-            pbftResult := pbft.RunPBFT(nowTxId, req.Amount)
-            validators := convertValidators(pbftResult.Validators)
-            // ======================= 【高亮】交易记入价格和撮合节点 =======================
-            tradePrice := pbftResult.Price      // pbft模拟器需返回 Price 字段
-            // ======================= 【高亮】END =======================
-            // =========== 【高亮】成交价格与卖出节点模拟 =============
-            // ==========【高亮】获取卖出节点（LeaderNode）==========
-            sellNode := pbftResult.LeaderNode
-            if req.Type == "buy" && status == "成功" {
-			if pbftResult.Price != 0 {
-				tradePrice = pbftResult.Price
-			} else {
-				tradePrice = float64(500 + rand.Intn(20))
-			}
-		    }
-            // =========== 【高亮】END =============
-
-            if status == "成功" && pbftResult.Status == "已确认" {
-                updatePBFTResult(pbftResult.TxId, pbftResult.Status, pbftResult.Consensus, pbftResult.BlockHeight, validators, pbftResult.FailedReason)
-                updatePBFTBlock(pbftResult.BlockHeight, req.Amount)
+		// 4) 方案B：以 “业务成功 && PBFT已确认” 才认为最终成功，并只写一次TradeHistory、只返回一次JSON
+		if status == "成功" && pbftResult.Status == "已确认" {
+			// 写业务交易记录（只写一次，避免你原代码里重复 db.Create）
 			db.Create(&TradeHistory{
 				UserID: user.ID,
-				Type: req.Type,
+				Type:   req.Type,
 				Amount: req.Amount,
-				Time: time.Now(),
-				Status: status,
-				Price: tradePrice,
-				Node: sellNode, // 只用 LeaderNode
+				Time:   time.Now(),
+				Status: "成功",
+				Price:  tradePrice,
+				Node:   sellNode,
 			})
-                c.JSON(200, gin.H{"msg": "操作成功"})
-            }else {
-                reason := pbftResult.FailedReason
-                if status != "成功" {
-                    reason = "余额不足"
-                }
-                updatePBFTResult(nowTxId, "失败", "pbft", pbftResult.BlockHeight, validators, reason)
-                c.JSON(400, gin.H{"msg": reason})
-            }
 
-		// ====== 高亮: 实际用pbft包算法模拟一次共识/区块 ======
-        	if status == "成功" {
-        	    updatePBFTResult(pbftResult.TxId, pbftResult.Status, pbftResult.Consensus, pbftResult.BlockHeight, validators, "")
-        	    updatePBFTBlock(pbftResult.BlockHeight, 36)
-        		c.JSON(200, gin.H{"msg": "操作成功"})
-        	} else {
-        		validators := []PBFTValidator{
-        			{ID: "node1", Vote: "commit"},
-        			{ID: "node2", Vote: "commit"},
-        			{ID: "node3", Vote: "commit"},
-        			{ID: "node4", Vote: "commit"},
-        		}
-                updatePBFTResult(nowTxId, "失败", "pbft", 10001, validators, "余额不足")
-        		c.JSON(400, gin.H{"msg": "余额不足"})
-        		}
-            })
+			// 更新PBFT缓存（补充Price/LeaderNode给前端）
+			updatePBFTResult(pbftResult.TxId, pbftResult.Status, pbftResult.Consensus, pbftResult.BlockHeight, validators, pbftResult.FailedReason)
+
+			// 高亮-2026-03-06：把价格和LeaderNode同步进latestPBFTResult，便于 /api/pbft/result 展示
+			pbftMu.Lock()
+			latestPBFTResult.Price = tradePrice
+			latestPBFTResult.LeaderNode = sellNode
+			pbftMu.Unlock()
+
+			updatePBFTBlock(pbftResult.BlockHeight, req.Amount)
+
+			c.JSON(200, gin.H{"msg": "操作成功"})
+			return
+		}
+
+		// 5) 失败分支：统一失败原因与PBFT缓存写入（只返回一次）
+		reason := pbftResult.FailedReason
+		if status != "成功" {
+			reason = "余额不足"
+		}
+		updatePBFTResult(nowTxId, "失败", "pbft", pbftResult.BlockHeight, validators, reason)
+
+		// 高亮-2026-03-06：失败时也可选择记录失败流水（如你不想记录可删除此段）
+		db.Create(&TradeHistory{
+			UserID: user.ID,
+			Type:   req.Type,
+			Amount: req.Amount,
+			Time:   time.Now(),
+			Status: "失败",
+			Price:  0,
+			Node:   "",
+		})
+
+		c.JSON(400, gin.H{"msg": reason})
+		return
+	})
 
 	api.GET("/trade/history", func(c *gin.Context) {
 		username := c.Query("username")
@@ -721,13 +701,13 @@ func main() {
 		c.JSON(200, gin.H{"records": out})
 	})
 
-	// ========== 高亮：撮合图表接口1：最低价格随轮次变化 ==========
+	// ========== 撮合图表接口1：最低价格随轮次变化 ==========
 	api.GET("/trade/pricechart", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"rounds": roundOverview,
 		})
 	})
-	// ========== 高亮：撮合图表接口2：每轮撮合率随轮次变化 ==========
+	// ========== 撮合图表接口2：每轮撮合率随轮次变化 ==========
 	api.GET("/trade/successrate", func(c *gin.Context) {
 		x := []int{}
 		y := []float64{}
@@ -737,10 +717,8 @@ func main() {
 		}
 		c.JSON(200, gin.H{"x": x, "y": y})
 	})
-	// ========== 高亮: PBFT前端API接口 ==========
 
-	// ======================= 2026-03-04 高亮新增：性能特性接口 BEGIN =======================
-
+	// ======================= 2026-03-04 新增：性能特性接口 BEGIN =======================
     // GET /api/performance
     // - 不带 algo 或 algo=all：返回 { algos: [{ algo, rounds:[{round,successRate,...}]}] }
     // - 带 algo=pbft|pos|raft|custom：返回 { algo, rounds:[...] }
@@ -815,8 +793,5 @@ func main() {
     	}
     	c.JSON(200, gin.H{"algos": out})
     })
-
-    // ======================= 2026-03-04 高亮新增：性能特性接口 END =======================
-
 	r.Run(":5000")
 }
