@@ -87,7 +87,6 @@ type AlgoStat struct {
 }
 
 // ======================= 2026-03-04 新增：性能特性扩展结构 BEGIN =======================
-
 // 错误节点使用率（0~1）采样点
 type ErrorRatePoint struct {
 	Round     int     `json:"round"`
@@ -126,6 +125,17 @@ var allAlgoErrorRateStats map[string][]ErrorRatePoint
 var allAlgoLeaderChangeStats map[string][]LeaderChangePoint
 // =======================声明全局变量共识轮次，与下方仿真函数中的arr部分变量不矛盾=======================
 var roundOverview = make([]RoundStat, 0)
+// ======================= 高亮-2026-03-07: 做法A - 全局PBFT round 计数器（带锁） =======================
+var pbftRoundMu sync.Mutex
+var globalPBFTRound int
+
+// ======================= 高亮-2026-03-07: 做法A - 每次取round都封装成函数，避免遗漏加锁 =======================
+func nextPBFTRound() int {
+	pbftRoundMu.Lock()
+	defer pbftRoundMu.Unlock()
+	globalPBFTRound++
+	return globalPBFTRound
+}
 // 转换 pbft.Result.Validators 到页面需要的形式，将pbft1的共识结果传入到前端
 func convertValidators(origin []pbft.Validator) []PBFTValidator {
 	r := make([]PBFTValidator, 0, len(origin))
