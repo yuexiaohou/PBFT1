@@ -72,7 +72,7 @@ type PBFTBlock struct {
 	ConfirmedTxs int       `json:"confirmedTxs"`
 }
 
-// === 2026-03-03 高亮新增: 轮次统计结构定义 ===
+// === 2026-03-03 新增: 轮次统计结构定义 ===
 type RoundStat struct {
 	Round       int     `json:"round"`
 	MinPrice    float64 `json:"minPrice"`
@@ -86,7 +86,7 @@ type AlgoStat struct {
 	Rounds []RoundStat `json:"rounds"`
 }
 
-// ======================= 2026-03-04 高亮新增：性能特性扩展结构 BEGIN =======================
+// ======================= 2026-03-04 新增：性能特性扩展结构 BEGIN =======================
 
 // 错误节点使用率（0~1）采样点
 type ErrorRatePoint struct {
@@ -111,12 +111,12 @@ type AlgoLeaderChangeStat struct {
 }
 
 // ========= 性能与展示缓存 =========
-var tradeMu   sync.RWMutex // ========== 高亮: 保护全局统计（并发） ==========
+var tradeMu   sync.RWMutex // ==========保护全局统计（并发） ==========
 var (
 	latestPBFTResult PBFTConsensusResult
 	latestBlock PBFTBlock
 	pbftMu sync.RWMutex
-	// ========== 高亮：用于存放每轮撮合结果的全局变量 ==========
+	// ==========用于存放每轮撮合结果的全局变量 ==========
     roundMatchResults []TradeHistory
 )
 // ======================= 后端代码，绘图的相关代码=======================
@@ -394,6 +394,11 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int) []RoundStat {
 			// ======================= 【高亮-本次修改】可选：同步 PBFTResult 到全局缓存 =======================
 			validators := convertValidators(pbftRes.Validators)
 			updatePBFTResult(pbftRes.TxId, pbftRes.Status, pbftRes.Consensus, pbftRes.BlockHeight, validators, pbftRes.FailedReason)
+			// 补充 price / leader 到 latestPBFTResult，便于前端展示
+            pbftMu.Lock()
+            latestPBFTResult.Price = pbftRes.Price
+            latestPBFTResult.LeaderNode = pbftRes.LeaderNode
+            pbftMu.Unlock()
 			updatePBFTBlock(pbftRes.BlockHeight, amount)
 			// ======================= 【高亮-本次修改】END =======================
 		}
@@ -433,23 +438,16 @@ func main() {
 	simMalRatio := flag.Float64("maliciousRatio", 0.2, "malicious node ratio")
 	flag.Parse()
 	// =========调用数据库==========
+	_ = numNodes   // ========= 高亮-2026-03-07: 取消并行 RunPBFTSimulator 后暂不使用（保留参数兼容） ==========
+    _ = totalRounds // ========= 高亮-2026-03-07: 取消并行 RunPBFTSimulator 后暂不使用（保留参数兼容） ==========
 	db := dbConnect()
-// === 2026-03-03 新增: 启动时自动模拟撮合轮次（正式项目应由业务流程驱动） ===
-// ==== 2026-03-04 高亮：调用聚合填充所有算法 ====
+    // === 2026-03-03 新增: 启动时自动模拟撮合轮次（正式项目应由业务流程驱动） ===
+    // ==== 2026-03-04 高亮：调用聚合填充所有算法 simulateCUSTOM() 内部已调用 PBFT1，且不再与 RunPBFTSimulator 并行====
 	simulateAllAlgos(db, 30, *simMalRatio)
 	fmt.Printf("roundOverview len = %d\n", len(roundOverview) )// === 2026-03-03 高亮调试 ===
 	for _, rv := range roundOverview {
             fmt.Printf("round stat: %+v\n", rv)
         }
-
-	// ========= 高亮-2026-03-01: 启动仿真算法（统一入口） ==========
-	go func() {
-		// 启动主仿真流程，核心部分已全部交由main.go控制（不在此重复核心逻辑）
-		// main.go中的RunPBFTSimulator会输出trade.log，建议trade流入数据库时务必有逻辑同步
-		pbft.RunPBFTSimulator(*numNodes, -1, *simMalRatio, *totalRounds) // ===== 高亮-2026-03-01：调用入口 =====
-		// ===== 2026-03-01: 可在此补充 trade.log->DB 的搬运（如主包未自动写库）
-		// parseTradeLog("trade.log", db) // 可选补充
-	}()
 
 	//==调用web界面
 	r := gin.Default()
