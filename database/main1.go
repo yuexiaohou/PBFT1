@@ -134,6 +134,9 @@ func convertValidators(origin []pbft.Validator) []PBFTValidator {
 	}
 	return r
 }
+// ======================= 高亮-2026-03-07: 做法A - 全局PBFT round 计数器（带锁） =======================
+var pbftRoundMu sync.Mutex
+var globalPBFTRound int
 
 // 数据库连接
 func dbConnect() *gorm.DB {
@@ -397,13 +400,14 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int) []RoundStat {
 			// 作用是将 pbft.RunPBFT(txId, amount) 得到的最新结果”写进全局缓存GET /api/pbft/result、GET /api/pbft/block
 			// ======================= 【高亮-本次修改】可选：同步 PBFTResult 到全局缓存 =======================
 			validators := convertValidators(pbftRes.Validators)
-// ======================= 【高亮-2026-03-07】把 pbftRound 写入 FailedReason 便于前端/日志定位（不改结构体的情况下） =======================
-			reason := pbftRes.FailedReason
-			if reason == "" {
-				reason = fmt.Sprintf("pbftRound=%d", pbftRound)
-			} else {
-				reason = fmt.Sprintf("%s; pbftRound=%d", reason, pbftRound)
-			}
+            // ======================= 【高亮-2026-03-07】把 pbftRound 写入 FailedReason 便于前端/日志定位 =======================
+            reason := pbftRes.FailedReason
+            if reason == "" {
+            	reason = fmt.Sprintf("pbftRound=%d", pbftRound)
+            } else {
+            	reason = fmt.Sprintf("%s; pbftRound=%d", reason, pbftRound)
+            }
+            // 注意：这里要传 reason，而不是 pbftRes.FailedReason
 			updatePBFTResult(pbftRes.TxId, pbftRes.Status, pbftRes.Consensus, pbftRes.BlockHeight, validators, pbftRes.FailedReason)
 			// 补充 price / leader 到 latestPBFTResult，便于前端展示
             pbftMu.Lock()
