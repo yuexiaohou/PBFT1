@@ -227,7 +227,7 @@ func RunPBFTWithRound(round int, txId string, amount int) PBFTResult {
 		Price:        500 + rand.Float64()*50,
 		LeaderNode:   leader.String(), // ====== 高亮：LeaderNode字段为string类型，leader需转成字符串 ======
 	}
+}
 func RunPBFT(txId string, amount int) PBFTResult {
 	return RunPBFTWithRound(1, txId, amount)
-}
 }
