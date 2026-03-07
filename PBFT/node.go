@@ -92,3 +92,4 @@ func main() {
 	numNodes := flag.Int("nodes", 100, "number of PBFT nodes")
 	totalRounds := flag.Int("rounds", 20, "number of consensus rounds")
 	malRatio := flag*
+}
