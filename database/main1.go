@@ -258,7 +258,7 @@ func simulateAllAlgos(db *gorm.DB, totalRounds int, maliciousRatio float64) {
 		"pbft":   simulatePBFT(db, totalRounds),
 		"pos":    simulatePOS(db, totalRounds),
 		"raft":   simulateRAFT(db, totalRounds),
-		"custom": simulateCUSTOM(db, totalRounds),
+		"custom": simulateCUSTOM(db, totalRounds, maliciousRatio),
 	}
 
 	// ===== 高亮新增：缓存错误节点使用率（round=100/1000）=====
@@ -350,7 +350,7 @@ func simulateRAFT(db *gorm.DB, totalRounds int) []RoundStat {
 }
 
 // === 2026-03-03 新增: 撮合仿真核心逻辑示例 ===
-func simulateCUSTOM(db *gorm.DB, totalRounds int) []RoundStat {
+func simulateCUSTOM(db *gorm.DB, totalRounds int， maliciousRatio float64) []RoundStat {
 	var arr []RoundStat
 	var users []User
 	db.Find(&users)
@@ -373,7 +373,7 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int) []RoundStat {
 			// 为每笔 trade 生成一个 txId，然后用 pbft1.RunPBFT 来判定是否“已确认”
 			txId := fmt.Sprintf("custom-round-%d-trade-%d-%d", r, i, time.Now().UnixNano())
 			// ======================= 【高亮-2026-03-07】方案A：PBFT Round = 撮合轮 r（严格一致） =======================
-			pbftRes := pbft.RunPBFTWithRound(r, txId, amount, maliciousRatio)
+			pbftRes := pbft.RunPBFTWithRoundAndMaliciousRatio(r, txId, amount, maliciousRatio)
 
 			status := "失败"
 			if pbftRes.Status == "已确认" {
