@@ -10,11 +10,12 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"github.com/gin-contrib/cors"
 	"fmt"          // 格式化输出
-	pbft "PBFT1/pbft1"
+	apbft "PBFT1/pbft1"
 	// ===== 高亮-2026-03-01：新增主仿真入口导入，rand包和math包的作用是用于计算和绘图=====
 	"math/rand"
 	"math"
 	pos  "PBFT1/POS"
+	pbft "PBFT1/PBFT"
 )
 
 // ==============用户结构体========
@@ -24,6 +25,7 @@ type User struct {
 	Password string `gorm:"size:255"`
 }
 
+// ==============结构体：表示用户余额========
 type Balance struct {
 	ID      uint `gorm:"primaryKey"`
 	UserID  uint `gorm:"uniqueIndex"`
@@ -137,7 +139,10 @@ func nextPBFTRound() int {
 	return globalPBFTRound
 }
 // 转换 pbft.Result.Validators 到页面需要的形式，将pbft1的共识结果传入到前端
-func convertValidators(origin []pbft.Validator) []PBFTValidator {
+// 转换 apbft.Result.Validators 到页面需要的形式，将pbft1的共识结果传入到前端
+// ======================= 【高亮-2026-03-07】修改：pbft.Validator -> apbft.Validator =======================
+func convertValidators(origin []apbft.Validator) []PBFTValidator {
+	// ======================= 【高亮-2026-03-07】END =======================
 	r := make([]PBFTValidator, 0, len(origin))
 	for _, v := range origin {
 		r = append(r, PBFTValidator{ID: v.ID, Vote: v.Vote})
@@ -255,7 +260,7 @@ func simulateLeaderChangesForAlgo(algo string, maliciousRatio float64) []LeaderC
 // ======================= 2026-03-04 修正：simulateAllAlgos 增加 maliciousRatio 参数 BEGIN =======================
 func simulateAllAlgos(db *gorm.DB, totalRounds int, maliciousRatio float64) {
 	allAlgoStats = map[string][]RoundStat{
-		"pbft":   simulatePBFT(db, totalRounds),
+		"pbft":   simulatePBFT(db, totalRounds, maliciousRatio),
 		"pos":    simulatePOS(db, totalRounds),
 		"raft":   simulateRAFT(db, totalRounds),
 		"custom": simulateCUSTOM(db, totalRounds, maliciousRatio),
@@ -284,19 +289,26 @@ func simulatePBFT(db *gorm.DB, totalRounds int) []RoundStat {
 	var arr []RoundStat
 	var users []User
 	db.Find(&users) // === 2026-03-04 高亮: 节点池(用户池)查询 ===
-	for i := 1; i <= totalRounds; i++ {
-		active := 0
-		for _, u := range users {
-			var b Balance
-			db.Where("user_id = ?", u.ID).First(&b) // === 2026-03-04 高亮: 每节点余额/状态参与统计 ===
-			if b.Balance >= 100 { active++ }
+	for r := 1; r <= totalRounds; r++ {
+		txId := fmt.Sprintf("pbft-round-%d-%d", round, time.Now().UnixNano())
+		amount := rand.Intn(50) + 10
+
+		res := pbft.RunPBFTWithRoundAndMaliciousRatio(round, txId, amount, maliciousRatio)
+
+		rate := 0.0
+		if res.Status == "已确认" {
+			rate = 1.0
 		}
-		rate := 0.6 + rand.Float64()*0.3
-		if len(users) > 0 {
-			rate = float64(active) / float64(len(users)) // === 2026-03-04 高亮: 按Active节点比例算挂单率 ===
-		}
-		arr = append(arr, RoundStat{Round: i, SuccessRate: rate})
+
+		arr = append(arr, RoundStat{
+			Round:       round,
+			SuccessRate: rate,
+			MinPrice:    res.Price,
+			BuyerNode:   "",
+			SellerNode:  res.LeaderNode, // 这里先把 leader 当成展示节点
+		})
 	}
+
 	return arr
 }
 
@@ -370,10 +382,10 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int, maliciousRatio float64) []Roun
 			// ======================= 【高亮-2026-03-07】做法A：全局PBFT round 计数器（带锁），每次调用+1 =======================
 			pbftRound := nextPBFTRound()
 			// ======================= 【高亮-本次修改】用 PBFT 共识结果决定交易是否成功 =======================
-			// 为每笔 trade 生成一个 txId，然后用 pbft1.RunPBFT 来判定是否“已确认”
+			// 为每笔 trade 生成一个 txId，然后用 pbft1.RunAPBFTWithRoundAndMaliciousRatio来判定是否“已确认”
 			txId := fmt.Sprintf("custom-round-%d-trade-%d-%d", r, i, time.Now().UnixNano())
 			// ======================= 【高亮-2026-03-07】方案A：PBFT Round = 撮合轮 r（严格一致） =======================
-			pbftRes := pbft.RunPBFTWithRoundAndMaliciousRatio(r, txId, amount, maliciousRatio)
+			pbftRes := apbft.RunAPBFTWithRoundAndMaliciousRatio(r, txId, amount, maliciousRatio)
 
 			status := "失败"
 			if pbftRes.Status == "已确认" {
@@ -402,7 +414,7 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int, maliciousRatio float64) []Roun
 			}
 			db.Create(&trade)
 
-			// 作用是将 pbft.RunPBFT(txId, amount) 得到的最新结果”写进全局缓存GET /api/pbft/result、GET /api/pbft/block
+			// 作用是将 apbft.RunAPBFT(txId, amount) 得到的最新结果”写进全局缓存GET /api/pbft/result、GET /api/pbft/block
 			// ======================= 【高亮-本次修改】可选：同步 PBFTResult 到全局缓存 =======================
 			validators := convertValidators(pbftRes.Validators)
 			// ======================= 【高亮-2026-03-07】把 pbftRound 写入 FailedReason 便于前端/日志定位 =======================
@@ -458,11 +470,11 @@ func main() {
 	simMalRatio := flag.Float64("maliciousRatio", 0.2, "malicious node ratio")
 	flag.Parse()
 	// =========调用数据库==========
-	_ = numNodes   // ========= 高亮-2026-03-07: 取消并行 RunPBFTSimulator 后暂不使用（保留参数兼容） ==========
-    _ = totalRounds // ========= 高亮-2026-03-07: 取消并行 RunPBFTSimulator 后暂不使用（保留参数兼容） ==========
+	_ = numNodes   // ========= 高亮-2026-03-07: 取消并行 RunAPBFTSimulator 后暂不使用（保留参数兼容） ==========
+    _ = totalRounds // ========= 高亮-2026-03-07: 取消并行 RunAPBFTSimulator 后暂不使用（保留参数兼容） ==========
 	db := dbConnect()
     // === 2026-03-03 新增: 启动时自动模拟撮合轮次（正式项目应由业务流程驱动） ===
-    // ==== 2026-03-04 高亮：调用聚合填充所有算法 simulateCUSTOM() 内部已调用 PBFT1，且不再与 RunPBFTSimulator 并行====
+    // ==== 2026-03-04 高亮：调用聚合填充所有算法 simulateCUSTOM() 内部已调用 PBFT1，且不再与 RunAPBFTSimulator 并行====
 	simulateAllAlgos(db, 30, *simMalRatio)
 	fmt.Printf("roundOverview len = %d\n", len(roundOverview) )// === 2026-03-03 高亮调试 ===
 	for _, rv := range roundOverview {
@@ -628,7 +640,7 @@ func main() {
             }
         // 2) 每次交易生成 txId，跑PBFT共识
 		nowTxId := fmt.Sprintf("%s_%d", username, time.Now().UnixNano())
-		pbftResult := pbft.RunPBFT(nowTxId, req.Amount)
+		pbftResult := apbft.RunAPBFT(nowTxId, req.Amount)
 		validators := convertValidators(pbftResult.Validators)
 		// 3) 价格与节点（leader）
 		tradePrice := pbftResult.Price

@@ -202,9 +202,9 @@ func (s *PBFTSimulator) RunRound(round int, request []byte) bool {
 
 // RunPBFT 为前端服务导出，模拟一次共识并返回结果
 // ========== 高亮修正: RunPBFT内部必须新建节点池��不能直接使用 main1.go 的 nodes全局） ==========
-// ======================= 【高亮-2026-03-07】新增：RunPBFTWithRoundAndMaliciousRatio（真正干活） =======================
+// ======================= 【高亮-2026-03-07】新增：RunAPBFTWithRoundAndMaliciousRatio（真正干活） =======================
 // A) 每一轮 round 固定一批恶意节点：用 round 作为随机种子的一部分，保证同一 round 恶意节点集合稳定
-func RunPBFTWithRoundAndMaliciousRatio(round int, txId string, amount int, maliciousRatio float64) PBFTResult {
+func RunAPBFTWithRoundAndMaliciousRatio(round int, txId string, amount int, maliciousRatio float64) PBFTResult {
 	const numNodes = 100
 
 	// ======================= 【高亮-2026-03-07】A方案关键：按 round 固定恶意节点集合（同一轮稳定） =======================
@@ -266,11 +266,11 @@ func RunPBFTWithRoundAndMaliciousRatio(round int, txId string, amount int, malic
 }
 
 // ======================= 【高亮-2026-03-07】兼容：RunPBFTWithRound（默认 maliciousRatio=0） =======================
-func RunPBFTWithRound(round int, txId string, amount int) PBFTResult {
-	return RunPBFTWithRoundAndMaliciousRatio(round, txId, amount, 0)
+func RunAPBFTWithRound(round int, txId string, amount int) PBFTResult {
+	return RunAPBFTWithRoundAndMaliciousRatio(round, txId, amount, 0)
 }
 
 // ======================= 【高亮-2026-03-07】兼容：RunPBFT（默认 round=1 且 maliciousRatio=0） =======================
-func RunPBFT(txId string, amount int) PBFTResult {
-	return RunPBFTWithRoundAndMaliciousRatio(1, txId, amount, 0)
+func RunAPBFT(txId string, amount int) PBFTResult {
+	return RunAPBFTWithRoundAndMaliciousRatio(1, txId, amount, 0)
 }
