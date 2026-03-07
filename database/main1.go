@@ -372,7 +372,8 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int) []RoundStat {
 			// ======================= 【高亮-本次修改】用 PBFT 共识结果决定交易是否成功 =======================
 			// 为每笔 trade 生成一个 txId，然后用 pbft1.RunPBFT 来判定是否“已确认”
 			txId := fmt.Sprintf("custom-round-%d-trade-%d-%d", r, i, time.Now().UnixNano())
-			pbftRes := pbft.RunPBFT(txId, amount)
+			// ======================= 【高亮-2026-03-07】方案A：PBFT Round = 撮合轮 r（严格一致） =======================
+			pbftRes := pbft.RunPBFTWithRound(r, txId, amount)
 
 			status := "失败"
 			if pbftRes.Status == "已确认" {

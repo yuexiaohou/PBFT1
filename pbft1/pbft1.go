@@ -200,20 +200,9 @@ func (s *PBFTSimulator) RunRound(round int, request []byte) bool {
 	}
 }
 
-// ======================= 【高亮-2026-03-07】新增：为 RunPBFT 提供全局 round 计数器（带锁），用于控制台输出递增 =======================
-var runPBFTRoundMu sync.Mutex
-var runPBFTRound int
-
-func nextRunPBFTRound() int {
-	runPBFTRoundMu.Lock()
-	defer runPBFTRoundMu.Unlock()
-	runPBFTRound++
-	return runPBFTRound
-}
-
 // RunPBFT 为前端服务导出，模拟一次共识并返回结果
 // ========== 高亮修正: RunPBFT内部必须新建节点池��不能直接使用 main1.go 的 nodes全局） ==========
-func RunPBFT(txId string, amount int) PBFTResult {
+func RunPBFTWithRound(round int, txId string, amount int) PBFTResult {
 	// ========== 高亮：每次前端API请求需新建节点池 ==========
 	nodes := make([]*Node, 100) // 固定模拟100个节点，与main1.go一致
 	for i := 0; i < 100; i++ {
@@ -221,7 +210,6 @@ func RunPBFT(txId string, amount int) PBFTResult {
 	}
 	sim := NewPBFTSimulator(nodes, true)
 	// ======================= 【高亮-2026-03-07】关键修复：round 不再写死为 1，而是按“交易次数”全局递增 =======================
-	round := nextRunPBFTRound()
 	leader := sim.SelectLeader(round)
 	success := sim.RunRound(round, []byte(txId))
 	status := "已确认"
@@ -239,4 +227,7 @@ func RunPBFT(txId string, amount int) PBFTResult {
 		Price:        500 + rand.Float64()*50,
 		LeaderNode:   leader.String(), // ====== 高亮：LeaderNode字段为string类型，leader需转成字符串 ======
 	}
+func RunPBFT(txId string, amount int) PBFTResult {
+	return RunPBFTWithRound(1, txId, amount)
+}
 }
