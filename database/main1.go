@@ -357,7 +357,11 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int) []RoundStat {
 			seller := fmt.Sprintf("Node-%02d", rand.Intn(20))
 			price := rand.Float64()*500 + 30 // 随机价格30~530
 			amount := rand.Intn(50) + 10
-
+// ======================= 【高亮-2026-03-07】做法A：全局PBFT round 计数器（带锁），每次调用+1 =======================
+			pbftRoundMu.Lock()
+			globalPBFTRound++
+			pbftRound := globalPBFTRound
+			pbftRoundMu.Unlock()
 			// ======================= 【高亮-本次修改】用 PBFT 共识结果决定交易是否成功 =======================
 			// 为每笔 trade 生成一个 txId，然后用 pbft1.RunPBFT 来判定是否“已确认”
 			txId := fmt.Sprintf("custom-round-%d-trade-%d-%d", r, i, time.Now().UnixNano())
@@ -393,6 +397,13 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int) []RoundStat {
 			// 作用是将 pbft.RunPBFT(txId, amount) 得到的最新结果”写进全局缓存GET /api/pbft/result、GET /api/pbft/block
 			// ======================= 【高亮-本次修改】可选：同步 PBFTResult 到全局缓存 =======================
 			validators := convertValidators(pbftRes.Validators)
+// ======================= 【高亮-2026-03-07】把 pbftRound 写入 FailedReason 便于前端/日志定位（不改结构体的情况下） =======================
+			reason := pbftRes.FailedReason
+			if reason == "" {
+				reason = fmt.Sprintf("pbftRound=%d", pbftRound)
+			} else {
+				reason = fmt.Sprintf("%s; pbftRound=%d", reason, pbftRound)
+			}
 			updatePBFTResult(pbftRes.TxId, pbftRes.Status, pbftRes.Consensus, pbftRes.BlockHeight, validators, pbftRes.FailedReason)
 			// 补充 price / leader 到 latestPBFTResult，便于前端展示
             pbftMu.Lock()
