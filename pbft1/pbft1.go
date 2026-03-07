@@ -229,5 +229,5 @@ func RunPBFTWithRound(round int, txId string, amount int) PBFTResult {
 	}
 }
 func RunPBFT(txId string, amount int) PBFTResult {
-	return RunPBFTWithRound(1, txId, amount)
+	return RunPBFTWithRound(1, txId, amount, maliciousRatio)
 }
