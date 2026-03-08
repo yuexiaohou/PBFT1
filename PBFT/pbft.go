@@ -33,7 +33,7 @@ var pbftHeight = 1
 // - maliciousRatio：用于从 specs 中决定恶意节点集合（如果 specs 已包含 IsMalicious，则 maliciousRatio 仅用于兜底）
 // - specs：来自 node.NewPool(round, numNodes, maliciousRatio)，实现“每轮固定一批恶意节点”
 // 注意：简化 PBFT 仍然使用 7 个 validator 模型；当 specs 数量>7 时取前 7 个（你也可以改为抽样）。
-func RunPBFTWithRoundAndMaliciousRatio(round int, txId string, amount int, maliciousRatio float64, specs []node.NodeSpec) PBFTResult {
+func RunPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.NodeSpec) PBFTResult {
 	// leader 仅用于展示：从 7 个 validator 里轮转
 	leader := fmt.Sprintf("node-%d", round%7)
 
@@ -63,32 +63,6 @@ func RunPBFTWithRoundAndMaliciousRatio(round int, txId string, amount int, malic
 		}
 	}
 
-
-	malSet := make(map[int]bool, vn)
-
-	if anyMal {
-		for i := 0; i < vn; i++ {
-			if specs[i].IsMalicious {
-				malSet[i] = true
-			}
-		}
-	} else {
-		// 兜底：按 maliciousRatio 生成恶意集合（仍对同一 round 固定）
-		mCount := int(float64(vn) * maliciousRatio)
-		if mCount < 0 {
-			mCount = 0
-		}
-		if mCount > vn {
-			mCount = vn
-		}
-		if mCount > 0 {
-			idxs := rng.Perm(vn)[:mCount]
-			for _, idx := range idxs {
-				malSet[idx] = true
-			}
-		}
-	}
-
 	validators := make([]Validator, 0, vn)
 	commits := 0
 
@@ -96,13 +70,13 @@ func RunPBFTWithRoundAndMaliciousRatio(round int, txId string, amount int, malic
 	for i := 0; i < vn; i++ {
 		vote := "commit"
 
-		if malSet[i] {
-			// 恶意节点：大概率拒绝（可调）
+		if specs[i].IsMalicious {
+			// 恶意节点：大概率拒绝
 			if rng.Float64() < 0.80 {
 				vote = "reject"
 			}
 		} else {
-			// 正常节点：小概率拒绝
+			// 正常节���：小概率拒绝
 			if rng.Float64() < 0.10 {
 				vote = "reject"
 			}
@@ -112,8 +86,7 @@ func RunPBFTWithRoundAndMaliciousRatio(round int, txId string, amount int, malic
 			commits++
 		}
 
-		// ======================= 【高亮-2026-03-08】修改：
-		// validator ID 使用 specs[i].ID，确保“共用节点池”的节点编号一致
+		// 使用 specs[i].ID，保证节点编号与 nodepool 一致
 		validators = append(validators, Validator{
 			ID:   fmt.Sprintf("node-%d", specs[i].ID),
 			Vote: vote,
@@ -148,5 +121,6 @@ func RunPBFTWithRoundAndMaliciousRatio(round int, txId string, amount int, malic
 
 // ======================= 【高亮-2026-03-08】修改：兼容旧接口（默认 round=1 且 maliciousRatio=0，specs=nil） =======================
 func RunPBFT(txId string, amount int) PBFTResult {
-	return RunPBFTWithRoundAndMaliciousRatio(1, txId, amount, 0, nil)
+	specs := node.NewPool(1, node.FixedNumNodes, node.FixedMaliciousRatio)
+	return RunPBFTWithRoundAndSpecs(1, txId, amount, specs)
 }

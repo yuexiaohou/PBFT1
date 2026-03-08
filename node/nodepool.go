@@ -27,8 +27,8 @@ type NodeSpec struct {
 // 返回：NodeSpec 切片（长度 numNodes）
 func NewPool(round int, numNodes int, maliciousRatio float64) []NodeSpec {
 	//=============参量转变量================
-	numNodes := FixedNumNodes
-    maliciousRatio := FixedMaliciousRatio
+	numNodes = FixedNumNodes
+    maliciousRatio = FixedMaliciousRatio
 	if numNodes <= 0 {
 		return []NodeSpec{}
 	}

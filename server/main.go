@@ -303,7 +303,7 @@ func simulatePBFT(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes
 		// 注意：这要求你在 PBFT/pbft.go 中新增/改造该函数，使其能接收节点池 specs，
 		// 否则这里仍会 undefined。函数签名建议如下：
 		// func RunPBFTWithRoundAndMaliciousRatio(round int, txId string, amount int, maliciousRatio float64, specs []node.NodeSpec) PBFTResult
-		res := pbft.RunPBFTWithRoundAndMaliciousRatio(round, txId, amount, maliciousRatio, specs)
+		res := pbft.RunPBFTWithRoundAndSpecs(round, txId, amount, specs)
 		rate := 0.0
 		if res.Status == "已确认" {
 			rate = 1.0
@@ -472,17 +472,15 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int, maliciousRatio float64) []Roun
 
 func main() {
 	// =========2026-03-01: 命令行参数配置 ==========
-	numNodes := flag.Int("nodes", 100, "number of PBFT nodes")
 	totalRounds := flag.Int("rounds", 20, "number of consensus rounds")
-	simMalRatio := flag.Float64("maliciousRatio", 0.2, "malicious node ratio")
 	flag.Parse()
 	// =========调用数据库==========
-	_ = numNodes   // ========= 高亮-2026-03-07: 取消并行 RunAPBFTSimulator 后暂不使用（保留参数兼容） ==========
-    _ = totalRounds // ========= 高亮-2026-03-07: 取消并行 RunAPBFTSimulator 后暂不使用（保留参数兼容） ==========
+	_ = node.FixedNumNodes// ========= 高亮-2026-03-07: 取消并行 RunAPBFTSimulator 后暂不使用（保留参数兼容） ==========
+    _ = node.FixedMaliciousRatio// ========= 高亮-2026-03-07: 取消并行 RunAPBFTSimulator 后暂不使用（保留参数兼容） ==========
 	db := dbConnect()
     // === 2026-03-03 新增: 启动时自动模拟撮合轮次（正式项目应由业务流程驱动） ===
     // ==== 2026-03-04 高亮：调用聚合填充所有算法 simulateCUSTOM() 内部已调用 PBFT1，且不再与 RunAPBFTSimulator 并行====
-	simulateAllAlgos(db, 30, *simMalRatio)
+	simulateAllAlgos(db,30,*simMalRatio)
 	fmt.Printf("roundOverview len = %d\n", len(roundOverview) )// === 2026-03-03 高亮调试 ===
 	for _, rv := range roundOverview {
             fmt.Printf("round stat: %+v\n", rv)
