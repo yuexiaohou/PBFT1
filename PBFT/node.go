@@ -93,3 +93,4 @@ func main() {
 	totalRounds := flag.Int("rounds", 20, "number of consensus rounds")
 	malRatio := flag*
 }
+}
