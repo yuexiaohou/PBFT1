@@ -4,6 +4,10 @@ import (
 	"math/rand"
 )
 
+// ======================= 【高亮-2026-03-08】强制固定：全局共用节点数/恶意率（四算法统一） =======================
+const FixedNumNodes = 100
+const FixedMaliciousRatio = 0.20
+
 // ======================= 【高亮-2026-03-08】新增：通用节点规格 NodeSpec（所有算法共用） =======================
 // NodeSpec：公共节点规格（不绑定 PBFT1/POS/RAFT 任意实现）
 // 四算法要共用“节点集”，推荐共用的是这个规格，而不是共用某个算法自己的 Node struct。
@@ -22,6 +26,9 @@ type NodeSpec struct {
 // - maliciousRatio：恶意比例（0~1）
 // 返回：NodeSpec 切片（长度 numNodes）
 func NewPool(round int, numNodes int, maliciousRatio float64) []NodeSpec {
+	//=============参量转变量================
+	numNodes := FixedNumNodes
+    maliciousRatio := FixedMaliciousRatio
 	if numNodes <= 0 {
 		return []NodeSpec{}
 	}

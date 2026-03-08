@@ -1,4 +1,4 @@
-package apbft
+package pbft
 
 // 全局参数，可按需调整
 const (

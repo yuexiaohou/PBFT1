@@ -1,6 +1,6 @@
 //go:build blst
 
-package apbft
+package pbft
 
 import (
     "crypto/rand"

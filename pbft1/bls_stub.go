@@ -1,4 +1,4 @@
-package apbft
+package pbft
 
 import (
 	"crypto/rand"

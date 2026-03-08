@@ -440,7 +440,6 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int, maliciousRatio float64) []Roun
             latestPBFTResult.LeaderNode = pbftRes.LeaderNode
             pbftMu.Unlock()
 			updatePBFTBlock(pbftRes.BlockHeight, amount)
-			// ======================= 【高亮-本次修改】END =======================
 		}
 
 		if minPrice == math.MaxFloat64 {

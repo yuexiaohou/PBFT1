@@ -63,16 +63,6 @@ func RunPBFTWithRoundAndMaliciousRatio(round int, txId string, amount int, malic
 		}
 	}
 
-	// ======================= 【高亮-2026-03-08】修改：
-	// 优先使用 specs[i].IsMalicious（由 nodepool 固定恶意集合）
-	// 如果 specs 全部是默认 false（例如外部没按 maliciousRatio 填），则兜底按 maliciousRatio 再生成一次 malSet。
-	anyMal := false
-	for i := 0; i < vn; i++ {
-		if specs[i].IsMalicious {
-			anyMal = true
-			break
-		}
-	}
 
 	malSet := make(map[int]bool, vn)
 
