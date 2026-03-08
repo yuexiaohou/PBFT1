@@ -262,8 +262,8 @@ func simulateLeaderChangesForAlgo(algo string, maliciousRatio float64) []LeaderC
 func simulateAllAlgos(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes int) {
 	allAlgoStats = map[string][]RoundStat{
 		"pbft":   simulatePBFT(db, totalRounds, maliciousRatio, numNodes),
-		"pos":    simulatePOS(db, totalRounds, maliciousRatio),
-		"raft":   simulateRAFT(db, totalRounds, maliciousRatio),
+        "pos":   simulatePOS(db, totalRounds, maliciousRatio, numNodes),
+        "raft":   simulateRAFT(db, totalRounds, maliciousRatio, numNodes),
 		"custom": simulateCUSTOM(db, totalRounds, maliciousRatio, numNodes),
 	}, maliciousRatio
 
@@ -319,7 +319,7 @@ func simulatePBFT(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes
 }
 
 // ==== 2026-03-06 修正: POS 使用真实 stake 抽取 + 奖惩仿真 ====
-func simulatePOS(db *gorm.DB, totalRounds int) []RoundStat {
+func simulatePOS(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes int) []RoundStat {
 	// 这里不依赖数据库 users/balance，避免你数据库数据导致 successRate 恒为 1
 	// 如果你想把 stake 映射到 Balance，也可以后续再扩展
 	cfg := pos.DefaultSimConfig()
@@ -347,7 +347,7 @@ func simulatePOS(db *gorm.DB, totalRounds int) []RoundStat {
 }
 
 // ==== 2026-03-04 新增: RAFT 节点池参与业务 ====
-func simulateRAFT(db *gorm.DB, totalRounds int) []RoundStat {
+func simulateRAFT(db *gorm.DB,totalRounds int, maliciousRatio float64, numNodes int) []RoundStat {
 	var arr []RoundStat
 	var users []User
 	db.Find(&users) // === 高亮 ===
