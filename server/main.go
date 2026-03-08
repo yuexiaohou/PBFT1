@@ -262,7 +262,7 @@ func simulateLeaderChangesForAlgo(algo string, maliciousRatio float64) []LeaderC
 // ======================= 2026-03-04 修正：simulateAllAlgos 增加 maliciousRatio 参数 BEGIN =======================
 func simulateAllAlgos(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes int) {
 	allAlgoStats = map[string][]RoundStat{
-		"pbft":   simulatePBFT(db, totalRounds, maliciousRatio),
+		"pbft":   simulatePBFT(db, totalRounds, maliciousRatio, numNodes),
 		"pos":    simulatePOS(db, totalRounds, maliciousRatio),
 		"raft":   simulateRAFT(db, totalRounds, maliciousRatio),
 		"custom": simulateCUSTOM(db, totalRounds, maliciousRatio),
