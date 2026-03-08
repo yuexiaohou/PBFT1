@@ -265,7 +265,7 @@ func simulateAllAlgos(db *gorm.DB, totalRounds int, maliciousRatio float64, numN
         "pos":   simulatePOS(db, totalRounds, maliciousRatio, numNodes),
         "raft":   simulateRAFT(db, totalRounds, maliciousRatio, numNodes),
 		"custom": simulateCUSTOM(db, totalRounds, maliciousRatio, numNodes),
-	}, maliciousRatio
+	}
 
 	// ===== 高亮新增：缓存错误节点使用率（round=100/1000）=====
 	allAlgoErrorRateStats = map[string][]ErrorRatePoint{
@@ -329,46 +329,83 @@ func simulatePOS(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes 
 	successSoFar := 0
 
 	for _, s := range summaries {
-		if s.Success {
-			successSoFar++
-		}
-		// 定义 successRate 为 “截至当前轮的累计成功率”，曲线更平滑
-		rate := float64(successSoFar) / float64(s.Round)
+	specs := node.NewPool(s.Round, numNodes, maliciousRatio)
 
-		arr = append(arr, RoundStat{
-			Round:       s.Round,
-			SuccessRate: rate, // 0~1
-			MinPrice:    0,
-			BuyerNode:   "",
-			SellerNode:  "",
-		})
+	// 统计本轮 specs 的“恶意比例”（用于展示/调试；不改变 pos.RunSimulator 的内核行为）
+	malCount := 0
+    for _, sp := range specs {
+		if sp.IsMalicious {
+			malCount++
+		}
+    }
+    _ = malCount // 预留：你后续如果让 pos.RunSimulator 支持外部 stake/恶意输入，可在此接入
+
+	if s.Success {
+		successSoFar++
 	}
+    rate := float64(successSoFar) / float64(s.Round)
+
+	arr = append(arr, RoundStat{
+		Round:       s.Round,
+		SuccessRate: rate,
+		MinPrice:    0,
+		BuyerNode:   "",
+		SellerNode:  "",
+	})
+  }
 	return arr
 }
-
 // ==== 2026-03-04 新增: RAFT 节点池参与业务 ====
 func simulateRAFT(db *gorm.DB,totalRounds int, maliciousRatio float64, numNodes int) []RoundStat {
-	var arr []RoundStat
-	var users []User
-	db.Find(&users) // === 高亮 ===
-	for i := 1; i <= totalRounds; i++ {
-		active := 0
+	arr := make([]RoundStat, 0, totalRounds)
+	for round := 1; round <= totalRounds; round++ {
+		// 与其它算法一致：本轮共用 specs（恶意集合固定）
+		specs := node.NewPool(round, numNodes, maliciousRatio)
+
+		// 你原来的逻辑：余额>20 的用户占比 + 噪声
+		activeUsers := 0
 		for _, u := range users {
 			var b Balance
-			db.Where("user_id = ?", u.ID).First(&b) // === 高亮 ===
-			if b.Balance > 20 { active++ }
+			db.Where("user_id = ?", u.ID).First(&b)
+			if b.Balance > 20 {
+				activeUsers++
+			}
 		}
+
+		// 原始 successRate（保留，不破坏原功能）
 		rate := 0.5 + rand.Float64()*0.3
 		if len(users) > 0 {
-			rate = float64(active) / float64(len(users)) // === 高亮 ===
+			rate = float64(activeUsers) / float64(len(users))
 		}
-		arr = append(arr, RoundStat{Round: i, SuccessRate: rate})
+
+		// 轻量结合 specs：如果本轮恶意节点比例高，则对 rate 做一个小幅下调（不改变算法结构，只是把共用节点池纳入仿真输入）
+		malCount := 0
+		for _, sp := range specs {
+			if sp.IsMalicious {
+				malCount++
+			}
+		}
+		malRatioRound := 0.0
+		if len(specs) > 0 {
+			malRatioRound = float64(malCount) / float64(len(specs))
+		}
+		// 例如：最多下调 10%（你可自行调整）
+		rate = rate * (1.0 - 0.10*malRatioRound)
+
+		if rate < 0 {
+			rate = 0
+		}
+		if rate > 1 {
+			rate = 1
+		}
+
+		arr = append(arr, RoundStat{Round: round, SuccessRate: rate})
 	}
 	return arr
 }
 
 // === 2026-03-03 新增: 撮合仿真核心逻辑示例 ===
-func simulateCUSTOM(db *gorm.DB, totalRounds int, maliciousRatio float64) []RoundStat {
+func simulateCUSTOM(db *gorm.DB, totalRounds int, maliciousRatio float6464,numNodes int) []RoundStat {
 	maliciousRatio = node.FixedMaliciousRatio
     numNodes = node.FixedNumNodes
     var arr []RoundStat
@@ -480,7 +517,10 @@ func main() {
 	db := dbConnect()
     // === 2026-03-03 新增: 启动时自动模拟撮合轮次（正式项目应由业务流程驱动） ===
     // ==== 2026-03-04 高亮：调用聚合填充所有算法 simulateCUSTOM() 内部已调用 PBFT1，且不再与 RunAPBFTSimulator 并行====
-	simulateAllAlgos(db,30,*simMalRatio)
+    // ======================= 【高亮-2026-03-08】Fix：启动时使用 nodepool 固定参数，���复 simMalRatio/缺参/未使用 totalRounds =======================
+    simMalRatio := node.FixedMaliciousRatio
+    simNumNodes := node.FixedNumNodes
+    simulateAllAlgos(db, *totalRounds, simMalRatio, simNumNodes)
 	fmt.Printf("roundOverview len = %d\n", len(roundOverview) )// === 2026-03-03 高亮调试 ===
 	for _, rv := range roundOverview {
             fmt.Printf("round stat: %+v\n", rv)
