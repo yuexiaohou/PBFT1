@@ -267,7 +267,7 @@ func RunAPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.
 		Validators:   nil,
 		FailedReason: reason,
 		Price:        500 + rng.Float64()*50,
-		LeaderNode:   leader.String(),
+		LeaderNode:   leaderNode, // 使用 leaderNode（避免未使用 & 避免 leader nil 时 panic）
 	}
 }
 
