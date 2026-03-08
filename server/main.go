@@ -407,7 +407,7 @@ func simulateRAFT(db *gorm.DB,totalRounds int, maliciousRatio float64, numNodes 
 }
 
 // === 2026-03-03 新增: 撮合仿真核心逻辑示例 ===
-func simulateCUSTOM(db *gorm.DB, totalRounds int, maliciousRatio float6464,numNodes int) []RoundStat {
+func simulateCUSTOM(db *gorm.DB, totalRounds int, maliciousRatio float64,numNodes int) []RoundStat {
 	maliciousRatio = node.FixedMaliciousRatio
     numNodes = node.FixedNumNodes
     var arr []RoundStat
