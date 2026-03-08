@@ -1,4 +1,4 @@
-package pbft // 定义包为 main（可执行包）
+package apbft // 定义包为 main（可执行包）
 
 // 导入需要的包
 import (
