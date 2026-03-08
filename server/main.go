@@ -358,6 +358,8 @@ func simulatePOS(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes 
 // ==== 2026-03-04 新增: RAFT 节点池参与业务 ====
 func simulateRAFT(db *gorm.DB,totalRounds int, maliciousRatio float64, numNodes int) []RoundStat {
 	arr := make([]RoundStat, 0, totalRounds)
+	var users []User
+    db.Find(&users)
 	for round := 1; round <= totalRounds; round++ {
 		// 与其它算法一致：本轮共用 specs（恶意集合固定）
 		specs := node.NewPool(round, numNodes, maliciousRatio)
