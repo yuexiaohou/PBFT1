@@ -137,7 +137,7 @@ func (s *PBFTSimulator) RunRound(round int, request []byte) bool {
 			continue
 		}
 		wg.Add(1) // 增加等待计数
-		go func(node *Node) { // 并发签名以模拟真实网络的并行性
+		go func(node *node.Node) { // 并发签名以模拟真实网络的并行性
 			defer wg.Done() // 完成时通知等待组
 			sig, err := node.Sign(request) // 节点对请求进行签名
 			if err == nil && sig != nil { // 如果签名成功
@@ -229,7 +229,7 @@ func RunAPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.
 	// ========== 构建节点池：把 isMal 写入节点 ==========
 	nodes := make([]*node.Node, 0, len(specs))
 	for _, sp := range specs {
-		nd := NewNode(sp.ID, sp.Throughput, sp.IsMalicious, useBlst)
+		nd := node.NewNode(sp.ID, sp.Throughput, sp.IsMalicious, useBlst) // [2026-03-08] 用 node.NewNode
 		// 可选：如果要把 Active 同步进 Node，可以在 Node 上加 SetActive/或构造时设置；这里先保持你原 Node 逻辑
 		nodes = append(nodes, nd)
 	}
@@ -251,7 +251,6 @@ func RunAPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.
 	// 用 round 做 seed（可以再混入常量避免 seed=0 的特殊性）
 	seed := int64(20260307 + round)
 	rng := rand.New(rand.NewSource(seed))
-	price := 500.0 + rng.Float64()*50.0
 
     leaderNode := ""
     if leader != nil {
