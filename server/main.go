@@ -10,7 +10,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"github.com/gin-contrib/cors"
 	"fmt"          // 格式化输出
-	apbft "PBFT1/pbft1"
+	apbft "PBFT1/apbft"
 	// ===== 高亮-2026-03-01：新增主仿真入口导入，rand包和math包的作用是用于计算和绘图=====
 	"math/rand"
 	// ======================= 【高亮-2026-03-08】新增：引入通用节点池（round 固定恶意节点集合） =======================
@@ -140,8 +140,7 @@ func nextPBFTRound() int {
 	globalPBFTRound++
 	return globalPBFTRound
 }
-// 转换 pbft.Result.Validators 到页面需要的形式，将pbft1的共识结果传入到前端
-// 转换 apbft.Result.Validators 到页面需要的形式，将pbft1的共识结果传入到前端
+// 转换 pbft.Result.Validators 到页面需要的形式，将apbft的共识结果传入到前端
 // ======================= 【高亮-2026-03-07】修改：pbft.Validator -> apbft.Validator =======================
 func convertValidators(origin []apbft.Validator) []PBFTValidator {
 	// ======================= 【高亮-2026-03-07】END =======================
