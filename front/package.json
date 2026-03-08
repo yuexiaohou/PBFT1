@@ -17,7 +17,7 @@
   "scripts": {
     "start": "npm-run-all --parallel backend-start react-start",
     "react-start": "react-scripts start",
-    "backend-start": "cd ../server && go run main1.go",
+    "backend-start": "cd ../server && go run main.go",
     "build": "react-scripts build",
     "test": "react-scripts test"
   },
