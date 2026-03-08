@@ -39,7 +39,6 @@ func DefaultBehaviorConfig() BehaviorConfig {
 	}
 }
 
-// ======================= 【高亮-2026-03-08】END =======================
 // Tier 表示节点的等级类型（例如用于优先级或奖励策略）
 type Tier int
 
@@ -147,6 +146,38 @@ func (n *Node) String() string {
 		"Node-%02d(m=%d, tier=%v, tp=%.2f, mal=%v, active=%v)",
 		n.ID, n.m, n.Tier, n.Throughput, n.IsMalicious, n.active,
 	)
+}
+
+// ======================= 【高亮-2026-03-08】新增：导出访问器 + 封装 BLS（供 apbft 跨包调用，避免访��未导出字段 m/bls） =======================
+// M 返回节点 m 值（apbft.SelectLeader 需要按 m 排序；原字段 n.m 未导出）
+func (n *Node) M() int {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	return n.m
+}
+
+// PublicKey 导出节点公钥（apbft 需要收集 pubKeys；原 n.bls 未导出）
+func (n *Node) PublicKey() []byte {
+	n.mu.Lock()
+	bls := n.bls
+	n.mu.Unlock()
+	return bls.PublicKey()
+}
+
+// AggregateSignatures 导出签名聚合能力（封装 n.bls）
+func (n *Node) AggregateSignatures(sigs [][]byte) ([]byte, error) {
+	n.mu.Lock()
+	bls := n.bls
+	n.mu.Unlock()
+	return bls.AggregateSignatures(sigs)
+}
+
+// VerifyAggregate 导出聚合签名验证能力（封装 n.bls）
+func (n *Node) VerifyAggregate(pubKeys [][]byte, message []byte, aggSig []byte) (bool, error) {
+	n.mu.Lock()
+	bls := n.bls
+	n.mu.Unlock()
+	return bls.VerifyAggregate(pubKeys, message, aggSig)
 }
 
 // Sign 对给定消息进行签名
