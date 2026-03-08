@@ -1,127 +1,60 @@
-package apbft
+package node
 
 import (
-	"fmt"      // 格式化输出、错误信息等
-	"math/rand"// 用于模拟恶意节点的随机行为选择
-	"sync"     // 提供互斥锁等并发原语
-	"time"     // 用于模拟延迟和时间相关操作
+	"math/rand"
 )
 
-// Tier 表示节点的等级类型（例如用于优先级或奖励策略）
-type Tier int
-
-const (
-	TierLow Tier = iota    // 低等级
-	TierNormal             // 正常等级
-	TierHigh               // 高等级
-)
-
-// Node 表示网络中的一个节点，包含身份、奖励、是否恶意、吞吐量等信息
-type Node struct {
-	ID         int     // 节点唯一标识符
-	m          int     // 奖励值或信誉值（注释中原为“奖励值”）
-	IsMalicious bool   // 是否被标记为恶意节点
-	Throughput float64 // 吞吐量指标（例如 TPS），用于模拟签名延迟等
-	Tier       Tier     // 节点等级（TierLow/TierNormal/TierHigh）
-
-	bls BLS        // 抽象的 BLS 签名实现接口（可替换为不同实现）
-
-	mu     sync.Mutex // 保护以下字段的互斥锁
-	active bool       // 节点是否处于激活状态（当 m < MMin 则置为 inactive）
+// ======================= 【高亮-2026-03-08】新增：通用节点规格 NodeSpec（所有算法共用） =======================
+// NodeSpec：公共节点规格（不绑定 PBFT1/POS/RAFT 任意实现）
+// 四算法要共用“节点集”，推荐共用的是这个规格，而不是共用某个算法自己的 Node struct。
+type NodeSpec struct {
+	ID          int
+	IsMalicious bool
+	Throughput  float64 // PBFT/自定义撮合 可用（模拟延迟/处理能力）
+	Stake       float64 // POS 可用
+	Active      bool
 }
 
-// ====== 高亮新增 ======
-// 让没有 blst tag 的环境下也可调用 pbft.NewBlstBLS
-func NewBlstBLS(id int) BLS {
-	return NewSimpleBLSStub(id)
-}
-// ====== 高亮结束 ======
-
-// NewNode 创建并返回一个新的 Node 实例
-// 参数：id 节点 id，throughput 吞吐量，isMalicious 是否恶意，useBlst 是否使用 blst 实现
-func NewNode(id int, throughput float64, isMalicious bool, useBlst bool) *Node {
-    blsImpl := NewBlstBLS(id)
-	if useBlst {
-		blsImpl = NewBlstBLS(id)
-	} else {
-		blsImpl = NewSimpleBLSStub(id)
+// ======================= 【高亮-2026-03-08】新增：每轮 round 固定恶意节点集合的节点池构造 =======================
+// NewPool：按 round 固定一批恶意节点（同一 round 可复现同一集合）
+// - round：共识轮次（影响随机种子）
+// - numNodes：节点数
+// - maliciousRatio：恶意比例（0~1）
+// 返回：NodeSpec 切片（长度 numNodes）
+func NewPool(round int, numNodes int, maliciousRatio float64) []NodeSpec {
+	if numNodes <= 0 {
+		return []NodeSpec{}
 	}
-	return &Node{
-		ID:         id,            // 设置节点 ID
-		m:          InitialM,      // 初始奖励/信誉值（来自全局常量 InitialM）
-		IsMalicious: isMalicious,  // 是否恶意
-		Throughput: throughput,    // 吞吐量
-		Tier:       TierNormal,    // 默认等级为 Normal
-		bls:        blsImpl,            // BLS 签名实现
-		active:     true,          // 默认激活
+
+	// 用 round 固定随机种子：保证同一轮恶意��点集合稳定
+	seed := int64(20260308 + round)
+	rng := rand.New(rand.NewSource(seed))
+
+	mCount := int(float64(numNodes) * maliciousRatio)
+	if mCount < 0 {
+		mCount = 0
 	}
-}
+	if mCount > numNodes {
+		mCount = numNodes
+	}
 
-// 格式化输出
-// String 返回节点的可读字符串表示，便于调试和日志记录
-func (n *Node) String() string {
-	return fmt.Sprintf("Node-%02d(m=%d, tier=%v, tp=%.2f, mal=%v, active=%v)", n.ID, n.m, n.Tier, n.Throughput, n.IsMalicious, n.active)
-}
-
-// 节点签名
-// Sign 对给定消息进行签名，返回签名字节切片或错误。
-// 该方法会根据节点是否恶意模拟不同的行为与延迟。
-func (n *Node) Sign(message []byte) ([]byte, error) {
-	if n.IsMalicious {
-		// 对于被标记为恶意的节点，随机选择三种行为之一进行模拟：
-		// 0: 不签名（延迟后返回错误）
-		// 1: 返回错误签名（伪造签名）
-		// 2: 偶尔正常签名（调用真实签名实现）
-		choice := rand.Intn(3)
-		switch choice {
-		case 0:
-			// 不签：模拟一定的延迟后返回错误，表示恶意节点拒绝签名
-			time.Sleep(50 * time.Millisecond)
-			return nil, fmt.Errorf("malicious: not signing")
-		case 1:
-			// 错签：返回一个格式化的“坏签名”字节数组（非真实签名格式）
-			return []byte(fmt.Sprintf("bad-sign-node-%02d", n.ID)), nil
-		default:
-			// 偶尔正常签名：调用底层 bls 签名实现
-			return n.bls.Sign(message)
+	malSet := make(map[int]bool, mCount)
+	if mCount > 0 {
+		idxs := rng.Perm(numNodes)[:mCount]
+		for _, idx := range idxs {
+			malSet[idx] = true
 		}
 	}
-	// 非恶意（正常）节点：签名延迟与吞吐率相关，吞吐量越高模拟延迟越小
-	// 通过 1000.0 / Throughput 计算以毫秒为单位的延迟（仅为模拟）
-	delay := time.Duration(1000.0/n.Throughput) * time.Millisecond
-	// 限制最大延迟为 200ms，避免过长阻塞
-	if delay > 200*time.Millisecond {
-		delay = 200 * time.Millisecond
+
+	out := make([]NodeSpec, 0, numNodes)
+	for i := 0; i < numNodes; i++ {
+		out = append(out, NodeSpec{
+			ID:          i,
+			IsMalicious: malSet[i],
+			Throughput:  50.0 + rng.Float64()*150.0, // 50~200
+			Stake:       10.0 + rng.Float64()*90.0,  // 10~100
+			Active:      true,
+		})
 	}
-	// 模拟处理延迟
-	time.Sleep(delay)
-	// 调用底层 bls 实现进行真实签名并返回
-	return n.bls.Sign(message)
-}
-
-// UpdateReward 根据操作是否成功更新节点的奖励/信誉值 m。
-// success 为 true 则增加奖励，否则减少；同时处理上下界和激活状态。
-func (n *Node) UpdateReward(success bool) {
-	n.mu.Lock()         // 获取互斥锁，保护对 m 和 active 的并发访问
-	defer n.mu.Unlock() // 延迟释放锁
-
-    if success {
-		n.m++
-		if n.m >= MMax {
-			n.m = MMax - 1
-			n.active = true
-		}
-	} else {
-		n.m--
-		if n.m < MMin {
-			n.active = false
-		}
-	}
-}
-
-// IsActive 返回节点当前是否处于激活状态（线程安全）
-func (n *Node) IsActive() bool {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	return n.active
+	return out
 }
