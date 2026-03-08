@@ -265,7 +265,7 @@ func simulateAllAlgos(db *gorm.DB, totalRounds int, maliciousRatio float64, numN
 		"pbft":   simulatePBFT(db, totalRounds, maliciousRatio, numNodes),
 		"pos":    simulatePOS(db, totalRounds, maliciousRatio),
 		"raft":   simulateRAFT(db, totalRounds, maliciousRatio),
-		"custom": simulateCUSTOM(db, totalRounds, maliciousRatio),
+		"custom": simulateCUSTOM(db, totalRounds, maliciousRatio, numNodes),
 	}, maliciousRatio
 
 	// ===== 高亮新增：缓存错误节点使用率（round=100/1000）=====
@@ -299,10 +299,9 @@ func simulatePBFT(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes
 		// txId / amount 仅用于模拟
 		txId := fmt.Sprintf("pbft-round-%d-%d", round, time.Now().UnixNano())
 		amount := rand.Intn(50) + 10
-		// 使用 /PBFT/pbft.go 的 RunPBFTWithRoundAndMaliciousRatio(round, txId, amount, maliciousRatio, specs)
+		// 使用 /PBFT/pbft.go的RunPBFTWithRoundAndSpecs(round, txId, amount, specs)
 		// 注意：这要求你在 PBFT/pbft.go 中新增/改造该函数，使其能接收节点池 specs，
 		// 否则这里仍会 undefined。函数签名建议如下：
-		// func RunPBFTWithRoundAndMaliciousRatio(round int, txId string, amount int, maliciousRatio float64, specs []node.NodeSpec) PBFTResult
 		res := pbft.RunPBFTWithRoundAndSpecs(round, txId, amount, specs)
 		rate := 0.0
 		if res.Status == "已确认" {
@@ -371,16 +370,18 @@ func simulateRAFT(db *gorm.DB, totalRounds int) []RoundStat {
 
 // === 2026-03-03 新增: 撮合仿真核心逻辑示例 ===
 func simulateCUSTOM(db *gorm.DB, totalRounds int, maliciousRatio float64) []RoundStat {
-	var arr []RoundStat
-	var users []User
-	db.Find(&users)
-
+	maliciousRatio = node.FixedMaliciousRatio
+    numNodes = node.FixedNumNodes
+    var arr []RoundStat
+    var users []User
+    db.Find(&users)
 	for r := 1; r <= totalRounds; r++ {
-		successCount := 0
-		minPrice := math.MaxFloat64
-		var minBuyer, minSeller string
-
-		numTrades := rand.Intn(5) + 5 // 每轮随机产生5~9个交易
+	    successCount := 0
+    	minPrice := math.MaxFloat64
+    	var minBuyer, minSeller string
+    	// 同一轮所有交易共享同一批 specs（同一 round 恶意集合稳定）
+    	specs := node.NewPool(r, numNodes, maliciousRatio)
+        numTrades := rand.Intn(5) + 5 // 每轮随机产生5~9个交易
 
 		for i := 0; i < numTrades; i++ {
 			buyer := fmt.Sprintf("Node-%02d", rand.Intn(20))
@@ -390,10 +391,10 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int, maliciousRatio float64) []Roun
 			// ======================= 【高亮-2026-03-07】做法A：全局PBFT round 计数器（带锁），每次调用+1 =======================
 			pbftRound := nextPBFTRound()
 			// ======================= 【高亮-本次修改】用 PBFT 共识结果决定交易是否成功 =======================
-			// 为每笔 trade 生成一个 txId，然后用 pbft1.RunAPBFTWithRoundAndMaliciousRatio来判定是否“已确认”
+			// 为每笔 trade 生成一个 txId，然后用 apbft.RunAPBFTWithRoundAndSpecs来判定是否“已确认”
 			txId := fmt.Sprintf("custom-round-%d-trade-%d-%d", r, i, time.Now().UnixNano())
 			// ======================= 【高亮-2026-03-07】方案A：PBFT Round = 撮合轮 r（严格一致） =======================
-			pbftRes := apbft.RunAPBFTWithRoundAndMaliciousRatio(r, txId, amount, maliciousRatio)
+			pbftRes := apbft.RunAPBFTWithRoundAndSpecs(r, txId, amount, specs)
 
 			status := "失败"
 			if pbftRes.Status == "已确认" {
