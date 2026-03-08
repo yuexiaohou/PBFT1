@@ -143,7 +143,7 @@ func (s *PBFTSimulator) RunRound(round int, request []byte) bool {
 			if err == nil && sig != nil { // 如果签名成功
 				mu.Lock() // 保护共享切片
 				signatures = append(signatures, sig) // 添加签名
-				pubKeys = append(pubKeys, node.bls.PublicKey()) // 添加对应公钥
+				pubKeys = append(pubKeys, node.PublicKey()) // 添加对应公钥
 				mu.Unlock() // 解锁
 			}
 		}(nd)

@@ -7,6 +7,7 @@ import (
 	"encoding/csv"
 	"os"
 	"encoding/json"
+	"PBFT1/node"
 )
 
 // ====== 高亮：支持自定义节点和恶性节点数量 ======
