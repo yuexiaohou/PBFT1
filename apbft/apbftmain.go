@@ -44,11 +44,11 @@ func RunPBFTSimulator(numNodes int, maliciousCount int, maliciousRatio float64, 
 		}
 	}
 
-	nodes := make([]*Node, numNodes)
+	nodes := make([]*node.Node, numNodes)
 	for i := 0; i < numNodes; i++ {
 		throughput := 50.0 + rand.Float64()*150.0
 		isMal := malNodes[i]
-		nodes[i] = NewNode(i, throughput, isMal, useBlst)
+		nodes[i] = node.NewNode(i, throughput, isMal, useBlst)
 	}
 
 	sim := NewPBFTSimulator(nodes, useBlst)
