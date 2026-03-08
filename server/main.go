@@ -431,7 +431,7 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int, maliciousRatio float64) []Roun
 				reason = fmt.Sprintf("pbftRound=%d", pbftRound)
 			} else {
 				reason = fmt.Sprintf("%s; pbftRound=%d", reason, pbftRound)
-			}
+			}// === 2026-03-03 新增: 撮合仿真核心逻辑示例 ===
 			// 注意：这里要传 reason，而不是 pbftRes.FailedReason
 			updatePBFTResult(pbftRes.TxId, pbftRes.Status, pbftRes.Consensus, pbftRes.BlockHeight, validators, reason)
 			// 补充 price / leader 到 latestPBFTResult，便于前端展示

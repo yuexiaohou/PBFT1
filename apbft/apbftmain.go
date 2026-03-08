@@ -31,6 +31,13 @@ func RunPBFTSimulator(numNodes int, maliciousCount int, maliciousRatio float64, 
     maliciousRatio = node.FixedMaliciousRatio
     numNodes = node.FixedNumNodes
 
+    // ======================= 【高亮-2026-03-08】Fix：初始化一次 specs（共用节点池规格），并实例化为 node.Node；节点在 sim 中跨轮演化 =======================
+    specs := node.NewPool(0, numNodes, maliciousRatio)
+    nodes := make([]*node.Node, 0, len(specs))
+    for _, sp := range specs {
+    nd := node.NewNode(sp.ID, sp.Throughput, sp.IsMalicious, useBlst)
+    nodes = append(nodes, nd)
+
 	sim := NewPBFTSimulator(nodes, useBlst)
 	sim.ComputeTiers()
 
@@ -38,7 +45,6 @@ func RunPBFTSimulator(numNodes int, maliciousCount int, maliciousRatio float64, 
 	for _, nd := range sim.nodes {
 		fmt.Println(nd.String())
 	}
-
 	ob = NewOrderBook()
 
 	for r := 0; r < totalRounds; r++ {
