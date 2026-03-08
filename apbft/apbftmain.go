@@ -11,6 +11,7 @@ import (
 )
 
 // ====== 高亮：支持自定义节点和恶性节点数量 ======
+//======“共享同一批 specs”（恶意集合/吞吐量等输入一致），这就是 main.go 里 simulateCUSTOM 的做法============
 func RunPBFTSimulator(numNodes int, maliciousCount int, maliciousRatio float64, totalRounds int) {
 	var csvWriter *csv.Writer
 
@@ -25,31 +26,10 @@ func RunPBFTSimulator(numNodes int, maliciousCount int, maliciousRatio float64, 
 	useBlst := false
 	rand.Seed(time.Now().UnixNano())
 
-	var malNodes map[int]bool
-	if maliciousCount >= 0 {
-		malNodes = make(map[int]bool)
-		if maliciousCount > numNodes {
-			maliciousCount = numNodes
-		}
-		idxs := rand.Perm(numNodes)[:maliciousCount]
-		for _, idx := range idxs {
-			malNodes[idx] = true
-		}
-	} else {
-		malNodes = make(map[int]bool)
-		mCount := int(float64(numNodes) * maliciousRatio)
-		idxs := rand.Perm(numNodes)[:mCount]
-		for _, idx := range idxs {
-			malNodes[idx] = true
-		}
-	}
-
-	nodes := make([]*node.Node, numNodes)
-	for i := 0; i < numNodes; i++ {
-		throughput := 50.0 + rand.Float64()*150.0
-		isMal := malNodes[i]
-		nodes[i] = node.NewNode(i, throughput, isMal, useBlst)
-	}
+	// ======================= 【高亮-2026-03-08】Fix：nodepool.go 内部会强制固定节点数/恶意率；这里对齐 simulateCUSTOM 的写法 =======================
+    _ = maliciousCount
+    maliciousRatio = node.FixedMaliciousRatio
+    numNodes = node.FixedNumNodes
 
 	sim := NewPBFTSimulator(nodes, useBlst)
 	sim.ComputeTiers()
