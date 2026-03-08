@@ -13,6 +13,8 @@ import (
 	apbft "PBFT1/pbft1"
 	// ===== 高亮-2026-03-01：新增主仿真入口导入，rand包和math包的作用是用于计算和绘图=====
 	"math/rand"
+	// ======================= 【高亮-2026-03-08】新增：引入通用节点池（round 固定恶意节点集合） =======================
+    "PBFT1/node"
 	"math"
 	pos  "PBFT1/POS"
 	pbft "PBFT1/PBFT"
@@ -258,13 +260,13 @@ func simulateLeaderChangesForAlgo(algo string, maliciousRatio float64) []LeaderC
 }
 
 // ======================= 2026-03-04 修正：simulateAllAlgos 增加 maliciousRatio 参数 BEGIN =======================
-func simulateAllAlgos(db *gorm.DB, totalRounds int, maliciousRatio float64) {
+func simulateAllAlgos(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes int) {
 	allAlgoStats = map[string][]RoundStat{
 		"pbft":   simulatePBFT(db, totalRounds, maliciousRatio),
-		"pos":    simulatePOS(db, totalRounds),
-		"raft":   simulateRAFT(db, totalRounds),
+		"pos":    simulatePOS(db, totalRounds, maliciousRatio),
+		"raft":   simulateRAFT(db, totalRounds, maliciousRatio),
 		"custom": simulateCUSTOM(db, totalRounds, maliciousRatio),
-	}
+	}, maliciousRatio
 
 	// ===== 高亮新增：缓存错误节点使用率（round=100/1000）=====
 	allAlgoErrorRateStats = map[string][]ErrorRatePoint{
@@ -285,16 +287,23 @@ func simulateAllAlgos(db *gorm.DB, totalRounds int, maliciousRatio float64) {
 
 // 你实际业务算法可换为真实聚合，只要最终返回[]RoundStat即可
 // ==== 2026-03-04 高亮: PBFT 节点池参与业务 ====
-func simulatePBFT(db *gorm.DB, totalRounds int) []RoundStat {
-	var arr []RoundStat
+func simulatePBFT(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes int) []RoundStat {
+	// ======================= 【高亮-2026-03-08】修改：PBFT 仿真改为使用 nodepool.go 的节点池（按 round 固定恶意集合） =======================
+	arr := make([]RoundStat, 0, totalRounds)
+	// 原代码会读 users，但并未真正用于 PBFT 共识；保留读取不影响功能（也可删除）
 	var users []User
-	db.Find(&users) // === 2026-03-04 高亮: 节点池(用户池)查询 ===
-	for r := 1; r <= totalRounds; r++ {
+	db.Find(&users)
+	for round := 1; round <= totalRounds; round++ {
+		// ======================= 【高亮-2026-03-08】新增：每轮用 node.NewPool 生成固定恶意节点集合 =======================
+		specs := node.NewPool(round, numNodes, maliciousRatio)
+		// txId / amount 仅用于模拟
 		txId := fmt.Sprintf("pbft-round-%d-%d", round, time.Now().UnixNano())
 		amount := rand.Intn(50) + 10
-
-		res := pbft.RunPBFTWithRoundAndMaliciousRatio(round, txId, amount, maliciousRatio)
-
+		// 使用 /PBFT/pbft.go 的 RunPBFTWithRoundAndMaliciousRatio(round, txId, amount, maliciousRatio, specs)
+		// 注意：这要求你在 PBFT/pbft.go 中新增/改造该函数，使其能接收节点池 specs，
+		// 否则这里仍会 undefined。函数签名建议如下：
+		// func RunPBFTWithRoundAndMaliciousRatio(round int, txId string, amount int, maliciousRatio float64, specs []node.NodeSpec) PBFTResult
+		res := pbft.RunPBFTWithRoundAndMaliciousRatio(round, txId, amount, maliciousRatio, specs)
 		rate := 0.0
 		if res.Status == "已确认" {
 			rate = 1.0
@@ -305,10 +314,9 @@ func simulatePBFT(db *gorm.DB, totalRounds int) []RoundStat {
 			SuccessRate: rate,
 			MinPrice:    res.Price,
 			BuyerNode:   "",
-			SellerNode:  res.LeaderNode, // 这里先把 leader 当成展示节点
+			SellerNode:  res.LeaderNode,
 		})
 	}
-
 	return arr
 }
 
