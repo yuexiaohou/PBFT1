@@ -5,6 +5,8 @@ import (
 	"math"
 	"math/rand"
 	"time"
+	// ======================= 【高亮-2026-03-09】新增：接入共用节点池 NodeSpec =======================
+    "PBFT1/node"
 )
 
 // ======================= 2026-03-06 高亮新增：POS结果结构（含委员会与投票） BEGIN =======================
@@ -26,7 +28,6 @@ type POSResult struct {
 	Price        float64
 	SellNode     string // 为了兼容你之前字段，这里让 SellNode = Leader
 }
-// ======================= 2026-03-06 高亮新增：POS结果结构 END =======================
 
 var posHeight = 1
 
@@ -80,30 +81,55 @@ func DefaultSimConfig() SimConfig {
 	}
 }
 
-// ======================= 2026-03-06 高亮新增：节点集合（含stake与激活状态） BEGIN =======================
+// ======================= 2026-03-06 高亮新增：节点集合（含stake与激活状态）（节点池，由于pos算法的节点需要累积stake值，因此需要构建simNode，而不直接使用node.Node，从而实现对nodepool.go的初次调用） BEGIN =======================
 type SimNode struct {
-	ID     int
-	Stake  float64
-	Active bool
+	ID        int
+	Stake     float64
+	Active    bool
+	Malicious bool
 }
 
 func (n *SimNode) Name() string {
 	return fmt.Sprintf("node-%d", n.ID)
 }
-// ======================= 2026-03-06 高亮新增：节点集合 END =======================
 
-// 初始化节点（随机 stake）
-func NewNodes(cfg SimConfig) []*SimNode {
-	nodes := make([]*SimNode, 0, cfg.ValidatorNum)
-	for i := 0; i < cfg.ValidatorNum; i++ {
-		st := cfg.StakeMin + rand.Float64()*(cfg.StakeMax-cfg.StakeMin)
-		nodes = append(nodes, &SimNode{ID: i, Stake: st, Active: true})
+// ======================= 【高亮-2026-03-09】新增：从共用节点池初始化 POS 节点（stake/active 来自 NodeSpec） BEGIN =======================
+func NewNodesFromSpecs(specs []node.NodeSpec) []*SimNode {
+	nodes := make([]*SimNode, 0, len(specs))
+	for _, sp := range specs {
+		nodes = append(nodes, &SimNode{
+			ID:     sp.ID,
+			Stake:  sp.Stake,
+			Active: sp.Active,
+		})
 	}
 	return nodes
 }
 
-// 按 stake 权重抽一个 active 节点
-func weightedPickOne(nodes []*SimNode) *SimNode {
+// 同步 specs -> nodes：只同步 Active；并可选同步 stake（默认不覆盖，保证奖惩可累计）
+// stakeOverride=false：只同步 Active，不覆盖 Stake（推荐）
+// stakeOverride=true ：同步 stake（会破坏累计奖惩）
+func SyncNodesFromSpecs(nodes []*SimNode, specs []node.NodeSpec, stakeOverride bool) {
+	// 建立索引：specsByID
+	specsByID := make(map[int]node.NodeSpec, len(specs))
+	for _, sp := range specs {
+		specsByID[sp.ID] = sp
+	}
+
+	for _, n := range nodes {
+		sp, ok := specsByID[n.ID]
+		if !ok {
+			continue
+		}
+		n.Active = sp.Active
+		if stakeOverride {
+			n.Stake = sp.Stake
+		}
+	}
+}
+
+// ======================= 【高亮-2026-03-09】新增：可注入 RNG 的加权抽取（stake 权重）BEGIN =======================
+func weightedPickOneWithRNG(nodes []*SimNode, rng *rand.Rand) *SimNode {
 	total := 0.0
 	for _, n := range nodes {
 		if n.Active && n.Stake > 0 {
@@ -114,7 +140,7 @@ func weightedPickOne(nodes []*SimNode) *SimNode {
 		return nil
 	}
 
-	r := rand.Float64() * total
+	r := rng.Float64() * total
 	acc := 0.0
 	for _, n := range nodes {
 		if !n.Active || n.Stake <= 0 {
@@ -128,8 +154,7 @@ func weightedPickOne(nodes []*SimNode) *SimNode {
 	return nil
 }
 
-// 按 stake 权重抽 k 个不重复的 active 节点（不含 leader）
-func weightedPickK(nodes []*SimNode, k int, excludeID int) []*SimNode {
+func weightedPickKWithRNG(nodes []*SimNode, k int, excludeID int, rng *rand.Rand) []*SimNode {
 	picked := make([]*SimNode, 0, k)
 	used := map[int]bool{excludeID: true}
 
@@ -137,7 +162,7 @@ func weightedPickK(nodes []*SimNode, k int, excludeID int) []*SimNode {
 	maxTry := k * 50
 	for len(picked) < k && maxTry > 0 {
 		maxTry--
-		n := weightedPickOne(nodes)
+		n := weightedPickOneWithRNG(nodes, rng)
 		if n == nil {
 			break
 		}
@@ -150,6 +175,18 @@ func weightedPickK(nodes []*SimNode, k int, excludeID int) []*SimNode {
 	return picked
 }
 
+// 兼容旧函数名（保留，但内部用一个临时 rng，避免直接依赖全局 rand）
+func weightedPickOne(nodes []*SimNode) *SimNode {
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return weightedPickOneWithRNG(nodes, rng)
+}
+
+// ======================= 【高亮-2026-03-09】新增：可注入 RNG 的加权抽取 END =======================
+func weightedPickK(nodes []*SimNode, k int, excludeID int) []*SimNode {
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return weightedPickKWithRNG(nodes, k, excludeID, rng)
+}
+
 // stake 更新并按 MinActiveStake 判定 active
 func applyStakeDelta(n *SimNode, delta float64, cfg SimConfig) {
 	n.Stake = math.Max(0, n.Stake+delta)
@@ -158,9 +195,34 @@ func applyStakeDelta(n *SimNode, delta float64, cfg SimConfig) {
 	}
 }
 
-// ======================= 2026-03-06 高亮新增：单轮POS共识（leader+committee+奖惩） BEGIN =======================
-func RunPOSWithNodes(txId string, amount int, nodes []*SimNode, cfg SimConfig) POSResult {
-	leader := weightedPickOne(nodes)
+// ======================= 【高亮-2026-03-09】新增：POS 单轮（共用 nodepool + 权重抽取 + 奖惩累计） BEGIN =======================
+// RunPOSWithRoundAndSpecs：
+// - round：用于固定随机源（可复现）
+// - nodes：跨轮复用，stake 会累计奖惩
+// - specs：来自 node.NewPool(round, ...) 的共用节点池（本轮恶意集合固定）
+// 规则：
+// 1) leader/committee 仍按 stake 权重抽取（只从 Active 节点里抽）
+// 2) 投票行为：若该委员是恶意节点，则更倾向于 malicious/double-sign/offline
+func RunPOSWithRoundAndSpecs(round int, txId string, amount int, nodes []*SimNode, specs []node.NodeSpec, cfg SimConfig) POSResult {
+	// 用 round 固定随机源：保证同一轮可复现
+	seed := int64(20260309 + round)
+	rng := rand.New(rand.NewSource(seed))
+
+	// 同步本轮 Active（不覆盖 stake，保证奖惩累计）
+	SyncNodesFromSpecs(nodes, specs, false)
+
+	// 索引：恶意集合
+	isMalByID := make(map[int]bool, len(specs))
+	for _, sp := range specs {
+		isMalByID[sp.ID] = sp.IsMalicious
+	}
+
+	return runPOSCoreWithRNG(txId, amount, nodes, cfg, rng, isMalByID)
+}
+
+// 内部核心：把“节点行为概率 + 权重抽签 + 奖惩”集中在这里，便于复用
+func runPOSCoreWithRNG(txId string, amount int, nodes []*SimNode, cfg SimConfig, rng *rand.Rand, isMalByID map[int]bool) POSResult {
+	leader := weightedPickOneWithRNG(nodes, rng)
 	posHeight++
 
 	if leader == nil {
@@ -179,7 +241,7 @@ func RunPOSWithNodes(txId string, amount int, nodes []*SimNode, cfg SimConfig) P
 		}
 	}
 
-	committeeNodes := weightedPickK(nodes, cfg.CommitteeSize, leader.ID)
+	committeeNodes := weightedPickKWithRNG(nodes, cfg.CommitteeSize, leader.ID, rng)
 	committee := make([]string, 0, len(committeeNodes))
 	votes := make([]Vote, 0, len(committeeNodes))
 
@@ -188,22 +250,34 @@ func RunPOSWithNodes(txId string, amount int, nodes []*SimNode, cfg SimConfig) P
 	for _, v := range committeeNodes {
 		committee = append(committee, v.Name())
 
+		// ========== 基于 nodepool 恶意标记，动态调整行为概率 ==========
+		offlineProb := cfg.OfflineProb
+		doubleSignProb := cfg.DoubleSignProb
+		malProb := cfg.MaliciousProb
+
+		if isMalByID != nil && isMalByID[v.ID] {
+			// ======================= 【高亮-2026-03-09】恶意节点：提高作恶/双签/离线概率（使 POS 与 APBFT 可比） =======================
+			offlineProb = math.Min(1.0, cfg.OfflineProb*2.0)
+			doubleSignProb = math.Min(1.0, cfg.DoubleSignProb*3.0)
+			malProb = math.Min(1.0, cfg.MaliciousProb*2.5)
+		}
+
 		// 离线
-		if rand.Float64() < cfg.OfflineProb {
+		if rng.Float64() < offlineProb {
 			votes = append(votes, Vote{ID: v.Name(), Vote: "offline"})
 			applyStakeDelta(v, -cfg.OfflinePenalty, cfg)
 			continue
 		}
 
 		// 双签（简化：直接重罚）
-		if rand.Float64() < cfg.DoubleSignProb {
+		if rng.Float64() < doubleSignProb {
 			votes = append(votes, Vote{ID: v.Name(), Vote: "double-sign"})
 			applyStakeDelta(v, -cfg.DoubleSignSlash, cfg)
 			continue
 		}
 
-		// 作恶：投 reject
-		if rand.Float64() < cfg.MaliciousProb {
+		// 作恶：投 reject（这里归为 malicious）
+		if rng.Float64() < malProb {
 			votes = append(votes, Vote{ID: v.Name(), Vote: "malicious"})
 			applyStakeDelta(v, -cfg.MaliciousPenalty, cfg)
 			continue
@@ -232,8 +306,8 @@ func RunPOSWithNodes(txId string, amount int, nodes []*SimNode, cfg SimConfig) P
 		reason = "committee empty"
 	}
 
-	// 价格模拟（保持你原有风格）
-	price := 480.0 + float64(rand.Intn(40))
+	// 价格模拟：使用 rng，避免全局随机干扰可复现性
+	price := 480.0 + float64(rng.Intn(40))
 
 	return POSResult{
 		TxId:         txId,
@@ -249,6 +323,15 @@ func RunPOSWithNodes(txId string, amount int, nodes []*SimNode, cfg SimConfig) P
 		SellNode:     leader.Name(), // 兼容老字段：SellNode=Leader
 	}
 }
+
+// ======================= 【高亮-2026-03-09】修改：RunPOSWithNodes 改为薄封装（wrapper），统一走 runPOSCoreWithRNG =======================
+func RunPOSWithNodes(txId string, amount int, nodes []*SimNode, cfg SimConfig) POSResult {
+	// 创建临时 rng：避免依赖全局 rand，提高可控性（但仍然是“非固定 seed”模式）
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	// isMalByID=nil：表示不接入 nodepool 恶意标记，保持旧行为语义
+	return runPOSCoreWithRNG(txId, amount, nodes, cfg, rng, nil)
+}
+
 // ======================= 2026-03-06 高亮新增：单轮POS共识 END =======================
 
 // 兼容你现有调用方式（不传 nodes/cfg 时，每次新建节点集合）

@@ -319,42 +319,45 @@ func simulatePBFT(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes
 }
 
 // ==== 2026-03-06 修正: POS 使用真实 stake 抽取 + 奖惩仿真 ====
+// ==== 【高亮-2026-03-09】修正: POS 成功率按“本轮成功率(0/1)”计算，并使用共用节点池 + stake 奖惩跨轮累计 ====
 func simulatePOS(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes int) []RoundStat {
-	// 这里不依赖数据库 users/balance，避免你数据库数据导致 successRate 恒为 1
-	// 如果你想把 stake 映射到 Balance，也可以后续再扩展
+	_ = db // POS 仿真不依赖数据库
+
 	cfg := pos.DefaultSimConfig()
-	summaries, _ := pos.RunSimulator(totalRounds, cfg)
+
+	// round=1：用共用节点池初始化 stake/active（之后 stake 不再被 nodepool 覆盖，保证奖惩累计）
+	specs0 := node.NewPool(1, numNodes, maliciousRatio)
+	nodes := pos.NewNodesFromSpecs(specs0)
 
 	arr := make([]RoundStat, 0, totalRounds)
-	successSoFar := 0
 
-	for _, s := range summaries {
-	specs := node.NewPool(s.Round, numNodes, maliciousRatio)
+	for round := 1; round <= totalRounds; round++ {
+		// 每轮使用共用节点池：恶意集合固定（同一 round 可复现）
+		specs := node.NewPool(round, numNodes, maliciousRatio)
 
-	// 统计本轮 specs 的“恶意比例”（用于展示/调试；不改变 pos.RunSimulator 的内核行为）
-	malCount := 0
-    for _, sp := range specs {
-		if sp.IsMalicious {
-			malCount++
+		txId := fmt.Sprintf("pos-round-%d-%d", round, time.Now().UnixNano())
+		amount := rand.Intn(50) + 10
+
+		// POS 本轮共识（内部权重抽 leader/committee；并基于 specs.IsMalicious 调整行为；stake 在 nodes 中累计奖惩）
+		res := pos.RunPOSWithRoundAndSpecs(round, txId, amount, nodes, specs, cfg)
+
+		rate := 0.0
+		if res.Status == "已确认" {
+			rate = 1.0
 		}
-    }
-    _ = malCount // 预留：你后续如果让 pos.RunSimulator 支持外部 stake/恶意输入，可在此接入
 
-	if s.Success {
-		successSoFar++
+		arr = append(arr, RoundStat{
+			Round:       round,
+			SuccessRate: rate,       // 本轮成功率（0/1）
+			MinPrice:    res.Price,
+			BuyerNode:   "",
+			SellerNode:  res.Leader, // POS leader
+		})
 	}
-    rate := float64(successSoFar) / float64(s.Round)
 
-	arr = append(arr, RoundStat{
-		Round:       s.Round,
-		SuccessRate: rate,
-		MinPrice:    0,
-		BuyerNode:   "",
-		SellerNode:  "",
-	})
-  }
 	return arr
 }
+
 // ==== 2026-03-04 新增: RAFT 节点池参与业务 ====
 func simulateRAFT(db *gorm.DB,totalRounds int, maliciousRatio float64, numNodes int) []RoundStat {
 	arr := make([]RoundStat, 0, totalRounds)
