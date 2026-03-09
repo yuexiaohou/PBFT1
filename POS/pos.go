@@ -337,8 +337,11 @@ func RunPOSWithNodes(txId string, amount int, nodes []*SimNode, cfg SimConfig) P
 // 兼容你现有调用方式（不传 nodes/cfg 时，每次新建节点集合）
 // 注意：每次新建会导致 stake 不累积（不利于奖惩效果），建议你在仿真里复用 nodes。
 func RunPOS(txId string, amount int) POSResult {
-	rand.Seed(time.Now().UnixNano())
-	cfg := DefaultSimConfig()
-	nodes := NewNodes(cfg)
-	return RunPOSWithNodes(txId, amount, nodes, cfg)
+    cfg := DefaultSimConfig()
+	// round=1：用共用节点池初始化 stake/active
+	specs := node.NewPool(1, node.FixedNumNodes, node.FixedMaliciousRatio)
+	nodes := NewNodesFromSpecs(specs)
+
+	// 本次 RunPOS 作为单次调用：round=1
+	return RunPOSWithRoundAndSpecs(1, txId, amount, nodes, specs, cfg)
 }
