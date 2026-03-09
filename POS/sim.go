@@ -1,8 +1,9 @@
 package pos
-
+//=============sim.go的1作用是实现POS算法的多轮共识===================
 import (
 	"math/rand"
-	"time"
+	// ======================= 【高亮-2026-03-09】新增：仿真只走共用节点池 node.NewPool(...) =======================
+    "PBFT1/node"
 )
 
 // ======================= 2026-03-06 高亮新增：多轮POS仿真（复用stake）BEGIN =======================
@@ -13,20 +14,22 @@ type RoundSummary struct {
 }
 
 func RunSimulator(totalRounds int, cfg SimConfig) ([]RoundSummary, []*SimNode) {
-	rand.Seed(time.Now().UnixNano())
+	// round=1：用共用节点池初始化 stake/active
+	specs0 := node.NewPool(1, node.FixedNumNodes, node.FixedMaliciousRatio)
+	nodes := NewNodesFromSpecs(specs0)
 
-	nodes := NewNodes(cfg)
 	out := make([]RoundSummary, 0, totalRounds)
 
 	for r := 1; r <= totalRounds; r++ {
-		res := RunPOSWithNodes(
-			// txId 只是模拟用
-			// 这里用 round 作为 txId
-			// amount 在你的系统里也只是演示数值
-			// 可随意给
-			"round-"+itoa(r),
+		// 每轮都使用共用节点池：恶意集合固定（同一 round 可复现）
+		specs := node.NewPool(r, node.FixedNumNodes, node.FixedMaliciousRatio)
+
+		res := RunPOSWithRoundAndSpecs(
+			r,
+			fmt.Sprintf("round-%d", r),
 			10,
 			nodes,
+			specs,
 			cfg,
 		)
 
