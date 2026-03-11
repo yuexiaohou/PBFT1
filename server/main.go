@@ -286,23 +286,17 @@ func simulateAllAlgos(db *gorm.DB, totalRounds int, maliciousRatio float64, numN
 }
 
 // 你实际业务算法可换为真实聚合，只要最终返回[]RoundStat即可
-// ==== 2026-03-04 高亮: PBFT 节点池参与业务 ====
+// ==== 2026-03-11 修改: PBFT 仿真对齐节点规模与阈值 ====
 func simulatePBFT(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes int) []RoundStat {
-	// ======================= 【高亮-2026-03-08】修改：PBFT 仿真改为使用 nodepool.go 的节点池（按 round 固定恶意集合） =======================
 	arr := make([]RoundStat, 0, totalRounds)
-	// 原代码会读 users，但并未真正用于 PBFT 共识；保留读取不影响功能（也可删除）
-	var users []User
-	db.Find(&users)
 	for round := 1; round <= totalRounds; round++ {
-		// ======================= 【高亮-2026-03-08】新增：每轮用 node.NewPool 生成固定恶意节点集合 =======================
+		// 使用完全相同的节点池生成函数
 		specs := node.NewPool(round, numNodes, maliciousRatio)
-		// txId / amount 仅用于模拟
+
 		txId := fmt.Sprintf("pbft-round-%d-%d", round, time.Now().UnixNano())
-		amount := rand.Intn(50) + 10
-		// 使用 /PBFT/pbft.go的RunPBFTWithRoundAndSpecs(round, txId, amount, specs)
-		// 注意：这要求你在 PBFT/pbft.go 中新增/改造该函数，使其能接收节点池 specs，
-		// 否则这里仍会 undefined。函数签名建议如下：
-		res := pbft.RunPBFTWithRoundAndSpecs(round, txId, amount, specs)
+		// 调用升级后的三阶段 PBFT
+		res := pbft.RunPBFTWithRoundAndSpecs(round, txId, 10, specs)
+
 		rate := 0.0
 		if res.Status == "已确认" {
 			rate = 1.0
@@ -312,7 +306,6 @@ func simulatePBFT(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes
 			Round:       round,
 			SuccessRate: rate,
 			MinPrice:    res.Price,
-			BuyerNode:   "",
 			SellerNode:  res.LeaderNode,
 		})
 	}

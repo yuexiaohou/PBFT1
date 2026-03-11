@@ -1,11 +1,11 @@
 package pbft
 
 import (
-	"time"
-	"math/rand"
 	"fmt"
-	// ======================= 【高亮-2026-03-08】新增：引入通用节点池规格（node.NodeSpec） =======================
-    "PBFT1/node"
+	"math/rand"
+	"time"
+	// ======================= 【高亮-2026-03-08】引入通用节点池规格 =======================
+	"PBFT1/node"
 )
 
 type Validator struct {
@@ -25,92 +25,82 @@ type PBFTResult struct {
 	LeaderNode   string
 }
 
-var pbftHeight = 1
-
-// ======================= 【高亮-2026-03-08】修改：新增支持 nodepool specs 的 PBFT 共识入口 =======================
-// 说明：这个函数与 main.go 的 simulatePBFT() 保持一致：
-// - round：用于固定随机源（可复现）
-// - maliciousRatio：用于从 specs 中决定恶意节点集合（如果 specs 已包含 IsMalicious，则 maliciousRatio 仅用于兜底）
-// - specs：来自 node.NewPool(round, numNodes, maliciousRatio)，实现“每轮固定一批恶意节点”
-// 注意：简化 PBFT 仍然使用 7 个 validator 模型；当 specs 数量>7 时取前 7 个（你也可以改为抽样）。
+// ======================= 【高亮-2026-03-11】修改：升级为完整三阶段 PBFT 并对齐阈值 =======================
 func RunPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.NodeSpec) PBFTResult {
-	// leader 仅用于展示：从 7 个 validator 里轮转
-	leader := fmt.Sprintf("node-%d", round%7)
+	n := len(specs)
+	if n <= 0 {
+		return PBFTResult{TxId: txId, Status: "失败", FailedReason: "no nodes", Timestamp: time.Now()}
+	}
 
-	// 每一轮 round 固定随机源 => 投票结果可复现
+	// 计算容错数 f 和达成共识需要的法定人数 (2f + 1)
+	f := (n - 1) / 3
+	quorum := 2*f + 1
+
+	// Leader 轮转逻辑与 apbft 对齐
+	leaderIdx := round % n
+	leader := fmt.Sprintf("node-%d", specs[leaderIdx].ID)
+
 	seed := int64(20260308 + round)
 	rng := rand.New(rand.NewSource(seed))
 
-	// 仍然保持“7 个 validator”的简化模型
-	const totalValidators = 7
-
-	// 当 specs 不足 7 个，按实际数量来
-	vn := totalValidators
-	if len(specs) < vn {
-		vn = len(specs)
-	}
-	if vn <= 0 {
-		return PBFTResult{
-			TxId:         txId,
-			Status:       "失败",
-			Consensus:    "pbft",
-			BlockHeight:  round,
-			Timestamp:    time.Now(),
-			Validators:   nil,
-			FailedReason: "no validators",
-			Price:        0,
-			LeaderNode:   leader,
-		}
+	// --- 阶段 1: Pre-Prepare ---
+	if specs[leaderIdx].IsMalicious && rng.Float64() < 0.3 {
+		return failResult(txId, round, leader, "Pre-Prepare failed: Malicious leader")
 	}
 
-	validators := make([]Validator, 0, vn)
-	commits := 0
+	// --- 阶段 2: Prepare (收集投票) ---
+	prepareVotes := 0
+	validators := make([]Validator, 0, n)
 
-	// 投票：正常节点小概率 reject；恶意节点高概率 reject
-	for i := 0; i < vn; i++ {
-		vote := "commit"
-
+	for i := 0; i < n; i++ {
+		vote := "prepare"
 		if specs[i].IsMalicious {
-			// 恶意节点：大概率拒绝
-			if rng.Float64() < 0.80 {
-				vote = "reject"
-			}
+			if rng.Float64() < 0.6 { vote = "reject" }
 		} else {
-			// 正常节���：小概率拒绝
-			if rng.Float64() < 0.10 {
-				vote = "reject"
-			}
+			if rng.Float64() < 0.05 { vote = "reject" }
 		}
 
-		if vote == "commit" {
-			commits++
+		if vote == "prepare" {
+			prepareVotes++
 		}
-
-		// 使用 specs[i].ID，保证节点编号与 nodepool 一致
 		validators = append(validators, Validator{
 			ID:   fmt.Sprintf("node-%d", specs[i].ID),
 			Vote: vote,
 		})
 	}
 
-	// 阈值：沿用原逻辑（>=5 commit 才成功）
-	status := "已确认"
-	reason := ""
-	if commits < 5 {
-		status = "失败"
-		reason = fmt.Sprintf("commits=%d < 5", commits)
+	if prepareVotes < quorum {
+		return failResult(txId, round, leader, fmt.Sprintf("Prepare phase failed: %d/%d", prepareVotes, quorum))
 	}
 
-	price := 500.0 + float64(rng.Intn(20))
+	// --- 阶段 3: Commit (最终确认) ---
+	commitVotes := 0
+	for i := 0; i < n; i++ {
+		// 只有 Prepare 成功的节点进入 Commit
+		if validators[i].Vote == "prepare" {
+			if specs[i].IsMalicious && rng.Float64() < 0.4 {
+				continue
+			}
+			commitVotes++
+			validators[i].Vote = "commit"
+		}
+	}
 
-	// 保留原 pbftHeight 变量但不强依赖它（你也可以删除 pbftHeight）
-	pbftHeight++
+	status := "已确认"
+	reason := ""
+	if commitVotes < quorum {
+		status = "失败"
+		reason = fmt.Sprintf("Commit phase failed: %d/%d", commitVotes, quorum)
+	}
+
+	// 撮合价格机理对齐：500 + 随机扰动
+	price := 500.0 + rng.Float64()*20.0
 
 	return PBFTResult{
 		TxId:         txId,
 		Status:       status,
 		Consensus:    "pbft",
-		BlockHeight:  round, // round 与 blockHeight 对齐，便于前端按轮次展示
+		BlockHeight:  round,
 		Timestamp:    time.Now(),
 		Validators:   validators,
 		FailedReason: reason,
@@ -119,7 +109,14 @@ func RunPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.N
 	}
 }
 
-// ======================= 【高亮-2026-03-08】修改：兼容旧接口（默认 round=1 且 maliciousRatio=0，specs=nil） =======================
+// 【高亮-2026-03-11】新增：统一失败结果处理
+func failResult(txId string, round int, leader string, reason string) PBFTResult {
+	return PBFTResult{
+		TxId: txId, Status: "失败", Consensus: "pbft", BlockHeight: round,
+		Timestamp: time.Now(), FailedReason: reason, LeaderNode: leader,
+	}
+}
+
 func RunPBFT(txId string, amount int) PBFTResult {
 	specs := node.NewPool(1, node.FixedNumNodes, node.FixedMaliciousRatio)
 	return RunPBFTWithRoundAndSpecs(1, txId, amount, specs)
