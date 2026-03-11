@@ -361,76 +361,26 @@ func simulatePOS(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes 
 
 // ==== 2026-03-04 新增: RAFT 节点池参与业务 ====
 func simulateRAFT(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes int) []RoundStat {
-	// ======================= 【高亮-2026-03-11】改造：融合 raft.SimulateRound(...) 的结果（不破坏原 successRate 结构） =======================
+	// ======================= 【高亮-2026-03-11】改造：RAFT 成功率只由 RAFT/raft.go 共识结果决定 =======================
+	_ = db // 【高亮-2026-03-11】RAFT 成功率不再使用用户余额/数据库数据
+
 	arr := make([]RoundStat, 0, totalRounds)
 
-	// 保留原逻辑：读取用户余额分布
-	var users []User
-	db.Find(&users)
-
 	for round := 1; round <= totalRounds; round++ {
-		// 与其它算法一致：本轮共用 specs（恶意集合固定）
-		// （raft.SimulateRound 内部也会 node.NewPool；这里保留是为了维持你原本“轻量结合 specs”的逻辑）
-		specs := node.NewPool(round, numNodes, maliciousRatio)
-
-		// ===== 原来的逻辑：余额>20 的用户占比 =====
-		activeUsers := 0
-		for _, u := range users {
-			var b Balance
-			db.Where("user_id = ?", u.ID).First(&b)
-			if b.Balance > 20 {
-				activeUsers++
-			}
-		}
-
-		// 原始 successRate（保留，不破坏原功能）
-		rate := 0.5 + rand.Float64()*0.3
-		if len(users) > 0 {
-			rate = float64(activeUsers) / float64(len(users))
-		}
-
-		// ===== 轻量结合 specs：恶意比例高则小幅下调（保留你原来的思路）=====
-		malCount := 0
-		for _, sp := range specs {
-			if sp.IsMalicious {
-				malCount++
-			}
-		}
-		malRatioRound := 0.0
-		if len(specs) > 0 {
-			malRatioRound = float64(malCount) / float64(len(specs))
-		}
-		// 最多下调 10%
-		rate = rate * (1.0 - 0.10*malRatioRound)
-
-		// ======================= 【高亮-2026-03-11】融合 raft.go：每轮跑一次 Raft，判断是否能“选主并提交一条日志” =======================
+		// ======================= 【高亮-2026-03-11】每轮只跑一次 Raft 共识仿真：选主 + 提交一条日志 =======================
 		leaderID, commitIndex, raftErr := raft.SimulateRound(round, numNodes, maliciousRatio)
 
-		raftOK := 0.0
+		// ======================= 【高亮-2026-03-11】成功定义：本轮无错误且 commitIndex>0（代表日志被多数派提交） =======================
+		rate := 0.0
 		if raftErr == nil && commitIndex > 0 {
-			raftOK = 1.0
+			rate = 1.0
 		}
 
-		// 将 raftOK 作为轻量因子融合到 rate（不改变原业务结构：仍然是 successRate）
-		// 解释：如果 Raft 本轮无法稳定达成“选主+提交”，则对 rate 做额外衰减
-		// 这里给一个温和权重：最多再衰减 15%（你可按实验调参）
-		rate = rate * (0.85 + 0.15*raftOK)
-
-		// clamp [0,1]
-		if rate < 0 {
-			rate = 0
-		}
-		if rate > 1 {
-			rate = 1
-		}
-
-		// RoundStat 中的 BuyerNode/SellerNode/MinPrice 对 RAFT 原本没用；这里用 SellerNode 记录 leader，便于前端展示
-		// 如果你不想污染字段，也可以保持为空
-		_ = leaderID // 如果你不展示 leader，可删除这行并不写到 RoundStat
+		// RoundStat 的其他字段对 RAFT 非必须；这里用 SellerNode 记录 leader 方便前端展示
 		arr = append(arr, RoundStat{
 			Round:       round,
 			SuccessRate: rate,
-			SellerNode:  fmt.Sprintf("raft-leader-%d", leaderID), // ======================= 【高亮-2026-03-11】记录本轮leader =======================
+			SellerNode:  fmt.Sprintf("raft-leader-%d", leaderID), // ======================= 【高亮-2026-03-11】记录本轮 leader =======================
 		})
 	}
 
