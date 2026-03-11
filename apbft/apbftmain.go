@@ -64,6 +64,17 @@ func RunPBFTSimulator(numNodes int, maliciousCount int, maliciousRatio float64, 
 		if !ok {
 			fmt.Printf("Round %d failed\n", r)
 		}
+        // ======================= 【高亮-2026-03-11】关键修改：共识失败则不撮合（不提交订单/不MatchAndClear） =======================
+    	if !ok {
+    		// ===== 写同步共识结果（即使失败也落盘，便于对齐 round）=====
+    		saveConsensusResult(r, sim, "/tmp/pbft_result.json")
+    		if csvWriter != nil {
+    			csvWriter.Flush()
+    		}
+            time.Sleep(200 * time.Millisecond)
+    		continue
+    	}
+        // ======================= 【高亮-2026-03-11】关键修改结束 =======================
 
 		ob.SubmitOrder(Buy, 500+rand.Float64()*30, 10+rand.Float64()*3, "Alice")
 		ob.SubmitOrder(Sell, 495+rand.Float64()*20, 5+rand.Float64()*6, "Bob")
