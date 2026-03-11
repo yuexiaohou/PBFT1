@@ -203,136 +203,92 @@ func applyStakeDelta(n *SimNode, delta float64, cfg SimConfig) {
 // 规则：
 // 1) leader/committee 仍按 stake 权重抽取（只从 Active 节点里抽）
 // 2) 投票行为：若该委员是恶意节点，则更倾向于 malicious/double-sign/offline
+// ======================= 【高亮-2026-03-11】修改：RunPOSWithRoundAndSpecs 对齐委员会规模与共识阈值 =======================
 func RunPOSWithRoundAndSpecs(round int, txId string, amount int, nodes []*SimNode, specs []node.NodeSpec, cfg SimConfig) POSResult {
-	// 用 round 固定随机源：保证同一轮可复现
-	seed := int64(20260309 + round)
-	rng := rand.New(rand.NewSource(seed))
-
-	// 同步本轮 Active（不覆盖 stake，保证奖惩累计）
+	// 1. 同步本轮状态（包含恶意标记同步）
 	SyncNodesFromSpecs(nodes, specs, false)
 
-	// 索引：恶意集合
-	isMalByID := make(map[int]bool, len(specs))
-	for _, sp := range specs {
-		isMalByID[sp.ID] = sp.IsMalicious
+	n := len(nodes)
+	// 【对齐点】委员会人数固定为总人数的 2/3 (对齐 PBFT 的 2f+1 逻辑权重)
+	committeeSize := (n * 2) / 3
+	if committeeSize < 1 { committeeSize = 1 }
+
+	// 统一随机种子：保证同一轮次结果可复现
+	seed := int64(20260308 + round)
+	rng := rand.New(rand.NewSource(seed))
+
+	// 2. 选取 Leader (基于 Stake 权重)
+	leaderNode := weightedPickOneWithRNG(nodes, rng)
+	if leaderNode == nil {
+		return POSResult{TxId: txId, Status: "失败", FailedReason: "no active nodes", Timestamp: time.Now()}
 	}
 
-	return runPOSCoreWithRNG(txId, amount, nodes, cfg, rng, isMalByID)
-}
-
-// 内部核心：把“节点行为概率 + 权重抽签 + 奖惩”集中在这里，便于复用
-func runPOSCoreWithRNG(txId string, amount int, nodes []*SimNode, cfg SimConfig, rng *rand.Rand, isMalByID map[int]bool) POSResult {
-	leader := weightedPickOneWithRNG(nodes, rng)
-	posHeight++
-
-	if leader == nil {
-		return POSResult{
-			TxId:         txId,
-			Status:       "失败",
-			Consensus:    "pos",
-			BlockHeight:  posHeight,
-			Timestamp:    time.Now(),
-			FailedReason: "no active leader",
-			Price:        0,
-			SellNode:     "",
-			Leader:       "",
-			Committee:    []string{},
-			Votes:        []Vote{},
-		}
-	}
-
-	committeeNodes := weightedPickKWithRNG(nodes, cfg.CommitteeSize, leader.ID, rng)
-	committee := make([]string, 0, len(committeeNodes))
+	// 3. 选取委员会成员
+	committeeNodes := weightedPickKWithRNG(nodes, committeeSize, leaderNode.ID, rng)
+	committeeNames := make([]string, 0, len(committeeNodes))
 	votes := make([]Vote, 0, len(committeeNodes))
-
 	commitCount := 0
 
+	// 4. 执行投票逻辑
 	for _, v := range committeeNodes {
-		committee = append(committee, v.Name())
+		committeeNames = append(committeeNames, v.Name())
+		voteStr := "commit"
 
-		// ========== 基于 nodepool 恶意标记，动态调整行为概率 ==========
-		offlineProb := cfg.OfflineProb
-		doubleSignProb := cfg.DoubleSignProb
-		malProb := cfg.MaliciousProb
-
-		if isMalByID != nil && isMalByID[v.ID] {
-			// ======================= 【高亮-2026-03-09】恶意节点：提高作恶/双签/离线概率（使 POS 与 APBFT 可比） =======================
-			offlineProb = math.Min(1.0, cfg.OfflineProb*2.0)
-			doubleSignProb = math.Min(1.0, cfg.DoubleSignProb*3.0)
-			malProb = math.Min(1.0, cfg.MaliciousProb*2.5)
-		}
-
-		// 离线
-		if rng.Float64() < offlineProb {
-			votes = append(votes, Vote{ID: v.Name(), Vote: "offline"})
-			applyStakeDelta(v, -cfg.OfflinePenalty, cfg)
-			continue
-		}
-
-		// 双签（简化：直接重罚）
-		if rng.Float64() < doubleSignProb {
-			votes = append(votes, Vote{ID: v.Name(), Vote: "double-sign"})
-			applyStakeDelta(v, -cfg.DoubleSignSlash, cfg)
-			continue
-		}
-
-		// 作恶：投 reject（这里归为 malicious）
-		if rng.Float64() < malProb {
-			votes = append(votes, Vote{ID: v.Name(), Vote: "malicious"})
-			applyStakeDelta(v, -cfg.MaliciousPenalty, cfg)
-			continue
-		}
-
-		// 正常投 commit
-		votes = append(votes, Vote{ID: v.Name(), Vote: "commit"})
-		commitCount++
-		applyStakeDelta(v, cfg.VoterReward, cfg)
-	}
-
-	// 判断是否达成阈值
-	status := "失败"
-	reason := "not enough commits"
-	if len(committeeNodes) > 0 {
-		if float64(commitCount)/float64(len(committeeNodes)) >= cfg.CommitThreshold {
-			status = "已确认"
-			reason = ""
-			applyStakeDelta(leader, cfg.LeaderReward, cfg)
+		// 【对齐点】恶意节点行为逻辑与 PBFT 对齐
+		if v.Malicious {
+			// 恶意节点：大概率拒绝
+			if rng.Float64() < 0.60 {
+				voteStr = "reject"
+				applyStakeDelta(v, -cfg.MaliciousPenalty, cfg)
+			}
 		} else {
-			applyStakeDelta(leader, -cfg.LeaderPenalty, cfg)
+			// 正常节点：极小概率网络抖动
+			if rng.Float64() < 0.05 {
+				voteStr = "reject"
+			}
 		}
-	} else {
-		// 委员会抽不出来（极端情况）
-		applyStakeDelta(leader, -cfg.LeaderPenalty, cfg)
-		reason = "committee empty"
+
+		if voteStr == "commit" {
+			commitCount++
+			applyStakeDelta(v, cfg.VoterReward, cfg)
+		}
+		votes = append(votes, Vote{ID: v.Name(), Vote: voteStr})
 	}
 
-	// 价格模拟：使用 rng，避免全局随机干扰可复现性
-	price := 480.0 + float64(rng.Intn(40))
+	// 5. 【对齐点】共识阈值判定：委员会内 2/3 赞成
+	quorum := (len(committeeNodes) * 2) / 3
+	if quorum < 1 { quorum = 1 }
+
+	status := "已确认"
+	reason := ""
+	price := 0.0
+
+	if commitCount < quorum {
+		status = "失败"
+		reason = fmt.Sprintf("Consensus failed: votes %d/%d (threshold 2/3)", commitCount, len(committeeNodes))
+		applyStakeDelta(leaderNode, -cfg.LeaderPenalty, cfg)
+	} else {
+		// 【对齐点】撮合成功价格生成逻辑对齐
+		price = 500.0 + rng.Float64()*20.0
+		applyStakeDelta(leaderNode, cfg.LeaderReward, cfg)
+	}
+
+	posHeight++
 
 	return POSResult{
 		TxId:         txId,
 		Status:       status,
 		Consensus:    "pos",
-		BlockHeight:  posHeight,
+		BlockHeight:  round,
 		Timestamp:    time.Now(),
-		Leader:       leader.Name(),
-		Committee:    committee,
+		Leader:       leaderNode.Name(),
+		Committee:    committeeNames,
 		Votes:        votes,
 		FailedReason: reason,
 		Price:        price,
-		SellNode:     leader.Name(), // 兼容老字段：SellNode=Leader
+		SellNode:     leaderNode.Name(),
 	}
 }
-
-// ======================= 【高亮-2026-03-09】修改：RunPOSWithNodes 改为薄封装（wrapper），统一走 runPOSCoreWithRNG =======================
-func RunPOSWithNodes(txId string, amount int, nodes []*SimNode, cfg SimConfig) POSResult {
-	// 创建临时 rng：避免依赖全局 rand，提高可控性（但仍然是“非固定 seed”模式）
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	// isMalByID=nil：表示不接入 nodepool 恶意标记，保持旧行为语义
-	return runPOSCoreWithRNG(txId, amount, nodes, cfg, rng, nil)
-}
-
-// ======================= 2026-03-06 高亮新增：单轮POS共识 END =======================
 
 // 兼容你现有调用方式（不传 nodes/cfg 时，每次新建节点集合）
 // 注意：每次新建会导致 stake 不累积（不利于奖惩效果），建议你在仿真里复用 nodes。
