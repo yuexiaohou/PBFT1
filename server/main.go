@@ -359,15 +359,20 @@ func simulatePOS(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes 
 }
 
 // ==== 2026-03-04 新增: RAFT 节点池参与业务 ====
-func simulateRAFT(db *gorm.DB,totalRounds int, maliciousRatio float64, numNodes int) []RoundStat {
+func simulateRAFT(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes int) []RoundStat {
+	// ======================= 【高亮-2026-03-11】改造：融合 raft.SimulateRound(...) 的结果（不破坏原 successRate 结构） =======================
 	arr := make([]RoundStat, 0, totalRounds)
+
+	// 保留原逻辑：读取用户余额分布
 	var users []User
-    db.Find(&users)
+	db.Find(&users)
+
 	for round := 1; round <= totalRounds; round++ {
 		// 与其它算法一致：本轮共用 specs（恶意集合固定）
+		// （raft.SimulateRound 内部也会 node.NewPool；这里保留是为了维持你原本“轻量结合 specs”的逻辑）
 		specs := node.NewPool(round, numNodes, maliciousRatio)
 
-		// 你原来的逻辑：余额>20 的用户占比 + 噪声
+		// ===== 原来的逻辑：余额>20 的用户占比 =====
 		activeUsers := 0
 		for _, u := range users {
 			var b Balance
@@ -383,7 +388,7 @@ func simulateRAFT(db *gorm.DB,totalRounds int, maliciousRatio float64, numNodes 
 			rate = float64(activeUsers) / float64(len(users))
 		}
 
-		// 轻量结合 specs：如果本轮恶意节点比例高，则对 rate 做一个小幅下调（不改变算法结构，只是把共用节点池纳入仿真输入）
+		// ===== 轻量结合 specs：恶意比例高则小幅下调（保留你原来的思路）=====
 		malCount := 0
 		for _, sp := range specs {
 			if sp.IsMalicious {
@@ -394,9 +399,23 @@ func simulateRAFT(db *gorm.DB,totalRounds int, maliciousRatio float64, numNodes 
 		if len(specs) > 0 {
 			malRatioRound = float64(malCount) / float64(len(specs))
 		}
-		// 例如：最多下调 10%（你可自行调整）
+		// 最多下调 10%
 		rate = rate * (1.0 - 0.10*malRatioRound)
 
+		// ======================= 【高亮-2026-03-11】融合 raft.go：每轮跑一次 Raft，判断是否能“选主并提交一条日志” =======================
+		leaderID, commitIndex, raftErr := raft.SimulateRound(round, numNodes, maliciousRatio)
+
+		raftOK := 0.0
+		if raftErr == nil && commitIndex > 0 {
+			raftOK = 1.0
+		}
+
+		// 将 raftOK 作为轻量因子融合到 rate（不改变原业务结构：仍然是 successRate）
+		// 解释：如果 Raft 本轮无法稳定达成“选主+提交”，则对 rate 做额外衰减
+		// 这里给一个温和权重：最多再衰减 15%（你可按实验调参）
+		rate = rate * (0.85 + 0.15*raftOK)
+
+		// clamp [0,1]
 		if rate < 0 {
 			rate = 0
 		}
@@ -404,8 +423,16 @@ func simulateRAFT(db *gorm.DB,totalRounds int, maliciousRatio float64, numNodes 
 			rate = 1
 		}
 
-		arr = append(arr, RoundStat{Round: round, SuccessRate: rate})
+		// RoundStat 中的 BuyerNode/SellerNode/MinPrice 对 RAFT 原本没用；这里用 SellerNode 记录 leader，便于前端展示
+		// 如果你不想污染字段，也可以保持为空
+		_ = leaderID // 如果你不展示 leader，可删除这行并不写到 RoundStat
+		arr = append(arr, RoundStat{
+			Round:       round,
+			SuccessRate: rate,
+			SellerNode:  fmt.Sprintf("raft-leader-%d", leaderID), // ======================= 【高亮-2026-03-11】记录本轮leader =======================
+		})
 	}
+
 	return arr
 }
 
