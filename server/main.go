@@ -18,6 +18,7 @@ import (
 	"math"
 	pos  "PBFT1/POS"
 	pbft "PBFT1/PBFT"
+	raft "PBFT1/RAFT"
 )
 
 // ==============用户结构体========
