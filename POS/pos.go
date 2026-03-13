@@ -129,8 +129,9 @@ func SyncNodesFromSpecs(nodes []*SimNode, specs []node.NodeSpec, stakeOverride b
             n.Malicious = sp.IsMalicious
             if stakeOverride {
             n.Stake = sp.Stake
-		}
-	}
+		    }
+	     }
+    }
 }
 
 // ======================= 【高亮-2026-03-09】新增：可注入 RNG 的加权抽取（stake 权重）BEGIN =======================
