@@ -101,6 +101,7 @@ func NewNodesFromSpecs(specs []node.NodeSpec) []*SimNode {
 			ID:     sp.ID,
 			Stake:  sp.Stake,
 			Active: sp.Active,
+			Malicious: sp.IsMalicious, // 【高亮-2026-03-11】修正：初始化时记录恶意状态
 		})
 	}
 	return nodes
@@ -124,6 +125,10 @@ func SyncNodesFromSpecs(nodes []*SimNode, specs []node.NodeSpec, stakeOverride b
 		n.Active = sp.Active
 		if stakeOverride {
 			n.Stake = sp.Stake
+	        // 【高亮-2026-03-11】核心修复：同步恶意标记。如果不同步此字段，所有节点都会投 commit
+            n.Malicious = sp.IsMalicious
+            if stakeOverride {
+            n.Stake = sp.Stake
 		}
 	}
 }
@@ -173,18 +178,6 @@ func weightedPickKWithRNG(nodes []*SimNode, k int, excludeID int, rng *rand.Rand
 		picked = append(picked, n)
 	}
 	return picked
-}
-
-// 兼容旧函数名（保留，但内部用一个临时 rng，避免直接依赖全局 rand）
-func weightedPickOne(nodes []*SimNode) *SimNode {
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return weightedPickOneWithRNG(nodes, rng)
-}
-
-// ======================= 【高亮-2026-03-09】新增：可注入 RNG 的加权抽取 END =======================
-func weightedPickK(nodes []*SimNode, k int, excludeID int) []*SimNode {
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return weightedPickKWithRNG(nodes, k, excludeID, rng)
 }
 
 // stake 更新并按 MinActiveStake 判定 active
