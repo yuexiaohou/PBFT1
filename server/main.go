@@ -188,39 +188,50 @@ func updatePBFTBlock(height int, confirmedTxs int) {
 	}
 }
 
-// ======================= 2026-03-04 新增：错误节点使用率模拟 BEGIN =======================
+// ======================= 【高亮-2026-03-13】修改：参与共识概率模拟逻辑（修复变量声明与返回值报错） =======================
 func simulateErrorRateForAlgo(algo string, maliciousRatio float64) []ErrorRatePoint {
-	rounds := []int{100, 200, 300, 400,500, 600, 700, 800, 900, 1000}
-	points := make([]ErrorRatePoint, 0, len(rounds))
-
-}
-
-// ======================= 2026-03-04 新增：主节点转换次数模拟 BEGIN =======================
-func simulateLeaderChangesForAlgo(algo string, maliciousRatio float64) []LeaderChangePoint {
-	rounds := []int{100, 200, 300, 400,500, 600, 700, 800, 900, 1000}
-	points := make([]LeaderChangePoint, 0, len(rounds))
+	fixedRounds := []int{100, 200, 300, 400, 500, 600, 700, 800, 900, 1000}
+	points := make([]ErrorRatePoint, 0, len(fixedRounds))
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	for _, round := range rounds {
+	for _, round := range fixedRounds {
 		var rate float64
 		switch algo {
 		case "pbft":
-			// PBFT 必须所有人投票，参与概率始终很高
+			// PBFT 全员参与，参与概率稳定在恶意比例附近
 			rate = maliciousRatio * (0.92 + r.Float64()*0.1)
 		case "pos":
-			// PoS 随时间推移扣除坏节点 Stake，参与概率显著下降
+			// PoS 随轮次增加，恶意节点 Stake 降低，参与概率下降
 			decay := 1.0 - (float64(round) / 1800.0)
 			rate = maliciousRatio * decay * (0.7 + r.Float64()*0.2)
 		case "raft":
-			// Raft 只有主节点影响核心，参与概率极低
+			// Raft 只有主节点提议，参与概率极低
 			rate = maliciousRatio * 0.25 * (0.8 + r.Float64()*0.3)
-		case "custom":
-			// APBFT 信用模型抑制
+		default: // custom/apbft
+			// APBFT 信用优化
 			decay := 1.0 - (float64(round) / 3000.0)
 			rate = maliciousRatio * 0.6 * decay * (0.8 + r.Float64()*0.2)
 		}
 		if rate < 0 { rate = 0 }
 		points = append(points, ErrorRatePoint{Round: round, ErrorRate: rate})
+	}
+	return points
+}
+
+// ======================= 【高亮-2026-03-13】修改：主节点转换次数（修复 append 结构体类型报错） =======================
+func simulateLeaderChangesForAlgo(algo string, maliciousRatio float64) []LeaderChangePoint {
+	fixedRounds := []int{100, 200, 300, 400, 500, 600, 700, 800, 900, 1000}
+	points := make([]LeaderChangePoint, 0, len(fixedRounds))
+	base := 0.001
+	switch algo {
+	case "pbft": base = 0.002 + maliciousRatio*0.02
+	case "pos": base = 0.0012 + maliciousRatio*0.006
+	case "raft": base = 0.0008 + maliciousRatio*0.004
+	case "custom": base = 0.0016 + maliciousRatio*0.01
+	}
+	for _, r := range fixedRounds {
+		v := int(float64(r)*base + rand.Float64()*3.0)
+		points = append(points, LeaderChangePoint{Round: r, LeaderChanges: v})
 	}
 	return points
 }
