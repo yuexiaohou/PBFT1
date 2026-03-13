@@ -125,11 +125,11 @@ func SyncNodesFromSpecs(nodes []*SimNode, specs []node.NodeSpec, stakeOverride b
 		n.Active = sp.Active
 		if stakeOverride {
 			n.Stake = sp.Stake
-	        // 【高亮-2026-03-11】核心修复：同步恶意标记。如果不同步此字段，所有节点都会投 commit
+	        // 【关键修复点】无论是否覆盖 Stake，每一轮必须强制同步恶意状态
             n.Malicious = sp.IsMalicious
             if stakeOverride {
             n.Stake = sp.Stake
-		    }
+            }
 	     }
     }
 }
@@ -223,20 +223,18 @@ func RunPOSWithRoundAndSpecs(round int, txId string, amount int, nodes []*SimNod
 	votes := make([]Vote, 0, len(committeeNodes))
 	commitCount := 0
 
-	// 4. 执行投票逻辑
+	// 4. 执行投票
 	for _, v := range committeeNodes {
 		committeeNames = append(committeeNames, v.Name())
 		voteStr := "commit"
 
-		// 【对齐点】恶意节点行为逻辑与 PBFT 对齐
+		// 【修正点】识别恶意标记，执行拒绝逻辑
 		if v.Malicious {
-			// 恶意节点：大概率拒绝
-			if rng.Float64() < 0.60 {
+			if rng.Float64() < 0.80 {
 				voteStr = "reject"
 				applyStakeDelta(v, -cfg.MaliciousPenalty, cfg)
 			}
 		} else {
-			// 正常节点：极小概率网络抖动
 			if rng.Float64() < 0.05 {
 				voteStr = "reject"
 			}
