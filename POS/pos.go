@@ -214,6 +214,17 @@ func RunPOSWithRoundAndSpecs(round int, txId string, amount int, nodes []*SimNod
 		return POSResult{TxId: txId, Status: "失败", FailedReason: "no active nodes", Timestamp: time.Now()}
 	}
 
+	// 【关键对齐点-2026-03-11】模拟 Leader 提议阶段
+	// 如果选出的 Leader 是恶意的，有 30% 概率直接不提议（对齐 PBFT 逻辑）
+	if leaderNode.Malicious && rng.Float64() < 0.3 {
+		applyStakeDelta(leaderNode, -cfg.LeaderPenalty, cfg)
+		return POSResult{
+			TxId: txId, Status: "失败", Consensus: "pos", BlockHeight: round,
+			Timestamp: time.Now(), FailedReason: "Leader proposal failed (malicious)",
+			Leader: leaderNode.Name(), SellNode: leaderNode.Name(),
+		}
+	}
+
 	// 3. 选取委员会成员
 	committeeNodes := weightedPickKWithRNG(nodes, committeeSize, leaderNode.ID, rng)
 	committeeNames := make([]string, 0, len(committeeNodes))
