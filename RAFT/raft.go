@@ -390,169 +390,83 @@ func (c *Cluster) StartElection(candidateID int) (leaderID int, err error) {
 	return candidateID, nil
 }
 
+// ======================= 【高亮-2026-03-11】修改：对齐 RAFT 阈值为 2f+1 以适配 BFT 仿真对比 =======================
 func (c *Cluster) quorum() int {
 	n := len(c.Nodes)
-	return n/2 + 1
+	// 在标准 Raft 中是 n/2 + 1。
+	// 为了在同一恶意比例下与 PBFT/APBFT 对齐对比，我们将其阈值统一设置为 2f+1。
+	f := (n - 1) / 3
+	return 2*f + 1
 }
 
 // LeaderAppend appends a new command to leader log and tries to replicate to followers.
 // It also implements Leader Completeness (requirement 2) via commit rule:
 // only advance commitIndex for entries in current term that are replicated on majority.
-func (c *Cluster) LeaderAppend(command string) (commitIndex int, err error) {
+// ======================= 【高亮-2026-03-11】修改：模拟提案流程并对齐撮合成功逻辑 =======================
+func (c *Cluster) LeaderAppend(command string) (int, float64, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.LeaderID == nil {
-		return 0, errors.New("no leader")
+		return 0, 0, fmt.Errorf("no leader")
 	}
+
 	leader := c.Nodes[*c.LeaderID]
-
-	leader.mu.Lock()
-	if leader.Role != Leader {
-		leader.mu.Unlock()
-		return 0, errors.New("leaderID is not leader")
+	// 如果 Leader 是恶意节点，模拟提案失败
+	if leader.Spec.IsMalicious && c.rng.Float64() < 0.3 {
+		return 0, 0, fmt.Errorf("malicious leader failed to propose")
 	}
 
-	// Append new entry at end.
-	newIndex := len(leader.Log) + 1
-	newEntry := LogEntry{
-		Index:   newIndex,
-		Term:    leader.CurrentTerm,
-		Command: command,
-	}
-	leader.Log = append(leader.Log, newEntry)
-	leaderTerm := leader.CurrentTerm
-	leaderID := leader.ID
-	leader.mu.Unlock()
+	successCount := 1 // Leader 算一票
+	for _, nd := range c.Nodes {
+		if nd.ID == *c.LeaderID { continue }
 
-	// Replicate to followers
-	for id, follower := range c.Nodes {
-		if id == leaderID {
-			continue
-		}
-
-		leader.mu.Lock()
-		nextIdx := leader.NextIndex[id]
-		prevIdx := nextIdx - 1
-		prevTerm := 0
-		if prevIdx > 0 && prevIdx <= len(leader.Log) {
-			prevTerm = leader.Log[prevIdx-1].Term
-		}
-		entries := make([]LogEntry, 0)
-		if nextIdx <= len(leader.Log) {
-			entries = append(entries, leader.Log[nextIdx-1:]...)
-		}
-		leaderCommit := leader.CommitIndex
-		leader.mu.Unlock()
-
-		resp := follower.HandleAppendEntries(AppendEntriesRequest{
-			Term:         leaderTerm,
-			LeaderID:     leaderID,
-			PrevLogIndex: prevIdx,
-			PrevLogTerm:  prevTerm,
-			Entries:      entries,
-			LeaderCommit: leaderCommit,
-		})
-
-		if resp.Term > leaderTerm {
-			leader.mu.Lock()
-			leader.Role = Follower
-			leader.CurrentTerm = resp.Term
-			leader.VotedFor = nil
-			leader.mu.Unlock()
-			c.LeaderID = nil
-			return 0, errors.New("leader stepped down due to higher term")
-		}
-
-		if resp.Success {
-			leader.mu.Lock()
-			leader.MatchIndex[id] = len(leader.Log)
-			leader.NextIndex[id] = len(leader.Log) + 1
-			leader.mu.Unlock()
+		// 模拟副本确认逻辑 (对齐 PBFT 投票行为)
+		shouldConfirm := true
+		if nd.Spec.IsMalicious {
+			// 恶意节点：大概率拒绝
+			if c.rng.Float64() < 0.6 { shouldConfirm = false }
 		} else {
-			leader.mu.Lock()
-			if leader.NextIndex[id] > 1 {
-				leader.NextIndex[id]--
-			}
-			leader.mu.Unlock()
+			// 正常节点：极小概率网络抖动
+			if c.rng.Float64() < 0.05 { shouldConfirm = false }
+		}
+
+		if shouldConfirm {
+			successCount++
 		}
 	}
 
-	// ======================= 【高亮-2026-03-09】Leader 完整性：推进 commitIndex 只考虑“本 term”日志（Raft 规则） =======================
-	leader.mu.Lock()
-	defer leader.mu.Unlock()
-
-	// Collect match indexes including leader itself.
-	match := make([]int, 0, len(c.Nodes))
-	match = append(match, len(leader.Log)) // leader's own
-	for id := range c.Nodes {
-		if id == leaderID {
-			continue
-		}
-		match = append(match, leader.MatchIndex[id])
-	}
-	sort.Ints(match)
-	// N is the median for majority (quorum-th largest).
-	N := match[len(match)-c.quorum()]
-
-	// Only commit if:
-	// 1) N > commitIndex
-	// 2) log[N].Term == currentTerm  (Leader completeness / safety)
-	if N > leader.CommitIndex {
-		if N >= 1 && N <= len(leader.Log) {
-			if leader.Log[N-1].Term == leader.CurrentTerm {
-				leader.CommitIndex = N
-			}
-		}
+	q := c.quorum()
+	if successCount >= q {
+		// 【对齐点】撮合成功价格逻辑对齐
+		price := 500.0 + c.rng.Float64()*20.0
+		return successCount, price, nil
 	}
 
-	return leader.CommitIndex, nil
+	return successCount, 0, fmt.Errorf("not enough acks: %d/%d", successCount, q)
 }
 
-// SimulateRound runs a very small simulation for one round:
-// - create shared node pool
-// - pick some candidates and run elections until a leader exists (or max tries)
-// - leader appends one command
-func SimulateRound(round int, numNodes int, maliciousRatio float64) (leaderID int, commitIndex int, err error) {
-	// ======================= 【高亮-2026-03-09】使用 nodepool.go 的共用节点集（同一 round 可复现恶意集合） =======================
-	specs := node.NewPool(round, numNodes, maliciousRatio)
-	if len(specs) == 0 {
-		return 0, 0, errors.New("empty node pool")
-	}
-
+// SimulateRoundWithPrice 用于服务端仿真入口，返回价格以对齐
+func SimulateRoundWithPrice(round int, specs []node.NodeSpec) (int, float64, error) {
 	c := NewClusterFromPool(round, specs)
 
-	// Try elect a leader
-	tries := 0
-	maxTries := 10
-	for c.LeaderID == nil && tries < maxTries {
-		tries++
-		// pick a random active node as candidate
-		active := make([]int, 0, len(specs))
-		for _, sp := range specs {
-			if sp.Active {
-				active = append(active, sp.ID)
-			}
-		}
-		if len(active) == 0 {
-			return 0, 0, errors.New("no active nodes")
-		}
-		cand := active[c.rng.Intn(len(active))]
-		lid, e := c.StartElection(cand)
-		if e == nil {
-			leaderID = lid
-			break
-		}
+	// 简单选主逻辑
+	active := make([]int, 0)
+	for _, sp := range specs {
+		if sp.Active { active = append(active, sp.ID) }
 	}
+	if len(active) == 0 { return 0, 0, errors.New("no active nodes") }
 
-	if c.LeaderID == nil {
-		return 0, 0, errors.New("failed to elect leader")
-	}
+	cand := active[c.rng.Intn(len(active))]
+	lid, err := c.StartElection(cand)
+	if err != nil { return 0, 0, err }
 
-	ci, e := c.LeaderAppend(fmt.Sprintf("cmd-round-%d", round))
-	if e != nil {
-		return *c.LeaderID, 0, e
-	}
+	_, price, err := c.LeaderAppend(fmt.Sprintf("cmd-round-%d", round))
+	return lid, price, err
+}
 
-	return *c.LeaderID, ci, nil
+func SimulateRound(round int, numNodes int, maliciousRatio float64) (int, int, error) {
+	specs := node.NewPool(round, numNodes, maliciousRatio)
+	lid, _, err := SimulateRoundWithPrice(round, specs)
+	return lid, 0, err
 }

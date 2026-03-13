@@ -352,31 +352,30 @@ func simulatePOS(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes 
 	return arr
 }
 
-// ==== 2026-03-04 新增: RAFT 节点池参与业务 ====
+// ======================= 【高亮-2026-03-11】修改：对齐 RAFT 仿真参数与节点池 =======================
 func simulateRAFT(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes int) []RoundStat {
-	// ======================= 【高亮-2026-03-11】改造：RAFT 成功率只由 RAFT/raft.go 共识结果决定 =======================
-	_ = db // 【高亮-2026-03-11】RAFT 成功率不再使用用户余额/数据库数据
-
 	arr := make([]RoundStat, 0, totalRounds)
 
 	for round := 1; round <= totalRounds; round++ {
-		// ======================= 【高亮-2026-03-11】每轮只跑一次 Raft 共识仿真：选主 + 提交一条日志 =======================
-		leaderID, commitIndex, raftErr := raft.SimulateRound(round, numNodes, maliciousRatio)
+		// 1. 获取规格
+		specs := node.NewPool(round, numNodes, maliciousRatio)
 
-		// ======================= 【高亮-2026-03-11】成功定义：本轮无错误且 commitIndex>0（代表日志被多数派提交） =======================
-		rate := 0.0
-		if raftErr == nil && commitIndex > 0 {
-			rate = 1.0
+		// 2. 模拟 RAFT 选主与共识 (内部调用已修改为 2f+1)
+		// 假设 SimulateRound 返回 leaderID, commitCount, price, err
+		leaderID, price, err := raft.SimulateRoundWithPrice(round, specs)
+
+		successRate := 0.0
+		if err == nil {
+			successRate = 1.0
 		}
 
-		// RoundStat 的其他字段对 RAFT 非必须；这里用 SellerNode 记录 leader 方便前端展示
 		arr = append(arr, RoundStat{
 			Round:       round,
-			SuccessRate: rate,
-			SellerNode:  fmt.Sprintf("raft-leader-%d", leaderID), // ======================= 【高亮-2026-03-11】记录本轮 leader =======================
+			SuccessRate: successRate,
+			MinPrice:    price,
+			SellerNode:  fmt.Sprintf("node-%d", leaderID),
 		})
 	}
-
 	return arr
 }
 
