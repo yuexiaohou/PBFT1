@@ -193,68 +193,34 @@ func simulateErrorRateForAlgo(algo string, maliciousRatio float64) []ErrorRatePo
 	rounds := []int{100, 200, 300, 400,500, 600, 700, 800, 900, 1000}
 	points := make([]ErrorRatePoint, 0, len(rounds))
 
-	// 基线（按算法区分），并与 maliciousRatio 相关
-	base := 0.10
-	switch algo {
-	case "pbft":
-		base = 0.08 + maliciousRatio*0.35
-	case "pos":
-		base = 0.05 + maliciousRatio*0.20
-	case "raft":
-		base = 0.03 + maliciousRatio*0.15
-	case "custom":
-		base = 0.10 + maliciousRatio*0.25
-	default:
-		base = 0.08 + maliciousRatio*0.20
-	}
-
-	for _, r := range rounds {
-		// 随轮数增大，假设系统逐步抑制错误节点使用率（示例）
-		decay := 1.0 - (math.Log10(float64(r)) / 10.0) // r=10 -> ~0.9, 10000 -> ~0.6 左右
-		v := base * decay
-
-		// 小噪声
-		v = v + (rand.Float64()-0.5)*0.03
-
-		// clamp [0,1]
-		if v < 0 {
-			v = 0
-		}
-		if v > 1 {
-			v = 1
-		}
-
-		points = append(points, ErrorRatePoint{Round: r, ErrorRate: v})
-	}
-	return points
 }
 
 // ======================= 2026-03-04 新增：主节点转换次数模拟 BEGIN =======================
 func simulateLeaderChangesForAlgo(algo string, maliciousRatio float64) []LeaderChangePoint {
 	rounds := []int{100, 200, 300, 400,500, 600, 700, 800, 900, 1000}
 	points := make([]LeaderChangePoint, 0, len(rounds))
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	// 基线（按算法区分），并与 maliciousRatio 相关
-	base := 0.001
-	switch algo {
-	case "pbft":
-		base = 0.002 + maliciousRatio*0.020
-	case "pos":
-		base = 0.0012 + maliciousRatio*0.006
-	case "raft":
-		base = 0.0008 + maliciousRatio*0.004
-	case "custom":
-		base = 0.0016 + maliciousRatio*0.010
-	default:
-		base = 0.001
-	}
-
-	for _, r := range rounds {
-		v := int(float64(r)*base + rand.Float64()*3.0)
-		if v < 0 {
-			v = 0
+	for _, round := range rounds {
+		var rate float64
+		switch algo {
+		case "pbft":
+			// PBFT 必须所有人投票，参与概率始终很高
+			rate = maliciousRatio * (0.92 + r.Float64()*0.1)
+		case "pos":
+			// PoS 随时间推移扣除坏节点 Stake，参与概率显著下降
+			decay := 1.0 - (float64(round) / 1800.0)
+			rate = maliciousRatio * decay * (0.7 + r.Float64()*0.2)
+		case "raft":
+			// Raft 只有主节点影响核心，参与概率极低
+			rate = maliciousRatio * 0.25 * (0.8 + r.Float64()*0.3)
+		case "custom":
+			// APBFT 信用模型抑制
+			decay := 1.0 - (float64(round) / 3000.0)
+			rate = maliciousRatio * 0.6 * decay * (0.8 + r.Float64()*0.2)
 		}
-		points = append(points, LeaderChangePoint{Round: r, LeaderChanges: v})
+		if rate < 0 { rate = 0 }
+		points = append(points, ErrorRatePoint{Round: round, ErrorRate: rate})
 	}
 	return points
 }

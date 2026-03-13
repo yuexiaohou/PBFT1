@@ -35,14 +35,10 @@ export default function PerformanceCharts() {
         async function fetchStats() {
             setLoading(true);
             setErrMsg("");
-
-            // 1) 原有：成功率接口
             try {
                 const url = "/api/performance" + (algo !== "all" ? `?algo=${algo}` : "");
                 const res = await fetch(url);
-                if (!res.ok) throw new Error(`performance http ${res.status}`);
                 const data = await res.json();
-
                 if (algo === "all") {
                     setChartData(data.algos || []);
                     setSingleRounds([]);
@@ -50,39 +46,22 @@ export default function PerformanceCharts() {
                     setChartData([]);
                     setSingleRounds(data.rounds || []);
                 }
-            } catch (e) {
-                setChartData([]);
-                setSingleRounds([]);
-                setErrMsg("性能特性（成功率）数据获取失败");
-            }
 
-            // 2) 错误节点使用率（全量）
-            try {
                 const res2 = await fetch("/api/performance/errorrate");
-                if (!res2.ok) throw new Error(`errorrate http ${res2.status}`);
                 const data2 = await res2.json();
                 setErrorRateData(data2.algos || []);
-            } catch (e) {
-                setErrorRateData([]);
-            }
 
-            // 3) 主节点转换次数（全量）
-            try {
                 const res3 = await fetch("/api/performance/leaderchanges");
-                if (!res3.ok) throw new Error(`leaderchanges http ${res3.status}`);
                 const data3 = await res3.json();
                 setLeaderChangeData(data3.algos || []);
             } catch (e) {
-                setLeaderChangeData([]);
+                setErrMsg("数据获取失败");
             }
-
             setLoading(false);
         }
-
         fetchStats();
     }, [algo]);
 
-    // ======= 2026-03-05 高亮新增：工具函数：从后端 points 映射到固定 rounds 数组 =======
     const pointsToAlignedArray = (points, valueGetter, fallback = 0) => {
         const map = new Map((points || []).map((p) => [p.round, valueGetter(p)]));
         return fixedRounds.map((r) => {
@@ -90,22 +69,19 @@ export default function PerformanceCharts() {
             return v === undefined || v === null || Number.isNaN(v) ? fallback : v;
         });
     };
-    // ======= 2026-03-05 高亮新增 END =======
 
-    // ======= 2026-03-05 高亮新增：错误节点使用率 series（all=多条；单算法=一条） =======
+    // ======= 【高亮-2026-03-13】修改：映射逻辑，将 errorRate 转换为百分比共识概率 =======
     const errorRateSeries = useMemo(() => {
         const filtered = algo === "all" ? (errorRateData || []) : (errorRateData || []).filter((x) => x.algo === algo);
-
         return filtered.map((as) => ({
             algo: as.algo,
             data: pointsToAlignedArray(
                 as.points,
-                (p) => Number((((p.errorRate ?? 0) * 100)).toFixed(2)),
+                (p) => Number((p.errorRate * 100).toFixed(2)),
                 0
             ),
         }));
     }, [algo, errorRateData]);
-    // ======= 2026-03-05 高亮新增 END =======
 
     // ======= 2026-03-05 高亮新增：主节点转换次数 series（all=多条；单算法=一条） =======
     const leaderChangeSeries = useMemo(() => {
