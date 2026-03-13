@@ -123,14 +123,11 @@ func SyncNodesFromSpecs(nodes []*SimNode, specs []node.NodeSpec, stakeOverride b
 			continue
 		}
 		n.Active = sp.Active
-		if stakeOverride {
-			n.Stake = sp.Stake
-	        // 【关键修复点】无论是否覆盖 Stake，每一轮必须强制同步恶意状态
-            n.Malicious = sp.IsMalicious
-            if stakeOverride {
-            n.Stake = sp.Stake
-            }
-	     }
+	    // 【关键修复点】无论是否覆盖 Stake，每一轮必须强制同步恶意状态
+        n.Malicious = sp.IsMalicious
+        if stakeOverride {
+        n.Stake = sp.Stake
+        }
     }
 }
 
