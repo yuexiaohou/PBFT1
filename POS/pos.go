@@ -64,7 +64,7 @@ type SimConfig struct {
 func DefaultSimConfig() SimConfig {
 	return SimConfig{
 		ValidatorNum:     100,
-		CommitteeSize:    21,
+		CommitteeSize:    67,
 		StakeMin:         10,
 		StakeMax:         100,
 		OfflineProb:      0.05,
