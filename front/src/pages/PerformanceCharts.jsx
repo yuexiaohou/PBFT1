@@ -193,7 +193,7 @@ export default function PerformanceCharts() {
 
                         {/* ======================= 2026-03-05 高亮新增：图2：错误节点使用率对比/单算法 BEGIN ======================= */}
                         <Typography variant="subtitle1" mt={4} gutterBottom>
-                            错误节点使用率（%）{algo === "all" ? "对比" : `（${selectedAlgoLabel}）`}（共识轮数：10 / 100 / 1000 / 10000）
+                            错误节点使用率（%）{algo === "all" ? "对比" : `（${selectedAlgoLabel}）`}（共识轮数： 100 /200/300/400/500/600/700/800/900/1000）
                         </Typography>
 
                         {errorRateSeries.length > 0 ? (
@@ -217,7 +217,7 @@ export default function PerformanceCharts() {
 
                         {/* ======================= 2026-03-05 高亮新增：图3：主节点转换次数对比/单算法 BEGIN ======================= */}
                         <Typography variant="subtitle1" mt={4} gutterBottom>
-                            主节点转换次数{algo === "all" ? "对比" : `（${selectedAlgoLabel}）`}（共识轮数：10 / 100 / 1000 / 10000）
+                            主节点转换次数{algo === "all" ? "对比" : `（${selectedAlgoLabel}）`}（共识轮数： 100 /200/300/400/500/600/700/800/900/1000）
                         </Typography>
 
                         {leaderChangeSeries.length > 0 ? (
