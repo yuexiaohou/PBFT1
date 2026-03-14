@@ -193,6 +193,7 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
 	// 判断阈值
 	if len(commitSigs) >= int(float64(s.n)*PrepareQuorumMultiplier) { // 如果 commit 签名数达到阈值（基于 PrepareQuorumMultiplier）
 		fmt.Println("Consensus achieved in this round") // 打印达成共识
+
 		successIDs := map[int]bool{} // 创建映射以记录哪些节点参与了成功的 commit
 		for _, pk := range commitPubKeys { // 遍历 commit 的公钥切片
 			// stub 公钥解析演示（若真实 pk 为字节流则需其它映射）
@@ -211,6 +212,9 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
     		if s.AfterConsensusHandler != nil {
     			s.AfterConsensusHandler(round)
     		}
+        // 【控制台输出】
+        fmt.Printf("[APBFT Round %d] Consensus Success! Leader: %d, Nodes: %v\n", round, leader.ID, signedIDs)
+        for _, nd := range s.nodes { nd.UpdateReward(true) }
 		return true // 返回共识成功
 	} else {
 		fmt.Println("Not enough commit signatures; consensus failed") // 未达到阈值，打印失败信息
