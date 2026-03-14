@@ -41,7 +41,7 @@ func RunPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.N
 	leader := fmt.Sprintf("node-%d", specs[leaderIdx].ID)
 
 	seed := int64(20260308 + round)
-	rng := rand.New(rand.NewSource(int64(20260308 + round)))
+	rng := rand.New(rand.NewSource(seed))
 
 	// --- 阶段 1: Pre-Prepare ---
 	if specs[leaderIdx].IsMalicious && rng.Float64() < 0.3 {
