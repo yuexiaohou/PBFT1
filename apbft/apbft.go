@@ -219,7 +219,7 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
         price := 500 + rng.Float64()*50
         // 【控制台输出】
         fmt.Printf("\n>>>>>> [APBFT 共识达成 | 轮次 %d] <<<<<<\n", round)
-        fmt.Printf("├─ 主节点信息: ID=%d | 信誉值(m)=%.2f | 层级(Tier)=%d | 吞吐量=%.2f\n",
+        fmt.Printf("├─ 主节点信息: ID=%d | 信誉值(m)=%.d | 层级(Tier)=%d | 吞吐量=%.2f\n",
         	leader.ID, leader.M(), leader.Tier, leader.Throughput)
         fmt.Printf("├─ 共识详情: 成交价=%.2f | 参与度=%d/%d (法定人数:%d)\n",
         	price, len(signatures), s.n, quorum)
