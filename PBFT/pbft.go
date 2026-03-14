@@ -75,6 +75,7 @@ func RunPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.N
 
 	// --- 阶段 3: Commit (最终确认) ---
 	commitVotes := 0
+	commitNodeIDs := []string{} // 【修复点：明确定义】
 	for i := 0; i < n; i++ {
 		// 只有 Prepare 成功的节点进入 Commit
 		if validators[i].Vote == "prepare" {

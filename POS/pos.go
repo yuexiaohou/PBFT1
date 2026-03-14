@@ -229,6 +229,7 @@ func RunPOSWithRoundAndSpecs(round int, txId string, amount int, nodes []*SimNod
 	committeeNodes := weightedPickKWithRNG(nodes, committeeSize, leaderNode.ID, rng)
 	committeeNames := make([]string, 0, len(committeeNodes))
 	votes := make([]Vote, 0, len(committeeNodes))
+	voterIDs := []string{} // 【修复点：明确定义
 	commitCount := 0
 
 	// 4. 执行投票
