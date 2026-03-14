@@ -96,10 +96,6 @@ func (s *PBFTSimulator) ComputeTiers() {
 	}
 }
 
-type roundSeedSetter interface {
-	SetRoundSeed(round int)
-}
-
 // ======================= 【高亮-2026-03-08】新增：可选接口，兼容 Node 是否实现 SetRoundSeed(round) =======================
 type roundSeedSetter interface {
 	SetRoundSeed(round int)
@@ -116,10 +112,8 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
     }
 
 	if leader == nil {
-		fmt.Println("No active leader available")
 		return false
 	}
-	fmt.Printf("\n--- Round %d: leader=%s (Tier=%d) ---\n", round, leader.String(), leader.Tier)
 
 	// PRE-PREPARE
 	if leader.IsMalicious && rand.Float64() < 0.5 { // 如果 leader 是恶意并以 50% 概率作恶
@@ -237,14 +231,33 @@ func RunAPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.
 	sim := NewPBFTSimulator(nodes, true)
 	sim.ComputeTiers()
 
-	leader := sim.SelectLeader(round)
-	success := sim.RunRound(round, []byte(txId))
+    // 【主节点轮换算法逻辑】
+	var finalLeader *node.Node
+	viewOffset := 0
+	maxViewChange := 3 // 最多允许轮换 3 个备份节点
+	consensusSuccess := false
+
+	for viewOffset < maxViewChange {
+	leader := sim.SelectLeader(round, viewOffset)
+	if leader == nil { break }
+
+	// 【关键拦截】：如果选中的是恶意节点或信誉度过低，主动跳过该节点（即轮换）
+	if leader.IsMalicious || leader.M() <= MMin {
+		fmt.Printf("[View Change] Round %d: Rotating malicious leader %d\n", round, leader.ID)
+		viewOffset++
+		continue
+	}
+
+	finalLeader = leader
+	success = sim.RunRoundWithLeader(round, []byte(txId), leader)
+	break
+	}
 
 	status := "已确认"
 	reason := ""
 	if !success {
 		status = "失败"
-		reason = "pbft consensus failed"
+		reason = "apbft consensus failed"
 	}
 
 	// ======================= 【高亮-2026-03-07】A方案关键：按 round 固定恶意节点集合（同一轮稳定） =======================
@@ -252,10 +265,8 @@ func RunAPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.
 	seed := int64(20260307 + round)
 	rng := rand.New(rand.NewSource(seed))
 
-    leaderNode := ""
-    if leader != nil {
-    	leaderNode = leader.String()
-    }
+    leaderNode := "None"
+    if finalLeader != nil { leaderName = finalLeader.String() }
 
 	// 建议：BlockHeight 直接等于 round，前端展示更一致
 	return PBFTResult{
