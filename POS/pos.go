@@ -267,12 +267,15 @@ func RunPOSWithRoundAndSpecs(round int, txId string, amount int, nodes []*SimNod
 	if commitCount < quorum {
 		status = "失败"
 		reason = fmt.Sprintf("Consensus failed: votes %d/%d (threshold 2/3)", commitCount, len(committeeNodes))
-		fmt.Printf("[POS Round %d] Consensus Success! Leader: %s, Voters: %v\n", round, leaderNode.Name(), voterIDs)
 		applyStakeDelta(leaderNode, -cfg.LeaderPenalty, cfg)
 	} else {
 		// 【对齐点】撮合成功价格生成逻辑对齐
 		price = 500.0 + rng.Float64()*20.0
 		applyStakeDelta(leaderNode, cfg.LeaderReward, cfg)
+		fmt.Printf("\n>>>>>> [POS 共识达成 | 轮次 %d] <<<<<<\n", round)
+		fmt.Printf("├─ 验证者(Leader): %s (Stake: %.2f)\n", leaderNode.Name(), leaderNode.Stake)
+		fmt.Printf("├─ 成交价: %.2f\n", price)
+		fmt.Printf("└─ 委员会投票 (%d/%d): %v\n", commitCount, len(committeeNodes), voterIDs)
 	}
 
 	posHeight++

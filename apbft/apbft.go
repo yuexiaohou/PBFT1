@@ -213,7 +213,12 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
     			s.AfterConsensusHandler(round)
     		}
         // 【控制台输出】
-        fmt.Printf("[APBFT Round %d] Consensus Success! Leader: %d, Nodes: %v\n", round, leader.ID, signedIDs)
+        fmt.Printf("\n>>>>>> [APBFT 共识达成 | 轮次 %d] <<<<<<\n", round)
+        fmt.Printf("├─ 主节点信息: ID=%d | 信誉值(m)=%.2f | 层级(Tier)=%d | 吞吐量=%.2f\n",
+        	leader.ID, leader.M(), leader.Tier, leader.Throughput)
+        fmt.Printf("├─ 共识详情: 成交价=%.2f | 参与度=%d/%d (法定人数:%d)\n",
+        	price, len(signatures), s.n, quorum)
+        fmt.Printf("└─ 参与节点列表: %v\n", signedIDs)
         for _, nd := range s.nodes { nd.UpdateReward(true) }
 		return true // 返回共识成功
 	} else {
@@ -254,8 +259,9 @@ func RunAPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.
 	if leader == nil { break }
 
 	// 【关键拦截】：如果选中的是恶意节点或信誉度过低，主动跳过该节点（即轮换）
-	if leader.IsMalicious || leader.M() <= MMin {
-		fmt.Printf("[View Change] Round %d: Rotating malicious leader %d\n", round, leader.ID)
+    // 【视图转换触发打印】
+	if leader.IsMalicious || leader.M() <= node.MMin {
+        fmt.Printf("[View Change] 轮次 %d: 节点 %d (m=%.2f, Malicious=%v) 不可信，触发视图转换...\n", round, leader.ID, leader.M(), leader.IsMalicious)
 		viewOffset++
 		continue
 	}

@@ -92,7 +92,10 @@ func RunPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.N
 	if commitVotes < quorum {
 		status = "失败"
 		reason = fmt.Sprintf("Commit phase failed: %d/%d", commitVotes, quorum)
-		fmt.Printf("[PBFT Round %d] Consensus Success! Leader: %s, Commit Nodes: %v\n", round, leader, commitNodeIDs)
+	}else{
+		fmt.Printf("\n>>>>>> [PBFT 共识达成 | 轮次 %d] <<<<<<\n", round)
+    	fmt.Printf("├─ 主节点: %s | 成交价: %.2f\n", leader, price)
+    	fmt.Printf("└─ 参与节点 (%d/%d): %v\n", commitVotes, n, commitNodeIDs)
 	}
 
 	// 撮合价格机理对齐：500 + 随机扰动
