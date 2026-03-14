@@ -101,6 +101,12 @@ type roundSeedSetter interface {
 	SetRoundSeed(round int)
 }
 
+// ======================= 【高亮-2026-03-14 11:15】恢复：RunRound 兼容旧版调用 =======================
+func (s *PBFTSimulator) RunRound(round int, request []byte) bool {
+	leader := s.SelectLeader(round, 0) // 默认不轮换执行
+	return s.RunRoundWithLeader(round, request, leader)
+}
+
 // 共识流程(本轮)
 // RunRound 发起单轮共识，返回是否达成共识；并采集简单日志（可扩展为 CSV）
 // ======================= 【高亮-2026-03-13】修改：RunRound 适配动态传入的 Leader =======================
@@ -233,9 +239,9 @@ func RunAPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.
 
     // 【主节点轮换算法逻辑】
 	var finalLeader *node.Node
+	var success bool // 【修复点】：使用 success 命名
 	viewOffset := 0
 	maxViewChange := 3 // 最多允许轮换 3 个备份节点
-	consensusSuccess := false
 
 	for viewOffset < maxViewChange {
 	leader := sim.SelectLeader(round, viewOffset)
@@ -265,8 +271,11 @@ func RunAPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.
 	seed := int64(20260307 + round)
 	rng := rand.New(rand.NewSource(seed))
 
-    leaderNode := "None"
-    if finalLeader != nil { leaderName = finalLeader.String() }
+    // 【修复点】：显式定义并初始化 leaderNodeName
+    leaderNodeName := "None"
+    if finalLeader != nil {
+		leaderNodeName = finalLeader.String()
+	}
 
 	// 建议：BlockHeight 直接等于 round，前端展示更一致
 	return PBFTResult{
