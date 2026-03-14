@@ -191,6 +191,7 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
 	}
 
 	// 判断阈值
+	quorum := int(float64(s.n) * PrepareQuorumMultiplier)
 	if len(commitSigs) >= int(float64(s.n)*PrepareQuorumMultiplier) { // 如果 commit 签名数达到阈值（基于 PrepareQuorumMultiplier）
 		fmt.Println("Consensus achieved in this round") // 打印达成共识
 
@@ -212,6 +213,10 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
     		if s.AfterConsensusHandler != nil {
     			s.AfterConsensusHandler(round)
     		}
+        // 【修复点】：生成模拟成交价用于控制台打印，对齐 RunAPBFTWithRoundAndSpecs 逻辑
+        seed := int64(20260307 + round)
+        rng := rand.New(rand.NewSource(seed))
+        price := 500 + rng.Float64()*50
         // 【控制台输出】
         fmt.Printf("\n>>>>>> [APBFT 共识达成 | 轮次 %d] <<<<<<\n", round)
         fmt.Printf("├─ 主节点信息: ID=%d | 信誉值(m)=%.2f | 层级(Tier)=%d | 吞吐量=%.2f\n",
@@ -279,10 +284,6 @@ func RunAPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.
 	}
 
 	// ======================= 【高亮-2026-03-07】A方案关键：按 round 固定恶意节点集合（同一轮稳定） =======================
-	// 用 round 做 seed（可以再混入常量避免 seed=0 的特殊性）
-	seed := int64(20260307 + round)
-	rng := rand.New(rand.NewSource(seed))
-
     // 【修复点】：显式定义并初始化 leaderNodeName
     leaderNodeName := "None"
     if finalLeader != nil {
