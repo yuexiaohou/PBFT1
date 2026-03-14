@@ -266,6 +266,7 @@ func RunPOSWithRoundAndSpecs(round int, txId string, amount int, nodes []*SimNod
 	if commitCount < quorum {
 		status = "失败"
 		reason = fmt.Sprintf("Consensus failed: votes %d/%d (threshold 2/3)", commitCount, len(committeeNodes))
+		fmt.Printf("[POS Round %d] Consensus Success! Leader: %s, Voters: %v\n", round, leaderNode.Name(), voterIDs)
 		applyStakeDelta(leaderNode, -cfg.LeaderPenalty, cfg)
 	} else {
 		// 【对齐点】撮合成功价格生成逻辑对齐

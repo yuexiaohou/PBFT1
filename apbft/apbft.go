@@ -133,6 +133,7 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
 	var mu sync.Mutex     // 互斥锁，保护共享切片
 	signatures := make([][]byte, 0, s.n) // 收集每个节点对请求的签名切片
 	pubKeys := make([][]byte, 0, s.n)    // 收集每个节点的公钥切片
+	signedIDs := []int{} // 用于记录参与节点
 	for _, nd := range s.nodes { // 遍历所有节点
 		if !nd.IsActive() { // 跳过非活跃节点
 			continue
@@ -145,6 +146,7 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
 				mu.Lock() // 保护共享切片
 				signatures = append(signatures, sig) // 添加签名
 				pubKeys = append(pubKeys, node.PublicKey()) // 添加对应公钥
+				signedIDs = append(signedIDs,node.ID)
 				mu.Unlock() // 解锁
 			}
 		}(nd)
@@ -241,7 +243,7 @@ func RunAPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.
 	var finalLeader *node.Node
 	var success bool // 【修复点】：使用 success 命名
 	viewOffset := 0
-	maxViewChange := 3 // 最多允许轮换 3 个备份节点
+	maxViewChange := 5 // 最多允许轮换 5 个备份节点
 
 	for viewOffset < maxViewChange {
 	leader := sim.SelectLeader(round, viewOffset)
