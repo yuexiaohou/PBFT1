@@ -75,6 +75,7 @@ func RunPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.N
 
 	// --- 阶段 3: Commit (最终确认) ---
 	commitVotes := 0
+	// 撮合价格机理对齐：500 + 随机扰动
     price := 500.0 + rng.Float64()*20.0
 	commitNodeIDs := []string{} // 【修复点：明确定义】
 	for i := 0; i < n; i++ {
@@ -98,9 +99,6 @@ func RunPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.N
     	fmt.Printf("├─ 主节点: %s | 成交价: %.2f\n", leader, price)
     	fmt.Printf("└─ 参与节点 (%d/%d): %v\n", commitVotes, n, commitNodeIDs)
 	}
-
-	// 撮合价格机理对齐：500 + 随机扰动
-	price := 500.0 + rng.Float64()*20.0
 
 	return PBFTResult{
 		TxId:         txId,
