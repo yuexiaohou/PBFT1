@@ -456,7 +456,7 @@ func (c *Cluster) LeaderAppend(command string) (int, float64, error) {
 
 		fmt.Printf("\n>>>>>> [RAFT 共识达成 | 轮次 %d] <<<<<<\n", c.Round)
 		fmt.Printf("├─ 主节点: node-%d | 成交价: %.2f\n", leaderID, price)
-		fmt.Printf("└─ 参与反馈节点数: %d/%d (阈值: %d)\n", acks, len(c.Nodes), quorum)
+		fmt.Printf("└─ 参与反馈节点数: %d/%d (阈值: %d)\n",successCount, len(c.Nodes), quorum)
 		return successCount, price, nil
 	}
 
