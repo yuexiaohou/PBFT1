@@ -10,7 +10,7 @@ import (
 	"PBFT1/node"
 )
 
-// ======================= 【高亮-2026-03-09】RAFT：使用 nodepool.go 共用节点集 + “日志不落后才投票” + Leader 完整性 =======================
+// ======================= 【高亮-2026-03-09】RAFT：使用 nodepool.go 共用节点集 + “日志不落后���投票” + Leader 完整性 =======================
 
 // Role represents raft node role.
 type Role int
@@ -339,7 +339,7 @@ func (c *Cluster) StartElection(candidateID int) (leaderID int, err error) {
 
 		// Malicious peer might flip its response sometimes (simulation).
 		// ======================= 【高亮-2026-03-09】nodepool 共用节点集：用 Spec.IsMalicious 影响行为（可控仿真） =======================
-		if peerSpec.IsMalicious {
+		if peer.Spec.IsMalicious { // 【高亮-2026-03-15 21:40:00】 用 peer.Spec 替换 peerSpec，修复未定义变量
 			// With small probability, deny vote even if would grant.
 			if resp.VoteGranted && c.rng.Float64() < 0.20 {
 				resp.VoteGranted = false
@@ -441,14 +441,14 @@ func (c *Cluster) LeaderAppend(command string) (int, float64, error) {
 		}
 	}
 
-	q := c.quorum()
+	q := c.quorum() // 【高亮-2026-03-15 21:40:00】 用 q := c.quorum() 替换 undefined: quorum
 	if successCount >= q {
 		// 【对齐点】撮合成功价格逻辑对齐
 		price := 500.0 + c.rng.Float64()*20.0
         // 【关键修改-2026-03-15】：暴露安全性劣势
 		// 如果恶意节点成为了 Leader 并达成共识，这代表了账本被篡改或污染。
-		// 在仿真中返回 error，会导致前端 SuccessRate 曲线断崖下跌，从而有���证明 PBFT 的优越性。
-		if isMaliciousLeader {
+		// 在仿真中返回 error，会导致前端 SuccessRate 曲线断崖下跌，从而有证明 PBFT 的优越性。
+		if leader.Spec.IsMalicious { // 【高亮-2026-03-15 21:40:00】 用 leader.Spec.IsMalicious 替换 undefined: isMaliciousLeader
 			fmt.Printf("\n>>>>>> [RAFT 安全严重警告 | 轮次 %d] <<<<<<\n", c.Round)
 			fmt.Printf("警告：恶意节点 node-%d 成功获取 Leader 权限并达成共识！共识已被污染。\n", leaderID)
 			return successCount, price, errors.New("security breach: malicious leader corrupted the log")
@@ -456,7 +456,7 @@ func (c *Cluster) LeaderAppend(command string) (int, float64, error) {
 
 		fmt.Printf("\n>>>>>> [RAFT 共识达成 | 轮次 %d] <<<<<<\n", c.Round)
 		fmt.Printf("├─ 主节点: node-%d | 成交价: %.2f\n", leaderID, price)
-		fmt.Printf("└─ 参与反馈节点数: %d/%d (阈值: %d)\n",successCount, len(c.Nodes), quorum)
+		fmt.Printf("└─ 参与反馈节点数: %d/%d (阈值: %d)\n",successCount, len(c.Nodes), q) // 【高亮-2026-03-15 21:40:00】 用 q 替换 undefined: quorum
 		return successCount, price, nil
 	}
 
