@@ -411,7 +411,7 @@ func (c *Cluster) LeaderAppend(command string) (int, float64, error) {
     c.mu.Unlock()
 
 	leader := c.Nodes[*c.LeaderID]
-	leader.mu.lock()
+	leader.mu.Lock()
 	// 如果 Leader 是恶意节点，模拟提案失败
 	if leader.Spec.IsMalicious && c.rng.Float64() < 0.3 {
 	    leader.mu.Unlock()
