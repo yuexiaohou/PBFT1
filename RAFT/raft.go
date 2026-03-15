@@ -400,7 +400,6 @@ func (c *Cluster) quorum() int {
 // ======================= 【高亮-2026-03-11】修改：模拟提案流程并对齐撮合成功逻辑 =======================
 func (c *Cluster) LeaderAppend(command string) (int, float64, error) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 
 	if c.LeaderID == nil {
 	    c.mu.Unlock()
