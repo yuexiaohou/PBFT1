@@ -46,6 +46,9 @@ export default function PerformanceCharts() {
             try {
                 const url = "/api/performance" + (algoSuccess !== "all" ? `?algo=${algoSuccess}` : "");
                 const res = await fetch(url);
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}`);
+                }
                 const data = await res.json();
                 if (algoSuccess === "all") {
                     setChartData(data.algos || []);
@@ -166,11 +169,15 @@ export default function PerformanceCharts() {
                             {algoSuccess === "all" && chartData.length > 0 && (
                                 <LineChart
                                     series={chartData.map((as) => ({
-                                        data: (as.rounds || []).map((r) => Number((r.successRate * 100).toFixed(2))),
+                                        data: pointsToAlignedArray(
+                                            as.rounds,
+                                            (r) => Number((r.successRate * 100).toFixed(2)),
+                                            0
+                                        ),
                                         label: selectedLabel(as.algo),
                                         color: colors[as.algo] || undefined,
                                     }))}
-                                    xAxis={[{ label: "共识轮数", data: chartData[0]?.rounds?.map((r) => r.round) || [] }]}
+                                    xAxis={[{ label: "共识轮数", data: fixedRounds }]}
                                     yAxis={[{ label: "挂单成功率(%)" }]}
                                     width={680}
                                     height={300}
