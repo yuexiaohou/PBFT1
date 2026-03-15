@@ -22,7 +22,7 @@ export default function PerformanceCharts() {
     const [singleRounds, setSingleRounds] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // ======= 2026-03-05 高亮新增：两张新增折线图的数据（后端返回全量 algos） =======
+    // ======= 2026-03-05 高亮新增：三张图的数据 =======
     const [errorRateData, setErrorRateData] = useState([]); // [{algo, points:[{round,errorRate}]}]
     const [leaderChangeData, setLeaderChangeData] = useState([]); // [{algo, points:[{round,leaderChanges}]}]
     // ======= 2026-03-05 高亮新增 END =======
@@ -47,13 +47,15 @@ export default function PerformanceCharts() {
                     setSingleRounds(data.rounds || []);
                 }
 
-                const res2 = await fetch("/api/performance/errorrate");
+                // ======= 高亮-2026-03-15 22:00:00：错误节点使用率与主节点转换次数支持切换算法 =======
+                const res2 = await fetch("/api/performance/errorrate" + (algo !== "all" ? `?algo=${algo}` : ""));
                 const data2 = await res2.json();
                 setErrorRateData(data2.algos || []);
 
-                const res3 = await fetch("/api/performance/leaderchanges");
+                const res3 = await fetch("/api/performance/leaderchanges" + (algo !== "all" ? `?algo=${algo}` : ""));
                 const data3 = await res3.json();
                 setLeaderChangeData(data3.algos || []);
+                // ======= 高亮-2026-03-15 22:00:00 END =======
             } catch (e) {
                 setErrMsg("数据获取失败");
             }
@@ -71,6 +73,7 @@ export default function PerformanceCharts() {
     };
 
     // ======= 【高亮-2026-03-13】修改：映射逻辑，将 errorRate 转换为百分比共识概率 =======
+    // ======= 高亮-2026-03-15 22:00:00：errorRateSeries 支持单算法切换 =======
     const errorRateSeries = useMemo(() => {
         const filtered = algo === "all" ? (errorRateData || []) : (errorRateData || []).filter((x) => x.algo === algo);
         return filtered.map((as) => ({
@@ -82,8 +85,10 @@ export default function PerformanceCharts() {
             ),
         }));
     }, [algo, errorRateData]);
+    // ======= 高亮-2026-03-15 22:00:00 END =======
 
     // ======= 2026-03-05 高亮新增：主节点转换次数 series（all=多条；单算法=一条） =======
+    // ======= 高亮-2026-03-15 22:00:00：leaderChangeSeries 支持单算法切换 =======
     const leaderChangeSeries = useMemo(() => {
         const filtered = algo === "all" ? (leaderChangeData || []) : (leaderChangeData || []).filter((x) => x.algo === algo);
 
@@ -96,7 +101,7 @@ export default function PerformanceCharts() {
             ),
         }));
     }, [algo, leaderChangeData]);
-    // ======= 2026-03-05 高亮新增 END =======
+    // ======= 高亮-2026-03-15 22:00:00 END =======
 
     // ======= 2026-03-05 高亮新增：标题随选择算法变化 =======
     const selectedAlgoLabel = useMemo(() => {
@@ -133,6 +138,7 @@ export default function PerformanceCharts() {
 
                         <Typography variant="subtitle1" mt={2} gutterBottom>各轮次挂单成功率（%）</Typography>
 
+                        {/* ======= 高亮-2026-03-15 22:00:00: 第1张图：支持全部和单算法模式 ======= */}
                         {algo === "all" && chartData.length > 0 && (
                             <LineChart
                                 series={chartData.map((as) => ({
@@ -162,12 +168,13 @@ export default function PerformanceCharts() {
                                 height={300}
                             />
                         )}
+                        {/* ======= 高亮-2026-03-15 22:00:00 END ======= */}
 
                         {((algo === "all" && chartData.length === 0) || (algo !== "all" && singleRounds.length === 0)) && (
                             <Typography color="text.secondary" sx={{ py: 2 }}>暂无统计数据</Typography>
                         )}
 
-                        {/* ======================= 2026-03-05 高亮新增：图2：错误节点使用率对比/单算法 BEGIN ======================= */}
+                        {/* ======================= 高亮-2026-03-15 22:00:00 图2：错误节点使用率（支持全部和单算法） BEGIN ======================= */}
                         <Typography variant="subtitle1" mt={4} gutterBottom>
                             错误节点使用率（%）{algo === "all" ? "对比" : `（${selectedAlgoLabel}）`}（共识轮数： 100 /200/300/400/500/600/700/800/900/1000）
                         </Typography>
@@ -189,9 +196,8 @@ export default function PerformanceCharts() {
                                 暂无错误节点使用率数据
                             </Typography>
                         )}
-                        {/* ======================= 2026-03-05 高亮新增：图2 END ======================= */}
 
-                        {/* ======================= 2026-03-05 高亮新增：图3：主节点转换次数对比/单算法 BEGIN ======================= */}
+                        {/* ======================= 高亮-2026-03-15 22:00:00 图3：主节点转换次数（支持全部和单算法） BEGIN ======================= */}
                         <Typography variant="subtitle1" mt={4} gutterBottom>
                             主节点转换次数{algo === "all" ? "对比" : `（${selectedAlgoLabel}）`}（共识轮数： 100 /200/300/400/500/600/700/800/900/1000）
                         </Typography>
@@ -213,7 +219,7 @@ export default function PerformanceCharts() {
                                 暂无主节点转换次数数据
                             </Typography>
                         )}
-                        {/* ======================= 2026-03-05 高亮新增：图3 END ======================= */}
+                        {/* ======================= 高亮-2026-03-15 22:00:00 图3 END ======================= */}
                     </>
                 )}
             </Paper>
