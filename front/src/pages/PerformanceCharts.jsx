@@ -12,57 +12,94 @@ const algoNames = [
 
 const colors = { pbft: "blue", pos: "orange", raft: "green", custom: "purple" };
 
-// ======= 2026-03-05 高亮新增：固定横轴轮数（两张新增图都用这个） =======
-const fixedRounds = [100, 200, 300, 400,500, 600, 700, 800, 900, 1000];
-// ======= 2026-03-05 高亮新增 END =======
+// 固定横轴轮数
+const fixedRounds = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000];
 
 export default function PerformanceCharts() {
-    const [algo, setAlgo] = useState("all");
-    const [chartData, setChartData] = useState([]); // [{algo, rounds:[{round,successRate}]}]
+    // ========== 【高亮-2026-03-15 22:27:00】每个图表独立算法选择 ==========
+    const [algoSuccess, setAlgoSuccess] = useState("all");
+    const [algoError, setAlgoError] = useState("all");
+    const [algoLeader, setAlgoLeader] = useState("all");
+    // ========== 【高亮-2026-03-15 22:27:00】END ==========
+
+    // 成功率图数据
+    const [chartData, setChartData] = useState([]);
     const [singleRounds, setSingleRounds] = useState([]);
-    const [loading, setLoading] = useState(true);
+    // 错误节点数据
+    const [errorRateData, setErrorRateData] = useState([]);
+    // 主节点转换次数数据
+    const [leaderChangeData, setLeaderChangeData] = useState([]);
 
-    // ======= 2026-03-05 高亮新增：三张图的数据 =======
-    const [errorRateData, setErrorRateData] = useState([]); // [{algo, points:[{round,errorRate}]}]
-    const [leaderChangeData, setLeaderChangeData] = useState([]); // [{algo, points:[{round,leaderChanges}]}]
-    // ======= 2026-03-05 高亮新增 END =======
+    // loading/error
+    const [loadingSuccess, setLoadingSuccess] = useState(true);
+    const [errMsgSuccess, setErrMsgSuccess] = useState("");
+    const [loadingError, setLoadingError] = useState(true);
+    const [errMsgError, setErrMsgError] = useState("");
+    const [loadingLeader, setLoadingLeader] = useState(true);
+    const [errMsgLeader, setErrMsgLeader] = useState("");
 
-    // ======= 2026-03-05 高亮新增：简单错误提示（避免 JSON 解析报错导致白屏） =======
-    const [errMsg, setErrMsg] = useState("");
-    // ======= 2026-03-05 高亮新增 END =======
-
+    // ========== 【高亮-2026-03-15 22:27:00】挂单成功率数据请求 ==========
     useEffect(() => {
         async function fetchStats() {
-            setLoading(true);
-            setErrMsg("");
+            setLoadingSuccess(true);
+            setErrMsgSuccess("");
             try {
-                const url = "/api/performance" + (algo !== "all" ? `?algo=${algo}` : "");
+                const url = "/api/performance" + (algoSuccess !== "all" ? `?algo=${algoSuccess}` : "");
                 const res = await fetch(url);
                 const data = await res.json();
-                if (algo === "all") {
+                if (algoSuccess === "all") {
                     setChartData(data.algos || []);
                     setSingleRounds([]);
                 } else {
                     setChartData([]);
                     setSingleRounds(data.rounds || []);
                 }
-
-                // ======= 高亮-2026-03-15 22:00:00：错误节点使用率与主节点转换次数支持切换算法 =======
-                const res2 = await fetch("/api/performance/errorrate" + (algo !== "all" ? `?algo=${algo}` : ""));
-                const data2 = await res2.json();
-                setErrorRateData(data2.algos || []);
-
-                const res3 = await fetch("/api/performance/leaderchanges" + (algo !== "all" ? `?algo=${algo}` : ""));
-                const data3 = await res3.json();
-                setLeaderChangeData(data3.algos || []);
-                // ======= 高亮-2026-03-15 22:00:00 END =======
             } catch (e) {
-                setErrMsg("数据获取失败");
+                setErrMsgSuccess("数据获取失败");
             }
-            setLoading(false);
+            setLoadingSuccess(false);
         }
         fetchStats();
-    }, [algo]);
+    }, [algoSuccess]);
+    // ========== 【高亮-2026-03-15 22:27:00】END ==========
+
+    // ========== 【高亮-2026-03-15 22:27:00】错误节点使用率数据请求 ==========
+    useEffect(() => {
+        async function fetchErrorRate() {
+            setLoadingError(true);
+            setErrMsgError("");
+            try {
+                const url = "/api/performance/errorrate" + (algoError !== "all" ? `?algo=${algoError}` : "");
+                const res = await fetch(url);
+                const data = await res.json();
+                setErrorRateData(data.algos || []);
+            } catch (e) {
+                setErrMsgError("数据获取失败");
+            }
+            setLoadingError(false);
+        }
+        fetchErrorRate();
+    }, [algoError]);
+    // ========== 【高亮-2026-03-15 22:27:00】END ==========
+
+    // ========== 【高亮-2026-03-15 22:27:00】主节点转换次数数据请求 ==========
+    useEffect(() => {
+        async function fetchLeader() {
+            setLoadingLeader(true);
+            setErrMsgLeader("");
+            try {
+                const url = "/api/performance/leaderchanges" + (algoLeader !== "all" ? `?algo=${algoLeader}` : "");
+                const res = await fetch(url);
+                const data = await res.json();
+                setLeaderChangeData(data.algos || []);
+            } catch (e) {
+                setErrMsgLeader("数据获取失败");
+            }
+            setLoadingLeader(false);
+        }
+        fetchLeader();
+    }, [algoLeader]);
+    // ========== 【高亮-2026-03-15 22:27:00】END ==========
 
     const pointsToAlignedArray = (points, valueGetter, fallback = 0) => {
         const map = new Map((points || []).map((p) => [p.round, valueGetter(p)]));
@@ -72,10 +109,9 @@ export default function PerformanceCharts() {
         });
     };
 
-    // ======= 【高亮-2026-03-13】修改：映射逻辑，将 errorRate 转换为百分比共识概率 =======
-    // ======= 高亮-2026-03-15 22:00:00：errorRateSeries 支持单算法切换 =======
+    // 【高亮-2026-03-15 22:27:00】errorRateSeries 按错误节点选择算法
     const errorRateSeries = useMemo(() => {
-        const filtered = algo === "all" ? (errorRateData || []) : (errorRateData || []).filter((x) => x.algo === algo);
+        const filtered = algoError === "all" ? (errorRateData || []) : (errorRateData || []).filter((x) => x.algo === algoError);
         return filtered.map((as) => ({
             algo: as.algo,
             data: pointsToAlignedArray(
@@ -84,14 +120,11 @@ export default function PerformanceCharts() {
                 0
             ),
         }));
-    }, [algo, errorRateData]);
-    // ======= 高亮-2026-03-15 22:00:00 END =======
+    }, [algoError, errorRateData]);
 
-    // ======= 2026-03-05 高亮新增：主节点转换次数 series（all=多条；单算法=一条） =======
-    // ======= 高亮-2026-03-15 22:00:00：leaderChangeSeries 支持单算法切换 =======
+    // 【高亮-2026-03-15 22:27:00】leaderChangeSeries 按主节点选择算法
     const leaderChangeSeries = useMemo(() => {
-        const filtered = algo === "all" ? (leaderChangeData || []) : (leaderChangeData || []).filter((x) => x.algo === algo);
-
+        const filtered = algoLeader === "all" ? (leaderChangeData || []) : (leaderChangeData || []).filter((x) => x.algo === algoLeader);
         return filtered.map((as) => ({
             algo: as.algo,
             data: pointsToAlignedArray(
@@ -100,128 +133,158 @@ export default function PerformanceCharts() {
                 0
             ),
         }));
-    }, [algo, leaderChangeData]);
-    // ======= 高亮-2026-03-15 22:00:00 END =======
+    }, [algoLeader, leaderChangeData]);
 
-    // ======= 2026-03-05 高亮新增：标题随选择算法变化 =======
-    const selectedAlgoLabel = useMemo(() => {
-        return algoNames.find((a) => a.value === algo)?.label || algo;
-    }, [algo]);
-    // ======= 2026-03-05 高亮新增 END =======
+    const selectedLabel = (a) => algoNames.find(x => x.value === a)?.label || a;
 
     return (
         <Box sx={{ my: 4, mx: "auto", maxWidth: 760 }}>
             <Paper sx={{ p: 3 }}>
                 <Typography variant="h5" mb={2}>算法撮合性能特性对比</Typography>
 
-                <FormControl fullWidth sx={{ maxWidth: 200, mb: 2 }}>
-                    <InputLabel>选择算法</InputLabel>
-                    <Select
-                        label="选择算法"
-                        value={algo}
-                        onChange={(e) => setAlgo(e.target.value)}
-                        size="small"
-                    >
-                        {algoNames.map((a) => (
-                            <MenuItem key={a.value} value={a.value}>{a.label}</MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
+                {/* ========== 【高亮-2026-03-15 22:27:00】挂单成功率选择器及图表 ========== */}
+                <Box sx={{ mb: 2 }}>
+                    <FormControl fullWidth sx={{ maxWidth: 200, mb: 1 }}>
+                        <InputLabel>选择算法（挂单成功率）</InputLabel>
+                        <Select
+                            label="选择算法（挂单成功率）"
+                            value={algoSuccess}
+                            onChange={e => setAlgoSuccess(e.target.value)}
+                            size="small"
+                        >
+                            {algoNames.map((a) => (
+                                <MenuItem key={a.value} value={a.value}>{a.label}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    {loadingSuccess ? (
+                        <Typography>数据加载中...</Typography>
+                    ) : (
+                        <>
+                            {errMsgSuccess && <Typography color="error">{errMsgSuccess}</Typography>}
+                            <Typography variant="subtitle1" mt={1} gutterBottom>各轮次挂单成功率（%）</Typography>
+                            {algoSuccess === "all" && chartData.length > 0 && (
+                                <LineChart
+                                    series={chartData.map((as) => ({
+                                        data: (as.rounds || []).map((r) => Number((r.successRate * 100).toFixed(2))),
+                                        label: selectedLabel(as.algo),
+                                        color: colors[as.algo] || undefined,
+                                    }))}
+                                    xAxis={[{ label: "共识轮数", data: chartData[0]?.rounds?.map((r) => r.round) || [] }]}
+                                    yAxis={[{ label: "挂单成功率(%)" }]}
+                                    width={680}
+                                    height={300}
+                                />
+                            )}
+                            {algoSuccess !== "all" && singleRounds.length > 0 && (
+                                <LineChart
+                                    series={[
+                                        {
+                                            data: singleRounds.map((r) => Number((r.successRate * 100).toFixed(2))),
+                                            label: selectedLabel(algoSuccess),
+                                            color: colors[algoSuccess] || undefined,
+                                        },
+                                    ]}
+                                    xAxis={[{ label: "共识轮数", data: singleRounds.map((r) => r.round) }]}
+                                    yAxis={[{ label: "挂单成功率(%)" }]}
+                                    width={680}
+                                    height={300}
+                                />
+                            )}
+                            {(algoSuccess === "all" && chartData.length === 0) || (algoSuccess !== "all" && singleRounds.length === 0) ?
+                                <Typography color="text.secondary" sx={{ py: 2 }}>暂无统计数据</Typography>
+                                : null
+                            }
+                        </>
+                    )}
+                </Box>
+                {/* ========== 【高亮-2026-03-15 22:27:00】挂单成功率END ========== */}
 
-                {loading ? (
-                    <Typography>数据加载中...</Typography>
-                ) : (
-                    <>
-                        {errMsg && (
-                            <Typography color="error" sx={{ mb: 2 }}>{errMsg}</Typography>
-                        )}
-
-                        <Typography variant="subtitle1" mt={2} gutterBottom>各轮次挂单成功率（%）</Typography>
-
-                        {/* ======= 高亮-2026-03-15 22:00:00: 第1张图：支持全部和单算法模式 ======= */}
-                        {algo === "all" && chartData.length > 0 && (
-                            <LineChart
-                                series={chartData.map((as) => ({
-                                    data: (as.rounds || []).map((r) => Number((r.successRate * 100).toFixed(2))),
-                                    label: algoNames.find((a) => a.value === as.algo)?.label || as.algo,
-                                    color: colors[as.algo] || undefined,
-                                }))}
-                                xAxis={[{ label: "共识轮数", data: chartData[0]?.rounds?.map((r) => r.round) || [] }]}
-                                yAxis={[{ label: "挂单成功率(%)" }]}
-                                width={680}
-                                height={300}
-                            />
-                        )}
-
-                        {algo !== "all" && singleRounds.length > 0 && (
-                            <LineChart
-                                series={[
-                                    {
-                                        data: singleRounds.map((r) => Number((r.successRate * 100).toFixed(2))),
-                                        label: selectedAlgoLabel,
-                                        color: colors[algo] || undefined,
-                                    },
-                                ]}
-                                xAxis={[{ label: "共识轮数", data: singleRounds.map((r) => r.round) }]}
-                                yAxis={[{ label: "挂单成功率(%)" }]}
-                                width={680}
-                                height={300}
-                            />
-                        )}
-                        {/* ======= 高亮-2026-03-15 22:00:00 END ======= */}
-
-                        {((algo === "all" && chartData.length === 0) || (algo !== "all" && singleRounds.length === 0)) && (
-                            <Typography color="text.secondary" sx={{ py: 2 }}>暂无统计数据</Typography>
-                        )}
-
-                        {/* ======================= 高亮-2026-03-15 22:00:00 图2：错误节点使用率（支持全部和单算法） BEGIN ======================= */}
-                        <Typography variant="subtitle1" mt={4} gutterBottom>
-                            错误节点使用率（%）{algo === "all" ? "对比" : `（${selectedAlgoLabel}）`}（共识轮数： 100 /200/300/400/500/600/700/800/900/1000）
-                        </Typography>
-
-                        {errorRateSeries.length > 0 ? (
-                            <LineChart
-                                series={errorRateSeries.map((s) => ({
-                                    data: s.data,
-                                    label: algoNames.find((a) => a.value === s.algo)?.label || s.algo,
-                                    color: colors[s.algo] || undefined,
-                                }))}
-                                xAxis={[{ label: "共识轮数", data: fixedRounds }]}
-                                yAxis={[{ label: "错误节点使用率(%)" }]}
-                                width={680}
-                                height={300}
-                            />
-                        ) : (
-                            <Typography color="text.secondary" sx={{ pb: 2 }}>
-                                暂无错误节点使用率数据
+                {/* ========== 【高亮-2026-03-15 22:27:00】错误节点使用率选择器及图表 ========== */}
+                <Box sx={{ mb: 2 }}>
+                    <FormControl fullWidth sx={{ maxWidth: 200, mb: 1 }}>
+                        <InputLabel>选择算法（错误节点使用率）</InputLabel>
+                        <Select
+                            label="选择算法（错误节点使用率）"
+                            value={algoError}
+                            onChange={e => setAlgoError(e.target.value)}
+                            size="small"
+                        >
+                            {algoNames.map((a) => (
+                                <MenuItem key={a.value} value={a.value}>{a.label}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    {loadingError ? (
+                        <Typography>数据加载中...</Typography>
+                    ) : (
+                        <>
+                            {errMsgError && <Typography color="error">{errMsgError}</Typography>}
+                            <Typography variant="subtitle1" mt={1} gutterBottom>
+                                错误节点使用率（%）{algoError === "all" ? "对比" : `（${selectedLabel(algoError)}）`}
                             </Typography>
-                        )}
+                            {errorRateSeries.length > 0 ? (
+                                <LineChart
+                                    series={errorRateSeries.map((s) => ({
+                                        data: s.data,
+                                        label: selectedLabel(s.algo),
+                                        color: colors[s.algo] || undefined,
+                                    }))}
+                                    xAxis={[{ label: "共识轮数", data: fixedRounds }]}
+                                    yAxis={[{ label: "错误节点使用率(%)" }]}
+                                    width={680}
+                                    height={300}
+                                />
+                            ) : (
+                                <Typography color="text.secondary" sx={{ py: 2 }}>暂无错误节点使用率数据</Typography>
+                            )}
+                        </>
+                    )}
+                </Box>
+                {/* ========== 【高亮-2026-03-15 22:27:00】错误节点使用率END ========== */}
 
-                        {/* ======================= 高亮-2026-03-15 22:00:00 图3：主节点转换次数（支持全部和单算法） BEGIN ======================= */}
-                        <Typography variant="subtitle1" mt={4} gutterBottom>
-                            主节点转换次数{algo === "all" ? "对比" : `（${selectedAlgoLabel}）`}（共识轮数： 100 /200/300/400/500/600/700/800/900/1000）
-                        </Typography>
-
-                        {leaderChangeSeries.length > 0 ? (
-                            <LineChart
-                                series={leaderChangeSeries.map((s) => ({
-                                    data: s.data,
-                                    label: algoNames.find((a) => a.value === s.algo)?.label || s.algo,
-                                    color: colors[s.algo] || undefined,
-                                }))}
-                                xAxis={[{ label: "共识轮数", data: fixedRounds }]}
-                                yAxis={[{ label: "主节点转换次数" }]}
-                                width={680}
-                                height={300}
-                            />
-                        ) : (
-                            <Typography color="text.secondary" sx={{ pb: 2 }}>
-                                暂无主节点转换次数数据
+                {/* ========== 【高亮-2026-03-15 22:27:00】主节点转换次数选择器及图表 ========== */}
+                <Box sx={{ mb: 2 }}>
+                    <FormControl fullWidth sx={{ maxWidth: 200, mb: 1 }}>
+                        <InputLabel>选择算法（主节点转换次数）</InputLabel>
+                        <Select
+                            label="选择算法（主节点转换次数）"
+                            value={algoLeader}
+                            onChange={e => setAlgoLeader(e.target.value)}
+                            size="small"
+                        >
+                            {algoNames.map((a) => (
+                                <MenuItem key={a.value} value={a.value}>{a.label}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    {loadingLeader ? (
+                        <Typography>数据加载中...</Typography>
+                    ) : (
+                        <>
+                            {errMsgLeader && <Typography color="error">{errMsgLeader}</Typography>}
+                            <Typography variant="subtitle1" mt={1} gutterBottom>
+                                主节点转换次数{algoLeader === "all" ? "对比" : `（${selectedLabel(algoLeader)}）`}
                             </Typography>
-                        )}
-                        {/* ======================= 高亮-2026-03-15 22:00:00 图3 END ======================= */}
-                    </>
-                )}
+                            {leaderChangeSeries.length > 0 ? (
+                                <LineChart
+                                    series={leaderChangeSeries.map((s) => ({
+                                        data: s.data,
+                                        label: selectedLabel(s.algo),
+                                        color: colors[s.algo] || undefined,
+                                    }))}
+                                    xAxis={[{ label: "共识轮数", data: fixedRounds }]}
+                                    yAxis={[{ label: "主节点转换次数" }]}
+                                    width={680}
+                                    height={300}
+                                />
+                            ) : (
+                                <Typography color="text.secondary" sx={{ py: 2 }}>暂无主节点转换次数数据</Typography>
+                            )}
+                        </>
+                    )}
+                </Box>
+                {/* ========== 【高亮-2026-03-15 22:27:00】主节点END ========== */}
             </Paper>
         </Box>
     );
