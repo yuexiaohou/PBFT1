@@ -20,7 +20,6 @@ import (
 	pos  "PBFT1/POS"
 	pbft "PBFT1/PBFT"
 	raft "PBFT1/RAFT"
-	"strings" // ========= 高亮: 新增 strings 包支持字符串分割 ==========
 )
 
 // ==============用户结构体========
