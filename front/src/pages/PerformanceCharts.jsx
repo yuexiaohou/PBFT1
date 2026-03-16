@@ -14,7 +14,7 @@ const colors = { pbft: "blue", pos: "orange", raft: "green", custom: "purple" };
 
 // 【高亮-2026-03-15 23:10:00】三个图独立的横轴采样
 const roundsChart1 = Array.from({length: 20}, (_, i) => i+1);  // 1~20
-const roundsChart2And3 = [100,200,300,400,500,600,700,800,900,1000];
+const roundsChart234 = [100,200,300,400,500,600,700,800,900,1000]; // 图2~图4
 
 // 算法多选下拉框组件【高亮-2026-03-15 23:10:00】
 // 在MUI的Select组件中，默认就是单选， 因此要实现多选，需要设置multiple属性，并且value必须是一个数组
@@ -29,7 +29,7 @@ function AlgoMultiSelect({ label, value, onChange }) {
                 renderValue={(selected) => selected.map(v => algoNames.find(a => a.value===v)?.label).join(", ")}
                 label={label}
                 size="small"
-            >
+             variant="outlined">
                 {algoNames.map((a) => (
                     <MenuItem key={a.value} value={a.value}>
                         <Checkbox checked={value.indexOf(a.value) > -1} />
@@ -43,10 +43,11 @@ function AlgoMultiSelect({ label, value, onChange }) {
 
 export default function PerformanceCharts() {
     // ========== 【高亮-2026-03-15 22:27:00】每个图表独立算法选择 ==========
-    const [algoSuccess, setAlgoSuccess] = useState("all");
-    const [algoError, setAlgoError] = useState("all");
-    const [algoLeader, setAlgoLeader] = useState("all");
-    const [algosCost, setAlgosCost] = useState(algoNames.map(a=>a.value)); // 图4 【高亮-2026-03-15 23:40:00】
+    // 每个图表的算法选择状态均为多选数组，并独立声明，兼容多算法对比需求
+    const [algosSuccess, setAlgosSuccess] = useState(algoNames.map(a=>a.value)); // 图1
+    const [algosError, setAlgosError] = useState(algoNames.map(a=>a.value)); // 图2
+    const [algosLeader, setAlgosLeader] = useState(algoNames.map(a=>a.value)); // 图3
+    const [algosCost, setAlgosCost] = useState(algoNames.map(a=>a.value)); // 图4
 
     // 图数据
     // 之前的const [chartData, setChartData] = useState([])只能存储单算法数据
