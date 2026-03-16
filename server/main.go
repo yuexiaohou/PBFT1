@@ -114,6 +114,19 @@ type AlgoLeaderChangeStat struct {
 	Points []LeaderChangePoint `json:"points"`
 }
 
+// ======================= 【高亮-2026-03-16 11:30:00】新增节点开销结构与缓存 =======================
+type NodeCostPoint struct {
+	Round    int     `json:"round"`
+	NodeCost float64 `json:"nodeCost"`
+}
+
+type AlgoNodeCostStat struct {
+	Algo   string          `json:"algo"`
+	Points []NodeCostPoint `json:"points"`
+}
+
+var allAlgoNodeCostStats map[string][]NodeCostPoint
+
 // ========= 性能与展示缓存 =========
 var tradeMu   sync.RWMutex // ==========保护全局统计（并发） ==========
 var (
@@ -236,6 +249,28 @@ func simulateLeaderChangesForAlgo(algo string, maliciousRatio float64) []LeaderC
 	return points
 }
 
+// ======================= 【高亮-2026-03-16 11:30:00】模拟节点平均开销 =======================
+func simulateNodeCostForAlgo(algo string, maliciousRatio float64) []NodeCostPoint {
+	fixedRounds := []int{100, 200, 300, 400, 500, 600, 700, 800, 900, 1000}
+	points := make([]NodeCostPoint, 0, len(fixedRounds))
+
+	for _, r := range fixedRounds {
+		var cost float64
+		switch algo {
+		case "pbft":
+			cost = 80.0 + float64(r)*0.05 + rand.Float64()*10.0
+		case "pos":
+			cost = 40.0 + float64(r)*0.02 + rand.Float64()*5.0
+		case "raft":
+			cost = 20.0 + float64(r)*0.01 + rand.Float64()*3.0
+		case "custom":
+			cost = 50.0 + float64(r)*0.03 + rand.Float64()*6.0
+		}
+		points = append(points, NodeCostPoint{Round: r, NodeCost: cost})
+	}
+	return points
+}
+
 // ======================= 2026-03-04 修正：simulateAllAlgos 增加 maliciousRatio 参数 BEGIN =======================
 func simulateAllAlgos(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes int) {
 	allAlgoStats = map[string][]RoundStat{
@@ -259,6 +294,14 @@ func simulateAllAlgos(db *gorm.DB, totalRounds int, maliciousRatio float64, numN
 		"pos":    simulateLeaderChangesForAlgo("pos", maliciousRatio),
 		"raft":   simulateLeaderChangesForAlgo("raft", maliciousRatio),
 		"custom": simulateLeaderChangesForAlgo("custom", maliciousRatio),
+	}
+
+	// ======================= 【高亮-2026-03-16 11:30:00】装载节点开销缓存 =======================
+	allAlgoNodeCostStats = map[string][]NodeCostPoint{
+		"pbft":   simulateNodeCostForAlgo("pbft", maliciousRatio),
+		"pos":    simulateNodeCostForAlgo("pos", maliciousRatio),
+		"raft":   simulateNodeCostForAlgo("raft", maliciousRatio),
+		"custom": simulateNodeCostForAlgo("custom", maliciousRatio),
 	}
 }
 
@@ -748,76 +791,83 @@ func main() {
     // GET /api/performance
     // - 不带 algo 或 algo=all：返回 { algos: [{ algo, rounds:[{round,successRate,...}]}] }
     // - 带 algo=pbft|pos|raft|custom：返回 { algo, rounds:[...] }
+    // ======================= 【高亮-2026-03-16 11:30:00】全面修复多选查询API BEGIN =======================
+    // 辅助解析参数的内联函数
+    getAlgosFromQuery := func(c *gin.Context) []string {
+    	algoQuery := c.Query("algo")
+    	if algoQuery == "" || algoQuery == "all" {
+    		return []string{"pbft", "pos", "raft", "custom"}
+    	}
+        return strings.Split(algoQuery, ",")
+    }
+
+    // 1. 挂单成功率 API (图1)
     api.GET("/performance", func(c *gin.Context) {
     	tradeMu.RLock()
     	defer tradeMu.RUnlock()
 
-    	if allAlgoStats == nil {
-    		c.JSON(200, gin.H{"algos": []AlgoStat{}})
-    		return
-    	}
-
-    	algo := c.Query("algo")
-    	if algo != "" && algo != "all" {
-    		rounds, ok := allAlgoStats[algo]
-    		if !ok {
-    			c.JSON(404, gin.H{"msg": "unknown algo", "algo": algo})
-    			return
-    		}
-    		c.JSON(200, gin.H{"algo": algo, "rounds": rounds})
-    		return
-    	}
-
-    	out := make([]AlgoStat, 0, 4)
-    	order := []string{"pbft", "pos", "raft", "custom"}
-    	for _, k := range order {
-    		if rounds, ok := allAlgoStats[k]; ok {
-    			out = append(out, AlgoStat{Algo: k, Rounds: rounds})
-    		}
-    	}
+    	out := make([]AlgoStat, 0)
+    	if allAlgoStats != nil {
+    		reqAlgos := getAlgosFromQuery(c)
+    		for _, k := range reqAlgos {
+    			if rounds, ok := allAlgoStats[k]; ok {
+    				out = append(out, AlgoStat{Algo: k, Rounds: rounds})
+    			}
+            }
+        }
+        // 严格返回 { "algos": [...] }
     	c.JSON(200, gin.H{"algos": out})
     })
 
-    // GET /api/performance/errorrate
-    // 返回 { algos: [{algo, points:[{round,errorRate}]}] }，round=100/1000
+    // 2. 错误节点使用率 API (图2)
     api.GET("/performance/errorrate", func(c *gin.Context) {
     	tradeMu.RLock()
     	defer tradeMu.RUnlock()
 
-    	if allAlgoErrorRateStats == nil {
-    		c.JSON(200, gin.H{"algos": []AlgoErrorStat{}})
-    		return
-    	}
-
-    	out := make([]AlgoErrorStat, 0, 4)
-    	order := []string{"pbft", "pos", "raft", "custom"}
-    	for _, k := range order {
-    		if pts, ok := allAlgoErrorRateStats[k]; ok {
-    			out = append(out, AlgoErrorStat{Algo: k, Points: pts})
-    		}
-    	}
-    	c.JSON(200, gin.H{"algos": out})
+    	out := make([]AlgoErrorStat, 0)
+    	if allAlgoErrorRateStats != nil {
+    		reqAlgos := getAlgosFromQuery(c)
+    		for _, k := range reqAlgos {
+    			if pts, ok := allAlgoErrorRateStats[k]; ok {
+    				out = append(out, AlgoErrorStat{Algo: k, Points: pts})
+    			}
+            }
+        }
+        c.JSON(200, gin.H{"algos": out})
     })
 
-    // GET /api/performance/leaderchanges
-    // 返回 { algos: [{algo, points:[{round,leaderChanges}]}] }，round=100/1000
+    // 3. 主节点切换次数 API (图3)
     api.GET("/performance/leaderchanges", func(c *gin.Context) {
     	tradeMu.RLock()
     	defer tradeMu.RUnlock()
 
-    	if allAlgoLeaderChangeStats == nil {
-    		c.JSON(200, gin.H{"algos": []AlgoLeaderChangeStat{}})
-    		return
-    	}
-
-    	out := make([]AlgoLeaderChangeStat, 0, 4)
-    	order := []string{"pbft", "pos", "raft", "custom"}
-    	for _, k := range order {
-    		if pts, ok := allAlgoLeaderChangeStats[k]; ok {
-    			out = append(out, AlgoLeaderChangeStat{Algo: k, Points: pts})
+    	out := make([]AlgoLeaderChangeStat, 0)
+    	if allAlgoLeaderChangeStats != nil {
+    		reqAlgos := getAlgosFromQuery(c)
+    		for _, k := range reqAlgos {
+    			if pts, ok := allAlgoLeaderChangeStats[k]; ok {
+    				out = append(out, AlgoLeaderChangeStat{Algo: k, Points: pts})
+    				}
+    			}
     		}
-    	}
-    	c.JSON(200, gin.H{"algos": out})
+        c.JSON(200, gin.H{"algos": out})
+    })
+
+    // 4. 平均节点开销 API (图4) - 彻底解决图4报错
+    api.GET("/performance/nodecost", func(c *gin.Context) {
+    	tradeMu.RLock()
+    	defer tradeMu.RUnlock()
+
+    	out := make([]AlgoNodeCostStat, 0)
+    	if allAlgoNodeCostStats != nil {
+    		reqAlgos := getAlgosFromQuery(c)
+    		for _, k := range reqAlgos {
+    			if pts, ok := allAlgoNodeCostStats[k]; ok {
+    				out = append(out, AlgoNodeCostStat{Algo: k, Points: pts})
+    			}
+            }
+        }
+    c.JSON(200, gin.H{"algos": out})
     })
 	r.Run(":5000")
 }
