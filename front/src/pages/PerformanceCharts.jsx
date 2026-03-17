@@ -7,7 +7,7 @@ const algoNames = [
     { value: "pbft", label: "PBFT" },
     { value: "pos", label: "POS" },
     { value: "raft", label: "RAFT" },
-    { value: "custom", label: "自定义" }
+    { value: "custom", label: "APBFT" }
 ];
 
 const colors = { pbft: "blue", pos: "orange", raft: "green", custom: "purple" };

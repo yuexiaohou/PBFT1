@@ -9,6 +9,7 @@
     "@mui/material": "^7.3.8",
     "@mui/x-charts": "^8.27.0",
     "axios": "^1.6.0",
+    "echarts": "^6.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "react-router-dom": "^6.2.1",
