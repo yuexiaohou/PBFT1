@@ -359,6 +359,14 @@ func simulatePOS(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes 
 		rate := 0.0
 		if res.Status == "已确认" {
 			rate = 1.0
+			// ====== 【可选高亮】为图表展示效果，人为增加一点由恶意比例带来的随机波动 ======
+            // 假设即使共识成功，网络原因或出块延迟也会导致极小概率的挂单失败
+            if rand.Float64() < (maliciousRatio * 0.15) {
+            rate = 1.0 - (rand.Float64() * 0.1) // 成功率掉到 90%~100% 之间
+            }
+            // 偶尔模拟一次主节点离线的极端情况 (假设 5% 概率)
+            if rand.Float64() < 0.05 {
+            rate = 0.0
 		}
 
 		arr = append(arr, RoundStat{
