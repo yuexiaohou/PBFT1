@@ -266,7 +266,7 @@ func RunAPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.
 	// 【关键拦截】：如果选中的是恶意节点或信誉度过低，主动跳过该节点（即轮换）
     // 【视图转换触发打印】
 	if leader.IsMalicious || leader.M() <= node.MMin {
-        fmt.Printf("[View Change] 轮次 %d: 节点 %d (m=%.2f, Malicious=%v) 不可信，触发视图转换...\n", round, leader.ID, leader.M(), leader.IsMalicious)
+        fmt.Printf("[View Change] 轮次 %d: 节点 %d (m=%.d, Malicious=%v) 不可信，触发视图转换...\n", round, leader.ID, leader.M(), leader.IsMalicious)
 		viewOffset++
 		continue
 	}
