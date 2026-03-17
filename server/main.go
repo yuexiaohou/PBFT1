@@ -437,6 +437,12 @@ func simulateCUSTOM(db *gorm.DB, totalRounds int, maliciousRatio float64,numNode
 			// ======================= 【高亮-2026-03-07】方案A：PBFT Round = 撮合轮 r（严格一致） =======================
 			pbftRes := apbft.RunAPBFTWithRoundAndSpecs(r, txId, amount, specs)
 
+            // ======================= 【高亮-2026-03-16 12:00:00】强制使用 PBFT 产生的详细节点信息 =======================
+			sellerNodeStr := pbftRes.LeaderNode
+			if sellerNodeStr == "" {
+				sellerNodeStr = fmt.Sprintf("Node-%02d", rand.Intn(20)) // fallback
+			}
+
 			status := "失败"
 			if pbftRes.Status == "已确认" {
 				status = "成功"
