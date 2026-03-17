@@ -367,6 +367,7 @@ func simulatePOS(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes 
             // 偶尔模拟一次主节点离线的极端情况 (假设 5% 概率)
             if rand.Float64() < 0.05 {
             rate = 0.0
+            }
 		}
 
 		arr = append(arr, RoundStat{
