@@ -20,6 +20,8 @@ import (
 	pos  "PBFT1/POS"
 	pbft "PBFT1/PBFT"
 	raft "PBFT1/RAFT"
+	// ======================= 【高亮-2026-03-18】新增：引入 forecast 包 =======================
+    "PBFT1/forecast"
 )
 
 // ==============用户结构体========
@@ -147,6 +149,8 @@ var roundOverview = make([]RoundStat, 0)
 // ======================= 高亮-2026-03-07: 做法A - 全局PBFT round 计数器（带锁） =======================
 var pbftRoundMu sync.Mutex
 var globalPBFTRound int
+// ======================= 【高亮-2026-03-18】新增：预测模型客户端全局变量 =======================
+var forecastClient *forecast.Client
 
 // ======================= 高亮-2026-03-07: 做法A - 每次取round都封装成函数，避免遗漏加锁 =======================
 func nextPBFTRound() int {
@@ -522,6 +526,9 @@ func main() {
 	// =========2026-03-01: 命令行参数配置 ==========
 	totalRounds := flag.Int("rounds", 20, "number of consensus rounds")
 	flag.Parse()
+	// ======================= 【高亮-2026-03-18】新增：初始化预测模型客户端 =======================
+    // 初始化客户端，指向正在运行的 Python FastAPI 服务的地址
+    forecastClient = forecast.NewClient("http://192.168.140.1:8000")
 	// =========调用数据库==========
 	_ = node.FixedNumNodes// ========= 高亮-2026-03-07: 取消并行 RunAPBFTSimulator 后暂不使用（保留参数兼容） ==========
     _ = node.FixedMaliciousRatio// ========= 高亮-2026-03-07: 取消并行 RunAPBFTSimulator 后暂不使用（保留参数兼容） ==========
