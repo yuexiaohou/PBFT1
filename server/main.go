@@ -895,4 +895,25 @@ func main() {
 	r.Run(":5000")
 }
 
+// ======================= 【高亮-2026-03-18】新增：预测数据前端查询代理接口 =======================
+	api.GET("/forecast", func(c *gin.Context) {
+		if forecastClient == nil {
+			c.JSON(500, gin.H{"msg": "预测服务未初始化"})
+			return
+		}
+
+		reqForecast := forecast.ForecastRequest{
+			InputCSV:  "monthly_outputs/monthly_aggregation_all_2014_2024.csv",
+			TargetCol: "avg_wtd_price_arithmetic",
+			Horizon:   12,
+		}
+
+		respForecast, err := forecastClient.GetPriceForecast(reqForecast)
+		if err != nil {
+			c.JSON(500, gin.H{"msg": "获取预测数据失败", "error": err.Error()})
+			return
+		}
+
+		c.JSON(200, respForecast)
+	})
 

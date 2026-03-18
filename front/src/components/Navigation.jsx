@@ -7,6 +7,7 @@ import InsightsIcon from "@mui/icons-material/Insights";
 import SecurityIcon from "@mui/icons-material/Security";
 import StorageIcon from "@mui/icons-material/Storage";
 import LogoutIcon from "@mui/icons-material/Logout";
+import ShowChartIcon from "@mui/icons-material/ShowChart"; // ======================= 【高亮-2026-03-18】引入图表图标
 
 // ======================= 【UI 优化-2026-03-15】修改：改为固定侧边导航结构 =======================
 export default function Navigation() {
@@ -29,6 +30,8 @@ export default function Navigation() {
         { label: "区块溯源", path: "/blocksearch", icon: <StorageIcon /> },
         { label: "撮合统计", path: "/matchcharts", icon: <InsightsIcon /> },
         { label: "性能特性", path: "/performancecharts", icon: <InsightsIcon /> },
+        // ======================= 【高亮-2026-03-18】新增预测菜单项 =======================
+        { label: "智能预测", path: "/forecast", icon: <ShowChartIcon /> },
     ];
 
     return (

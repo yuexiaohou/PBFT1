@@ -10,6 +10,7 @@ import BlockSearch from "./pages/BlockSearch";
 import MatchCharts from "./pages/MatchCharts";
 import PerformanceCharts from "./pages/PerformanceCharts";
 import {Box, CssBaseline} from "@mui/material";
+import Forecast from "./pages/Forecast";
 
 function App() {
     const isAuthenticated = !!localStorage.getItem("token"); // 仅做简单示例
@@ -39,6 +40,7 @@ function App() {
                   <Route path="/blocksearch" element={isAuthenticated ? <BlockSearch /> : <Navigate to="/login" />} />
                   <Route path="/matchcharts" element={isAuthenticated ? <MatchCharts /> : <Navigate to="/login" />} />
                   <Route path="/performancecharts" element={isAuthenticated ? <PerformanceCharts /> : <Navigate to="/login" />} />
+                  <Route path="/forecast" element={isAuthenticated ? <Forecast /> : <Navigate to="/login" />} />
                 </Routes>
                 </Box>
             </Box>

@@ -28,3 +28,5 @@ export const getTradeHistory = () => axios.get(withUsername("/api/trade/history"
 export const getPBFTResult = () => axios.get("/api/pbft/result");
 export const getPBFTBlock = () => axios.get("/api/pbft/block");
 export const getPBFTBlockById = (id) => axios.get(`/api/pbft/block?id=${id}`);
+// ======================= 【高亮-2026-03-18】新增预测数据获取接口 =======================
+export const getForecast = () => axios.get("/api/forecast");
