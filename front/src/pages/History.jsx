@@ -92,7 +92,6 @@ export default function History() {
                         ]}
                         xAxis={[
                             {
-                                dataKey: 'x',
                                 scaleType: 'time', // 指定横轴刻度类型为时间
                                 valueFormatter: (v) => new Date(v).toLocaleTimeString(),
                                 label: '交易时间' // X轴文字
