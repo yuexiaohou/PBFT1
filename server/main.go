@@ -552,6 +552,29 @@ func main() {
 
 	api := r.Group("/api")
 
+// ======================= 【高亮-2026-03-18】新增：预测数据前端查询代理接口 =======================
+	api.GET("/forecast", func(c *gin.Context) {
+		if forecastClient == nil {
+			c.JSON(500, gin.H{"msg": "预测服务未初始化"})
+			return
+		}
+
+		reqForecast := forecast.ForecastRequest{
+			InputCSV:  "monthly_outputs/monthly_aggregation_all_2014_2024.csv",
+			TargetCol: "avg_wtd_price_arithmetic",
+			Horizon:   12,
+		}
+
+		respForecast, err := forecastClient.GetPriceForecast(reqForecast)
+		if err != nil {
+			c.JSON(500, gin.H{"msg": "获取预测数据失败", "error": err.Error()})
+			return
+		}
+
+		c.JSON(200, respForecast)
+	})
+
+
 	// ====== 高亮：新增 PBFT result 接口 BEGIN ======
     api.GET("/pbft/result", func(c *gin.Context) {
 	pbftMu.RLock()
@@ -736,6 +759,17 @@ func main() {
 
 			updatePBFTBlock(pbftResult.BlockHeight, req.Amount)
 
+            // ======================= 【高亮-2026-03-18】新增：将成交数据异步回传给 Python =======================
+			if forecastClient != nil {
+				go func(p float64, amt int) {
+					// 仅作演示：异步调用预测服务��回传接口
+					_ = forecastClient.RecordTrade(forecast.RecordTradeRequest{
+						Date:   time.Now().Format("2006-01-02 15:04:05"),
+						Price:  p,
+						Amount: amt,
+					})
+				}(tradePrice, req.Amount)
+			}
 			c.JSON(200, gin.H{"msg": "操作成功"})
 			return
 		}
@@ -895,25 +929,4 @@ func main() {
 	r.Run(":5000")
 }
 
-// ======================= 【高亮-2026-03-18】新增：预测数据前端查询代理接口 =======================
-	api.GET("/forecast", func(c *gin.Context) {
-		if forecastClient == nil {
-			c.JSON(500, gin.H{"msg": "预测服务未初始化"})
-			return
-		}
-
-		reqForecast := forecast.ForecastRequest{
-			InputCSV:  "monthly_outputs/monthly_aggregation_all_2014_2024.csv",
-			TargetCol: "avg_wtd_price_arithmetic",
-			Horizon:   12,
-		}
-
-		respForecast, err := forecastClient.GetPriceForecast(reqForecast)
-		if err != nil {
-			c.JSON(500, gin.H{"msg": "获取预测数据失败", "error": err.Error()})
-			return
-		}
-
-		c.JSON(200, respForecast)
-	})
 
