@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+// ========== 【高亮-2026-03-18】修复报错：引入 useMemo 钩子 ==========
+import React, { useEffect, useState, useMemo } from "react";
 import { getTradeHistory } from "../api";
 import {
     Typography,
