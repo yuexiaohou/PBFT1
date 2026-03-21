@@ -328,6 +328,7 @@ func RunPOSWithRoundAndSpecs(round int, txId string, amount int, nodes []*SimNod
 	}
 }
 
+
 // 兼容你现有调用方式（不传 nodes/cfg 时，每次新建节点集合）
 // 注意：每次新建会导致 stake 不累积（不利于奖惩效果），建议你在仿真里复用 nodes。
 func RunPOS(txId string, amount int) POSResult {
