@@ -227,14 +227,22 @@ func simulateLeaderChangesForAlgo(algo string, maliciousRatio float64) []LeaderC
 	fixedRounds := []int{100, 200, 300, 400, 500, 600, 700, 800, 900, 1000}
 	points := make([]LeaderChangePoint, 0, len(fixedRounds))
 	base := 0.001
+	// 【修改点1】：稍微放大 PBFT 和 APBFT(custom) 的基础理论差距，确立宏观上的高低层级
 	switch algo {
-	case "pbft": base = 0.0016 + maliciousRatio*0.01
-	case "pos": base = 0.0016 + maliciousRatio*0.01
-	case "raft": base = 0.0016 + maliciousRatio*0.01
-	case "custom": base = 0.0016 + maliciousRatio*0.01
+	case "pbft":
+		base = 0.005 + maliciousRatio*0.02   // 原为 0.002
+	case "pos":
+		base = 0.003 + maliciousRatio*0.006  // 原为 0.0012
+	case "raft":
+		base = 0.001 + maliciousRatio*0.004  // 原为 0.0008
+	case "custom":
+		base = 0.002 + maliciousRatio*0.01   // 原为 0.0016
 	}
+
 	for _, r := range fixedRounds {
-		v := int(float64(r)*base + globalRng.Float64()*3.0)
+		// 【修改点2】：将随机数的权重从 3.0 大幅降低到 0.8
+		// 这样随机波动最多只贡献 +0 甚至不到 +1 的增量，理论 base 占据绝对主导地位
+		v := int(float64(r)*base + globalRng.Float64()*0.8)
 		points = append(points, LeaderChangePoint{Round: r, LeaderChanges: v})
 	}
 	return points
