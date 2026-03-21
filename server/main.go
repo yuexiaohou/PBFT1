@@ -228,9 +228,9 @@ func simulateLeaderChangesForAlgo(algo string, maliciousRatio float64) []LeaderC
 	points := make([]LeaderChangePoint, 0, len(fixedRounds))
 	base := 0.001
 	switch algo {
-	case "pbft": base = 0.002 + maliciousRatio*0.02
-	case "pos": base = 0.0012 + maliciousRatio*0.006
-	case "raft": base = 0.0008 + maliciousRatio*0.004
+	case "pbft": base = 0.0016 + maliciousRatio*0.01
+	case "pos": base = 0.0016 + maliciousRatio*0.01
+	case "raft": base = 0.0016 + maliciousRatio*0.01
 	case "custom": base = 0.0016 + maliciousRatio*0.01
 	}
 	for _, r := range fixedRounds {
