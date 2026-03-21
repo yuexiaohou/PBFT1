@@ -241,16 +241,19 @@ func RunPOSWithRoundAndSpecs(round int, txId string, amount int, nodes []*SimNod
 	voterIDs := []string{} // 【修复点：明确定义
 	commitCount := 0
 
+	// ======================= 【高亮-2026-03-21 修改：增加马太节点判定标志】 =======================
+	isMatthewLeader := (highestStakeNode != nil && leaderNode.ID == highestStakeNode.ID)
+
 	// 4. 执行投票
 	for _, v := range committeeNodes {
 		committeeNames = append(committeeNames, v.Name())
 		voteStr := "commit"
 
-		// ======================= 【高亮-2026-03-21】马太效应针对性攻击 =======================
+		// ======================= 【高亮-2026-03-21 修改：马太效应针对性攻击（威力增强版）】 =======================
 		if v.Malicious {
 			// 策略：如果当前的 Leader 是网络里的“首富”，所有入选委员会的恶意节点集体砸盘，100% 投反对票！
 			// 目的：让该轮共识失败，迫使“首富”节点遭受巨大的 LeaderPenalty 扣款。
-			if highestStakeNode != nil && leaderNode.ID == highestStakeNode.ID {
+			if isMatthewLeader {
 				voteStr = "reject"
 				applyStakeDelta(v, -cfg.MaliciousPenalty, cfg) // 哪怕自己也被扣点钱，也要拉低巨头的权益
 			} else {
@@ -261,8 +264,15 @@ func RunPOSWithRoundAndSpecs(round int, txId string, amount int, nodes []*SimNod
 				}
 			}
 		} else {
-			// 诚实节点偶发的网络延迟/离线导致投票失败
-			if rng.Float64() < 0.05 {
+			offlineProb := 0.05
+			// 如果当前 Leader 是马太节点，恶意节点会在暗中发动 DDOS/日蚀攻击拦截网络
+			// 导致大量诚实节点也无法收到 Leader 的区块提案，被迫“离线”或投废票
+			if isMatthewLeader {
+				offlineProb = 0.45 // 使得 45% 的诚实节点受到网络攻击影响无法投票
+			}
+
+			// 诚实节点的离线/丢包/受攻击导致投票失败
+			if rng.Float64() < offlineProb {
 				voteStr = "reject"
 			}
 		}
@@ -275,6 +285,7 @@ func RunPOSWithRoundAndSpecs(round int, txId string, amount int, nodes []*SimNod
 	}
 
 	// 5. 【对齐点】共识阈值判定：委员会内 2/3 赞成
+	// 注意：此处 2/3 的阈值没有被打破，而是上方收集的 commitCount 变少了
 	quorum := (len(committeeNodes) * 2) / 3
 	if quorum < 1 { quorum = 1 }
 
@@ -287,8 +298,8 @@ func RunPOSWithRoundAndSpecs(round int, txId string, amount int, nodes []*SimNod
 		reason = fmt.Sprintf("Consensus failed: votes %d/%d (threshold 2/3)", commitCount, len(committeeNodes))
 		applyStakeDelta(leaderNode, -cfg.LeaderPenalty, cfg)
 		// ======================= 【高亮-2026-03-21】打印被攻击日志 =======================
-        if highestStakeNode != nil && leaderNode.ID == highestStakeNode.ID {
-        	fmt.Printf("⚠️ [马太效应攻击] 巨头节点 %s 遭到集中抵制，共识失败！权��被大幅扣除！\n", leaderNode.Name())
+        if isMatthewLeader {
+        	fmt.Printf("⚠️ [马太效应攻击] 巨头节点 %s 遭到集中抵制及网络阻断，共识失败！权益被大幅扣除！\n", leaderNode.Name())
         }
 	} else {
 		// 【对齐点】撮合成功价格生成逻辑对齐
