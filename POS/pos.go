@@ -58,7 +58,6 @@ type SimConfig struct {
 	// stake 边界
 	MinActiveStake float64 // stake 低于此值视为失效
 }
-// ======================= 2026-03-06 高亮新增：POS仿真参数 END =======================
 
 // 默认配置（你可以按需调整）
 func DefaultSimConfig() SimConfig {
@@ -214,9 +213,19 @@ func RunPOSWithRoundAndSpecs(round int, txId string, amount int, nodes []*SimNod
 		return POSResult{TxId: txId, Status: "失败", FailedReason: "no active nodes", Timestamp: time.Now()}
 	}
 
-	// 【关键对齐点-2026-03-11】模拟 Leader 提议阶段
-	// 如果选出的 Leader 是恶意的，有 30% 概率直接不提议（对齐 PBFT 逻辑）
-	if leaderNode.Malicious && rng.Float64() < 0.3 {
+	// ======================= 【高亮-2026-03-21】新增核心逻辑：寻找全网“首富”（权益最高的诚实节点） =======================
+	var highestStakeNode *SimNode
+	maxStake := -1.0
+	for _, nd := range nodes {
+		if nd.Active && !nd.Malicious && nd.Stake > maxStake {
+			maxStake = nd.Stake
+			highestStakeNode = nd
+		}
+	}
+
+	// 恶意节点为了积累财富（马太效应），自己当主节点时会倾向于好好工作赚取 LeaderReward
+	// 所以大幅降低恶意 Leader 罢工的概率（从 0.3 降到 0.05）
+	if leaderNode.Malicious && rng.Float64() < 0.05 {
 		applyStakeDelta(leaderNode, -cfg.LeaderPenalty, cfg)
 		return POSResult{
 			TxId: txId, Status: "失败", Consensus: "pos", BlockHeight: round,
@@ -237,13 +246,22 @@ func RunPOSWithRoundAndSpecs(round int, txId string, amount int, nodes []*SimNod
 		committeeNames = append(committeeNames, v.Name())
 		voteStr := "commit"
 
-		// 【修正点】识别恶意标记，执行拒绝逻辑
+		// ======================= 【高亮-2026-03-21】马太效应针对性攻击 =======================
 		if v.Malicious {
-			if rng.Float64() < 0.80 {
+			// 策略：如果当前的 Leader 是网络里的“首富”，所有入选委员会的恶意节点集体砸盘，100% 投反对票！
+			// 目的：让该轮共识失败，迫使“首富”节点遭受巨大的 LeaderPenalty 扣款。
+			if highestStakeNode != nil && leaderNode.ID == highestStakeNode.ID {
 				voteStr = "reject"
-				applyStakeDelta(v, -cfg.MaliciousPenalty, cfg)
+				applyStakeDelta(v, -cfg.MaliciousPenalty, cfg) // 哪怕自己也被扣点钱，也要拉低巨头的权益
+			} else {
+				// 潜伏期：如果 Leader 是普通人或同伙，恶意节点伪装成好人投赞成票，安稳赚取 VoterReward
+				if rng.Float64() < 0.02 { // 仅维持 2% 的极低失误率，最大化保留实力
+					voteStr = "reject"
+					applyStakeDelta(v, -cfg.MaliciousPenalty, cfg)
+				}
 			}
 		} else {
+			// 诚实节点偶发的网络延迟/离线导致投票失败
 			if rng.Float64() < 0.05 {
 				voteStr = "reject"
 			}
@@ -268,6 +286,10 @@ func RunPOSWithRoundAndSpecs(round int, txId string, amount int, nodes []*SimNod
 		status = "失败"
 		reason = fmt.Sprintf("Consensus failed: votes %d/%d (threshold 2/3)", commitCount, len(committeeNodes))
 		applyStakeDelta(leaderNode, -cfg.LeaderPenalty, cfg)
+		// ======================= 【高亮-2026-03-21】打印被攻击日志 =======================
+        if highestStakeNode != nil && leaderNode.ID == highestStakeNode.ID {
+        	fmt.Printf("⚠️ [马太效应攻击] 巨头节点 %s 遭到集中抵制，共识失败！权��被大幅扣除！\n", leaderNode.Name())
+        }
 	} else {
 		// 【对齐点】撮合成功价格生成逻辑对齐
 		price = 500.0 + rng.Float64()*20.0
