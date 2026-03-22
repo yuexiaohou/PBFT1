@@ -146,7 +146,7 @@ func (s *PBFTSimulator) RunRound(round int, request []byte) bool {
 
 // ======================= 【高亮-2026-03-13】修改：RunRound 适配动态传入的 Leader =======================
 // ======================= 【高亮-2026-03-22】修改：返回 (bool, float64) 以传递 KNN 计算出的成交价 =======================
-func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *node.Node) bool {
+func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *node.Node) (bool, float64) {
 	for _, nd := range s.nodes {
     	if ss, ok := any(nd).(roundSeedSetter); ok {
     	   ss.SetRoundSeed(round)
@@ -248,7 +248,7 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
 
 	// 判断阈值
 	quorum := int(float64(s.n) * PrepareQuorumMultiplier)
-	if len(commitSigs) >= int(float64(s.n)*PrepareQuorumMultiplier) { // 如果 commit 签名数达到阈值（基于 PrepareQuorumMultiplier）
+	if len(commitSigs) >= quorum  { // 如果 commit 签名数达到阈值（基于 PrepareQuorumMultiplier）
 		fmt.Println("Consensus achieved in this round") // 打印达成共识
 
 		successIDs := map[int]bool{} // 创建映射以记录哪些节点参与了成功的 commit
@@ -365,8 +365,12 @@ func RunAPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.
 	status := "已确认"
 	reason := ""
 	if !success {
-		status = "失败"
-		reason = "apbft consensus failed"
+       status = "失败"
+       reason = "apbft consensus failed"
+       // 失败时回退给个默认价格
+       seed := int64(20260307 + round)
+       rngObj := rand.New(rand.NewSource(seed))  // 换了个名字确保清晰
+       finalPrice = 500 + rngObj.Float64()*50    // 确保真正使用了这个随机数发生器
 	}
 
     // 【修复点】：显式定义并初始化 leaderNodeName
