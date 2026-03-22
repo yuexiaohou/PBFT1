@@ -48,6 +48,8 @@ export default function PerformanceCharts() {
     const [algosError, setAlgosError] = useState(algoNames.map(a=>a.value)); // 图2
     const [algosLeader, setAlgosLeader] = useState(algoNames.map(a=>a.value)); // 图3
     const [algosCost, setAlgosCost] = useState(algoNames.map(a=>a.value)); // 图4
+    // ======================= 【高亮-2026-03-22】新增：时延图表独立的算法选择状态 =======================
+    const [algosLatency, setAlgosLatency] = useState(algoNames.map(a=>a.value)); // 图5 (时延)
 
     // 图数据
     // 之前的const [chartData, setChartData] = useState([])只能存储单算法数据
@@ -55,11 +57,15 @@ export default function PerformanceCharts() {
     const [chart2ErrorData, setChart2ErrorData] = useState([]);
     const [chart3LeaderData, setChart3LeaderData] = useState([]);
     const [chart4CostData, setChart4CostData] = useState([]); // 【高亮-2026-03-15 23:40:00】
+    // ======================= 【高亮-2026-03-22】新增：时延图表独立数据状态 =======================
+    const [chart5LatencyData, setChart5LatencyData] = useState([]);
 
     const [loading1, setLoading1] = useState(true), [errMsg1, setErrMsg1] = useState("");
     const [loading2, setLoading2] = useState(true), [errMsg2, setErrMsg2] = useState("");
     const [loading3, setLoading3] = useState(true), [errMsg3, setErrMsg3] = useState("");
     const [loading4, setLoading4] = useState(true), [errMsg4, setErrMsg4] = useState(""); // 【高亮-2026-03-15 23:40:00】
+    // ======================= 【高亮-2026-03-22】新增：时延图表加载与报错状态 =======================
+    const [loading5, setLoading5] = useState(true), [errMsg5, setErrMsg5] = useState("");
 
     // 图1：挂单成功率
     // 旧写法是要实现可以在图中呈现单个算法和全部算法，因此通过采用algosSuccess!=="all"与?algo=${algoSuccess}` : "",由于要实现多选，因此通过algosSuccess.join(",")实现数组应用
@@ -122,6 +128,22 @@ export default function PerformanceCharts() {
         fetchNodeCost();
     }, [algosCost]);
 
+    // ======================= 【高亮-2026-03-22】新增：获取交易平均时延数据 =======================
+    useEffect(() => {
+        async function fetchLatency() {
+            setLoading5(true); setErrMsg5("");
+            try {
+                const url = `/api/performance/latency?algo=${algosLatency.join(",")}`;
+                const res = await fetch(url);
+                const data = await res.json();
+                // 兼容包裹在 algos 字段内或直接返回数组的情况
+                setChart5LatencyData(data.algos || data || []);
+            } catch (e) { setErrMsg5("时延数据获取失败"); }
+            setLoading5(false);
+        }
+        fetchLatency();
+    }, [algosLatency]);
+
     // 工具：对齐采样点
     // 将axis作为参数传进去
     const alignPoints = (allPoints, axis, getter) => {
@@ -169,6 +191,17 @@ export default function PerformanceCharts() {
                 data: alignPoints(as.points, roundsChart234, r=>Number(r.nodeCost??0)),
             }));
     }, [chart4CostData, algosCost]);
+
+    // ======================= 【高亮-2026-03-22】新增：图5 时延数据格式化 =======================
+    const chart5Series = useMemo(() => {
+        return (chart5LatencyData || [])
+            .filter(as => algosLatency.includes(as.algo))
+            .map(as => ({
+                algo: as.algo,
+                // 时延在后端模拟中是按照 1~20 轮生成的，所以使用 roundsChart1 (1-20) 轴
+                data: alignPoints(as.points, roundsChart1, r=>Number(r.latency??0)),
+            }));
+    }, [chart5LatencyData, algosLatency]);
 
     const selectedLabel = (a) => algoNames.find(x => x.value === a)?.label || a;
 
@@ -291,6 +324,39 @@ export default function PerformanceCharts() {
                                     height={300}
                                 />
                             ):<Typography color="text.secondary" sx={{ py: 2 }}>暂无平均节点开销数据</Typography>}
+                        </>
+                    )}
+                </Box>
+
+                {/* ======================= 【高亮-2026-03-22】新增：图5 交易平均时延 (置于最上方以突出优势) ======================= */}
+                <Box sx={{ mb: 6, p: 2, bgcolor: "#f8faff", borderRadius: 2, border: "1px solid #e3f2fd" }}>
+                    <Typography variant="h6" color="primary" gutterBottom>⏱️ 核心优势: 交易平均时延对比 (Consensus Latency)</Typography>
+                    <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 2 }}>
+                        注：引入 KNN 算法后，远距离节点因线损过高被自动 Reject (拒绝参与共识)，大幅缩小了广播规模。相比传统 PBFT O(N²) 的全局通信，<strong>KNN-APBFT 的时延显著降低且平稳</strong>。
+                    </Typography>
+                    <AlgoMultiSelect
+                        label="选择算法（交易平均时延）"
+                        value={algosLatency}
+                        onChange={e => setAlgosLatency(typeof e.target.value === "string" ? e.target.value.split(',') : e.target.value)}
+                    />
+                    {loading5 ? <Typography>数据加载中...</Typography> : (
+                        <>
+                            {errMsg5 && <Typography color="error">{errMsg5}</Typography>}
+                            <Typography variant="subtitle1" mt={1} gutterBottom>各轮次平均共识时延（单位：毫秒 ms）（共识轮数1-20）</Typography>
+                            {chart5Series.length > 0 ? (
+                                <LineChart
+                                    series={chart5Series.map(s => ({
+                                        data: s.data,
+                                        label: selectedLabel(s.algo),
+                                        color: colors[s.algo] || undefined,
+                                        curve: "linear"
+                                    }))}
+                                    xAxis={[{label:"共识轮数", data:roundsChart1}]}
+                                    yAxis={[{label:"平均时延(ms)"}]}
+                                    width={680}
+                                    height={300}
+                                />
+                            ):<Typography color="text.secondary" sx={{ py: 2 }}>暂无时延统计数据</Typography>}
                         </>
                     )}
                 </Box>

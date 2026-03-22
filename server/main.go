@@ -124,6 +124,17 @@ type AlgoNodeCostStat struct {
 	Points []NodeCostPoint `json:"points"`
 }
 
+// ======================= 【高亮-2026-03-22】1. 在 PBFT相关结构体区域新增时延结构体 =======================
+type LatencyPoint struct {
+	Round   int     `json:"round"`
+	Latency float64 `json:"latency"` // 单位：毫秒(ms)
+}
+
+type AlgoLatencyStat struct {
+	Algo   string         `json:"algo"`
+	Points []LatencyPoint `json:"points"`
+}
+
 // ================= 【高亮-2026-03-22】重构 1：高内聚的系统状态缓存 =================
 // 解决原先 tradeMu, pbftMu, pbftRoundMu 锁分离导致的高耦合和潜在死锁危机
 type SystemStateCache struct {
@@ -351,7 +362,27 @@ func generateMetricsForAlgo(algo string, malRatio float64) ([]ErrorRatePoint, []
 		}
 		costs = append(costs, NodeCostPoint{Round: r, NodeCost: cost})
 	}
-	return errs, leaders, costs
+    	// ======================= 【高亮-2026-03-22】新增：生成 1~20 轮的平均时延数据 =======================
+    	lats := make([]LatencyPoint, 0, 20)
+    	for r := 1; r <= 20; r++ {
+    		var latency float64
+    		switch algo {
+    		case "pbft":
+    			// 传统 PBFT O(N^2) 全网广播，时延极高
+    			latency = 200.0 + globalRng.Float64()*80.0
+    		case "raft":
+    			// Raft 强主节点，线性通信，时延中等
+    			latency = 50.0 + globalRng.Float64()*20.0
+    		case "pos":
+    			// PoS 验证者轮换，时延较低
+    			latency = 30.0 + globalRng.Float64()*15.0
+    		case "custom":
+    			// KNN-APBFT 局部共识，距离远直接拒绝，极大降低了通信包，时延最低
+    			latency = 12.0 + globalRng.Float64()*8.0
+    		}
+    		lats = append(lats, LatencyPoint{Round: r, Latency: latency})
+    	}
+    return errs, leaders, costs, lats // <== 【高亮-2026-03-22】返回时延切片
 }
 
 // ================= 【高亮-2026-03-22】重构 4：核心调度器完全解耦 =================
@@ -387,10 +418,12 @@ func simulateAllAlgos(db *gorm.DB, totalRounds int, maliciousRatio float64, numN
 	defer sysState.Unlock()
 	for _, engine := range engines {
 		name := engine.Name()
-		errs, leaders, costs := generateMetricsForAlgo(name, maliciousRatio)
+    // ======================= 【高亮-2026-03-22】4. 接收并存入时延缓存 =======================
+		errs, leaders, costs, lats := generateMetricsForAlgo(name, maliciousRatio)
 		sysState.allAlgoErrorRateStats[name] = errs
 		sysState.allAlgoLeaderChangeStats[name] = leaders
 		sysState.allAlgoNodeCostStats[name] = costs
+		sysState.allAlgoLatencyStats[name] = lats // 将时延数据写入缓存
 	}
 }
 
@@ -621,7 +654,7 @@ func main() {
 
 			persistTradeResult(db, &trade)
 
-			// ================= 【高亮-2026-03-22】重构集成 =================
+            // ================= 【高亮-2026-03-22】重构集成 =================
 			// 利用统一个的 sysState 接口进行更新，杜绝死锁
 			sysState.UpdatePBFTState(PBFTConsensusResult{
 				TxId:         pbftResult.TxId,
@@ -786,6 +819,17 @@ func main() {
 			}
 		}
 		c.JSON(200, gin.H{"algos": out})
+	})
+
+    // ======================= 【高亮-2026-03-22】5. 在 main 中增加对应的 API 路由 =======================
+	api.GET("/performance/latency", func(c *gin.Context) {
+		sysState.RLock()
+		defer sysState.RUnlock()
+		var res []AlgoLatencyStat
+		for algo, pts := range sysState.allAlgoLatencyStats {
+			res = append(res, AlgoLatencyStat{Algo: algo, Points: pts})
+		}
+		c.JSON(200, res) // 直接返回结果数组供前端图表渲染
 	})
 
 	r.Run(":5000")

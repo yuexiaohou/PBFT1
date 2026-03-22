@@ -9,6 +9,27 @@ import ( // 导入必要的标准库包
 	"PBFT1/node"
 )
 
+// ======================= 【高亮-2026-03-22】新增：KNN 辅助结构与距离计算 =======================
+type Neighbor struct {
+	ID    int
+	D     float64 // 标签 d: 与主节点的距离
+	Quote float64 // 节点作为卖方的预期报价
+}
+
+// calculateNodeDistance 用于模拟两个节点在电网拓扑中的固定物理距离
+func calculateNodeDistance(id1, id2 int) float64 {
+	if id1 == id2 {
+		return 0.0
+	}
+	// 利用节点ID生成固定的伪随机种子，保证两点间拓扑距离固定
+	seed := int64(id1*1000 + id2)
+	if id1 > id2 {
+		seed = int64(id2*1000 + id1)
+	}
+	rng := rand.New(rand.NewSource(seed))
+	return rng.Float64() * 100.0 // 模拟距离范围 0 ~ 100 KM
+}
+
 // 简化 PBFT 模拟器（PRE-PREPARE / PREPARE / COMMIT）
 // 定义 PBFT 模拟器的结构体，封装节点集合与参数
 //==========当使用其他文件的变量时，特别是次变量在其他目录下时，该变量要改为目录名.变量名。import("PBFT1/node")后，[]*Node变为[]*node.Node==========
@@ -20,6 +41,7 @@ type PBFTSimulator struct {
 	AfterConsensusHandler func(round int) // <<< 新增：达成共识后的业务钩子
 }
 
+//Validator表示委员
 // 核心模拟器
 // ====== 导出共识结果结构体及节点类型 ======
 type Validator struct {
@@ -117,12 +139,13 @@ type roundSeedSetter interface {
 // ======================= 【高亮-2026-03-14 11:15】恢复：RunRound 兼容旧版调用 =======================
 func (s *PBFTSimulator) RunRound(round int, request []byte) bool {
 	leader := s.SelectLeader(round, 0) // 默认不轮换执行
-	return s.RunRoundWithLeader(round, request, leader)
+	// ======================= 【高亮-2026-03-22】修改：忽略返回的价格，只返回共识布尔值 =======================
+	ok, _ := s.RunRoundWithLeader(round, request, leader)
+	return ok
 }
 
-// 共识流程(本轮)
-// RunRound 发起单轮共识，返回是否达成共识；并采集简单日志（可扩展为 CSV）
 // ======================= 【高亮-2026-03-13】修改：RunRound 适配动态传入的 Leader =======================
+// ======================= 【高亮-2026-03-22】修改：返回 (bool, float64) 以传递 KNN 计算出的成交价 =======================
 func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *node.Node) bool {
 	for _, nd := range s.nodes {
     	if ss, ok := any(nd).(roundSeedSetter); ok {
@@ -141,6 +164,12 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
 		return false // 提前返回失败
 	}
 
+	// ======================= 【高亮-2026-03-22】新增：KNN 参数初始化 =======================
+	basePrice := 50.0       // 基础电价
+	lineLossCoeff := 1.2     // 线损系数（元/单位距离）
+	K := 30                   // K近邻数量
+	var neighbors []Neighbor // 存储邻居节点信息用于 KNN 定价
+
 	// PREPARE: 所有活跃节点签名
 	var wg sync.WaitGroup // 等待组，用于并发收集签名
 	var mu sync.Mutex     // 互斥锁，保护共享切片
@@ -151,18 +180,32 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
 		if !nd.IsActive() { // 跳过非活跃节点
 			continue
 		}
-		wg.Add(1) // 增加等待计数
-		go func(node *node.Node) { // 并发签名以模拟真实网络的并行性
+    // ======================= 【高亮-2026-03-22】新增：计算距离 d 并生成本地报价 =======================
+	d := calculateNodeDistance(nd.ID, leader.ID)
+	quote := 150.0 + rand.Float64()*100.0 // 模拟节点的卖方报价
+	neighbors = append(neighbors, Neighbor{ID: nd.ID, D: d, Quote: quote})
+	wg.Add(1) // 增加等待计数
+		// ======================= 【高亮-2026-03-22】修改：闭包传入 distance 变量 =======================
+		go func(node *node.Node, distance float64) { // 并发签名以模拟真实网络的并行性
 			defer wg.Done() // 完成时通知等待组
+
+			// ======================= 【高亮-2026-03-22】新增：基于 KNN 距离的 Reject 逻辑 =======================
+			// 核心逻辑：距离太远线损过高，按距离成正比的概率投 reject（拒绝提供签名）
+			rejectProb := distance * 0.004 // 假设最大距离100时，有40%概率拒绝交易
+			if rand.Float64() < rejectProb {
+				return // 模拟节点投 reject，直接返回不签名
+			}
+			// ======================= 【高亮-2026-03-22】新增结束 =======================
+
 			sig, err := node.Sign(request) // 节点对请求进行签名
-			if err == nil && sig != nil { // 如果签名成功
-				mu.Lock() // 保护共享切片
-				signatures = append(signatures, sig) // 添加签名
+			if err == nil && sig != nil {  // 如果签名成功
+				mu.Lock()                                   // 保护共享切片
+				signatures = append(signatures, sig)        // 添加签名
 				pubKeys = append(pubKeys, node.PublicKey()) // 添加对应公钥
-				signedIDs = append(signedIDs,node.ID)
+				signedIDs = append(signedIDs, node.ID)
 				mu.Unlock() // 解锁
 			}
-		}(nd)
+		}(nd, d) // 传入节点和距离
 	}
 	wg.Wait() // 等待所有并发签名完成
 
@@ -222,29 +265,56 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
 				nd.UpdateReward(false) // 否则视为未参与或失败
 			}
 		}
-            // ====== 补充2：共识后业务钩子调用 ======
-    		if s.AfterConsensusHandler != nil {
-    			s.AfterConsensusHandler(round)
-    		}
-        // 【修复点】：生成模拟成交价用于控制台打印，对齐 RunAPBFTWithRoundAndSpecs 逻辑
-        seed := int64(20260307 + round)
-        rng := rand.New(rand.NewSource(seed))
-        price := 500 + rng.Float64()*50
-        // 【控制台输出】
-        fmt.Printf("\n>>>>>> [APBFT 共识达成 | 轮次 %d] <<<<<<\n", round)
-        fmt.Printf("├─ 主节点信息: ID=%d | 信誉值(m)=%.d | 层级(Tier)=%d | 吞吐量=%.2f\n",
-        	leader.ID, leader.M(), leader.Tier, leader.Throughput)
-        fmt.Printf("├─ 共识详情: 成交价=%.2f | 参与度=%d/%d (法定人数:%d)\n",
-        	price, len(signatures), s.n, quorum)
-        fmt.Printf("└─ 参与节点列表: %v\n", signedIDs)
-        for _, nd := range s.nodes { nd.UpdateReward(true) }
-		return true // 返回共识成功
+        // ====== 补充2：共识后业务钩子调用 ======
+    	if s.AfterConsensusHandler != nil {
+    		s.AfterConsensusHandler(round)
+    	}
+        // ======================= 【高亮-2026-03-22】新增：KNN 定价核心逻辑 =======================
+        // 按距离 d 对所有参与的邻居节点进行升序排序，提取最近的 K 个邻居
+        sort.Slice(neighbors, func(i, j int) bool {
+        	return neighbors[i].D < neighbors[j].D
+        })
+
+        knnCount := K
+        	if len(neighbors) < K {
+        		knnCount = len(neighbors)
+        	}
+
+        sumQuote := 0.0
+        sumDistance := 0.0
+        for i := 0; i < knnCount; i++ {
+        	sumQuote += neighbors[i].Quote
+        	sumDistance += neighbors[i].D
+        	}
+
+        avgQuote := sumQuote / float64(knnCount)       // 最近 K 个卖方的平均报价
+        avgDistance := sumDistance / float64(knnCount) // 最近 K 个节点的平均距离（KNN距离）
+
+       	// 最终撮合价格 = 基础电价 + K邻近平均报价 + KNN平均距离 * 线损系数
+        finalPrice := basePrice + avgQuote + (avgDistance * lineLossCoeff)
+
+     // 【控制台输出】
+		fmt.Printf("\n>>>>>> [APBFT 共识达成 | 轮次 %d] <<<<<<\n", round)
+		fmt.Printf("├─ 主节点信息: ID=%d | 信誉值(m)=%.d | 层级(Tier)=%d | 吞吐量=%.2f\n",
+			leader.ID, leader.M(), leader.Tier, leader.Throughput)
+		// ======================= 【高亮-2026-03-22】修改：打印 KNN 定价信息 =======================
+		fmt.Printf("├─ KNN 定价: 基础价=%.2f | K邻近均报价=%.2f | KNN均距=%.2f\n", basePrice, avgQuote, avgDistance)
+		fmt.Printf("├─ 共识详情: 最终成交价=%.2f | 参与度=%d/%d (法定人数:%d)\n",
+			finalPrice, len(signatures), s.n, quorum)
+		// ======================= 【高亮-2026-03-22】修改结束 =======================
+		fmt.Printf("└─ 参与节点列表: %v\n", signedIDs)
+
+		for _, nd := range s.nodes {
+			nd.UpdateReward(true)
+		}
+		// ======================= 【高亮-2026-03-22】修改：返回 true 和 KNN 计算出的 finalPrice =======================
+		return true, finalPrice // 返回共识成功及最终价格
 	} else {
 		fmt.Println("Not enough commit signatures; consensus failed") // 未达到阈值，打印失败信息
-		for _, nd := range s.nodes { // 对所有节点应用失败的奖励更新
+		for _, nd := range s.nodes {                                  // 对所有节点应用失败的奖励更新
 			nd.UpdateReward(false)
 		}
-		return false // 返回共识失败
+		return false, 0 // 返回共识失败
 	}
 }
 
@@ -269,6 +339,7 @@ func RunAPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.
     // 【主节点轮换算法逻辑】
 	var finalLeader *node.Node
 	var success bool // 【修复点】：使用 success 命名
+	var finalPrice float64   // ======================= 【高亮-2026-03-22】新增：接收 KNN 计算的新价格
 	viewOffset := 0
 	maxViewChange := 5 // 最多允许轮换 5 个备份节点
 
@@ -285,7 +356,9 @@ func RunAPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.
 	}
 
 	finalLeader = leader
-	success = sim.RunRoundWithLeader(round, []byte(txId), leader)
+	//success = sim.RunRoundWithLeader(round, []byte(txId), leader)
+	// ======================= 【高亮-2026-03-22】修改：接收成功状态和基于 KNN 计算的定价 =======================
+    success, finalPrice = sim.RunRoundWithLeader(round, []byte(txId), leader)
 	break
 	}
 
@@ -315,7 +388,8 @@ func RunAPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.
 		Timestamp:    time.Now(),
 		Validators:   nil,
 		FailedReason: reason,
-		Price:        500 + rng.Float64()*50,
+		// ======================= 【高亮-2026-03-22】修改：赋值新的 KNN 定价 =======================
+        Price:        finalPrice,
 		LeaderNode:   leaderNodeName,// 使用 leaderNode（避免未使用 & 避免 leader nil 时 panic）
 	}
 }
