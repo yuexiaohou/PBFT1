@@ -1,63 +1,63 @@
 package main
 
 import (
-	"time"
-	"sync"
 	"flag"
+	"fmt"
+	"math"
+	"math/rand"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"golang.org/x/crypto/bcrypt"
-	"github.com/gin-contrib/cors"
-	"fmt"
-	apbft "PBFT1/apbft"
-	"math/rand"
-    "PBFT1/node"
-	"math"
-	"strings"
-	pos  "PBFT1/POS"
+
 	pbft "PBFT1/PBFT"
+	pos "PBFT1/POS"
 	raft "PBFT1/RAFT"
-    "PBFT1/forecast"
+	apbft "PBFT1/apbft"
+	"PBFT1/forecast"
+	"PBFT1/node"
 )
 
-// ============== 【优化2】全局随机数生成器复用 =================
 var globalRng *rand.Rand
+var forecastClient *forecast.Client
 
 func init() {
 	globalRng = rand.New(rand.NewSource(time.Now().UnixNano()))
 }
 
-// ==============用户结构体========
+// ============== 数据库结构体 ========
 type User struct {
 	ID       uint   `gorm:"primaryKey"`
 	Username string `gorm:"uniqueIndex;size:255"`
 	Password string `gorm:"size:255"`
 }
 
-// ==============结构体：表示用户余额========
 type Balance struct {
 	ID      uint `gorm:"primaryKey"`
 	UserID  uint `gorm:"uniqueIndex"`
 	Balance int
 }
 
-// ==============结构体：交易历史========
 type TradeHistory struct {
-	ID        uint      `gorm:"primaryKey"`
-	UserID    uint
-	Type      string    `gorm:"size:20"`
-	Amount    int
-	Time      time.Time
-	Status    string    `gorm:"size:20"`
-	Price     float64   `gorm:"column:price"`
-	Node      string    `gorm:"column:node"`
-	Round     int       `gorm:"index"`
-	BuyerNode string
+	ID         uint      `gorm:"primaryKey"`
+	UserID     uint
+	Type       string    `gorm:"size:20"`
+	Amount     int
+	Time       time.Time
+	Status     string    `gorm:"size:20"`
+	Price      float64   `gorm:"column:price"`
+	Node       string    `gorm:"column:node"`
+	Round      int       `gorm:"index"`
+	BuyerNode  string
 	SellerNode string
 }
 
-// ============== PBFT相关结构体与状态缓存 ========
+// ============== PBFT相关结构体与展示模型 ========
 type PBFTValidator struct {
 	ID   string `json:"id"`
 	Vote string `json:"vote"`
@@ -71,8 +71,8 @@ type PBFTConsensusResult struct {
 	Timestamp    time.Time       `json:"timestamp"`
 	Validators   []PBFTValidator `json:"validators"`
 	FailedReason string          `json:"failedReason,omitempty"`
-    Price      float64           `json:"price,omitempty"`
-    LeaderNode string            `json:"leaderNode,omitempty"`
+	Price        float64         `json:"price,omitempty"`
+	LeaderNode   string          `json:"leaderNode,omitempty"`
 }
 
 type PBFTBlock struct {
@@ -124,28 +124,274 @@ type AlgoNodeCostStat struct {
 	Points []NodeCostPoint `json:"points"`
 }
 
-// ========= 性能与展示缓存 =========
-var tradeMu   sync.RWMutex
-var (
-	latestPBFTResult PBFTConsensusResult
-	latestBlock PBFTBlock
-	pbftMu sync.RWMutex
-    roundMatchResults []TradeHistory
-)
-var allAlgoStats map[string][]RoundStat
-var allAlgoErrorRateStats map[string][]ErrorRatePoint
-var allAlgoLeaderChangeStats map[string][]LeaderChangePoint
-var allAlgoNodeCostStats map[string][]NodeCostPoint
-var roundOverview = make([]RoundStat, 0)
-var pbftRoundMu sync.Mutex
-var globalPBFTRound int
-var forecastClient *forecast.Client
+// ================= 【高亮-2026-03-22】重构 1：高内聚的系统状态缓存 =================
+// 解决原先 tradeMu, pbftMu, pbftRoundMu 锁分离导致的高耦合和潜在死锁危机
+type SystemStateCache struct {
+	sync.RWMutex
+	globalPBFTRound          int
+	latestPBFTResult         PBFTConsensusResult
+	latestBlock              PBFTBlock
+	roundOverview            []RoundStat
+	allAlgoStats             map[string][]RoundStat
+	allAlgoErrorRateStats    map[string][]ErrorRatePoint
+	allAlgoLeaderChangeStats map[string][]LeaderChangePoint
+	allAlgoNodeCostStats     map[string][]NodeCostPoint
+}
 
-func nextPBFTRound() int {
-	pbftRoundMu.Lock()
-	defer pbftRoundMu.Unlock()
-	globalPBFTRound++
-	return globalPBFTRound
+// 全局单例状态机
+var sysState = &SystemStateCache{
+	allAlgoStats:             make(map[string][]RoundStat),
+	allAlgoErrorRateStats:    make(map[string][]ErrorRatePoint),
+	allAlgoLeaderChangeStats: make(map[string][]LeaderChangePoint),
+	allAlgoNodeCostStats:     make(map[string][]NodeCostPoint),
+	roundOverview:            make([]RoundStat, 0),
+}
+
+func (s *SystemStateCache) NextGlobalRound() int {
+	s.Lock()
+	defer s.Unlock()
+	s.globalPBFTRound++
+	return s.globalPBFTRound
+}
+
+func (s *SystemStateCache) UpdatePBFTState(res PBFTConsensusResult, confirmedTxs int) {
+	s.Lock()
+	defer s.Unlock()
+	s.latestPBFTResult = res
+	s.latestBlock = PBFTBlock{
+		Height:       res.BlockHeight,
+		Timestamp:    time.Now(),
+		ConfirmedTxs: confirmedTxs,
+	}
+}
+
+// ================= 【高亮-2026-03-22】重构 2：策略模式统共识引擎接口 =================
+// 消除大量冗余的 IF/ELSE 和单独写死的调用循环
+type ConsensusEngine interface {
+	Name() string
+	ExecuteRound(db *gorm.DB, round int, specs []node.NodeSpec) RoundStat
+}
+
+type PBFTEngine struct{}
+
+func (e *PBFTEngine) Name() string { return "pbft" }
+func (e *PBFTEngine) ExecuteRound(db *gorm.DB, r int, specs []node.NodeSpec) RoundStat {
+	txId := fmt.Sprintf("pbft-round-%d-%d", r, time.Now().UnixNano())
+	res := pbft.RunPBFTWithRoundAndSpecs(r, txId, 10, specs)
+	rate := 0.0
+	if res.Status == "已确认" {
+		rate = 1.0
+	}
+	return RoundStat{Round: r, SuccessRate: rate, MinPrice: res.Price, SellerNode: res.LeaderNode}
+}
+
+type RAFTEngine struct{}
+
+func (e *RAFTEngine) Name() string { return "raft" }
+func (e *RAFTEngine) ExecuteRound(db *gorm.DB, r int, specs []node.NodeSpec) RoundStat {
+	leaderID, price, err := raft.SimulateRoundWithPrice(r, specs)
+	rate := 0.0
+	if err == nil {
+		rate = 1.0
+	}
+	return RoundStat{Round: r, SuccessRate: rate, MinPrice: price, SellerNode: fmt.Sprintf("node-%d", leaderID)}
+}
+
+type POSEngine struct {
+	nodes []*pos.SimNode
+	cfg   pos.SimConfig
+}
+
+func NewPOSEngine(specs []node.NodeSpec) *POSEngine {
+	return &POSEngine{nodes: pos.NewNodesFromSpecs(specs), cfg: pos.DefaultSimConfig()}
+}
+func (e *POSEngine) Name() string { return "pos" }
+func (e *POSEngine) ExecuteRound(db *gorm.DB, r int, specs []node.NodeSpec) RoundStat {
+	txId := fmt.Sprintf("pos-round-%d-%d", r, time.Now().UnixNano())
+	res := pos.RunPOSWithRoundAndSpecs(r, txId, 10, e.nodes, specs, e.cfg)
+	rate := 0.0
+	if res.Status == "已确认" {
+		rate = 1.0
+		maliciousRatio := node.FixedMaliciousRatio
+		if globalRng.Float64() < (maliciousRatio * 0.15) {
+			rate = 1.0 - (globalRng.Float64() * 0.1)
+		}
+		if globalRng.Float64() < 0.05 {
+			rate = 0.0
+		}
+	}
+	return RoundStat{Round: r, SuccessRate: rate, MinPrice: res.Price, SellerNode: res.Leader}
+}
+
+// 原 runCustomRound 逻辑现在被封装为 CustomEngine，与其它算法平起平坐
+type CustomEngine struct{}
+
+func (e *CustomEngine) Name() string { return "custom" }
+func (e *CustomEngine) ExecuteRound(db *gorm.DB, r int, specs []node.NodeSpec) RoundStat {
+	successCount := 0
+	minPrice := math.MaxFloat64
+	var minBuyer, minSeller string
+	numTrades := globalRng.Intn(5) + 5
+
+	for i := 0; i < numTrades; i++ {
+		buyer := fmt.Sprintf("Node-%02d", globalRng.Intn(20))
+		price := globalRng.Float64()*500 + 30
+		amount := globalRng.Intn(50) + 10
+
+		txId := fmt.Sprintf("custom-round-%d-trade-%d-%d", r, i, time.Now().UnixNano())
+		pbftRes := apbft.RunAPBFTWithRoundAndSpecs(r, txId, amount, specs)
+
+		seller := pbftRes.LeaderNode
+		if seller == "" {
+			seller = fmt.Sprintf("Node-%02d", globalRng.Intn(20))
+		}
+
+		status := "失败"
+		if pbftRes.Status == "已确认" {
+			status = "成功"
+			successCount++
+			if price < minPrice {
+				minPrice, minBuyer, minSeller = price, buyer, seller
+			}
+		}
+
+		trade := TradeHistory{
+			UserID: 1, Type: "buy", Amount: amount, Time: time.Now(), Status: status,
+			Price: price, Node: buyer, Round: r, BuyerNode: buyer, SellerNode: seller,
+		}
+		if db != nil {
+			db.Create(&trade)
+		}
+
+		vals := make([]PBFTValidator, 0, len(pbftRes.Validators))
+		for _, v := range pbftRes.Validators {
+			vals = append(vals, PBFTValidator{ID: v.ID, Vote: v.Vote})
+		}
+
+		pbftRound := sysState.NextGlobalRound()
+		reason := pbftRes.FailedReason
+		if reason == "" {
+			reason = fmt.Sprintf("pbftRound=%d", pbftRound)
+		} else {
+			reason = fmt.Sprintf("%s; pbftRound=%d", reason, pbftRound)
+		}
+
+		// 利用全新的状态缓存写入本轮状态
+		sysState.UpdatePBFTState(PBFTConsensusResult{
+			TxId: txId, Status: status, Consensus: pbftRes.Consensus, BlockHeight: pbftRes.BlockHeight,
+			Timestamp: time.Now(), Validators: vals, FailedReason: reason, Price: pbftRes.Price, LeaderNode: pbftRes.LeaderNode,
+		}, amount)
+	}
+
+	if minPrice == math.MaxFloat64 {
+		minPrice = 0
+	}
+	successRate := 0.0
+	if numTrades > 0 {
+		successRate = float64(successCount) / float64(numTrades)
+	}
+
+	fmt.Printf("[模拟轮 %d] 最低价: %v 买方: %s 卖方: %s 成功挂单率: %.2f%%\n", r, minPrice, minBuyer, minSeller, successRate*100)
+	return RoundStat{Round: r, MinPrice: minPrice, BuyerNode: minBuyer, SellerNode: minSeller, SuccessRate: successRate}
+}
+
+// ================= 【高亮-2026-03-22】重构 3：统一指标生成引擎 =================
+// 合并了原先 3 个结构几乎一模一样的 simulateXXXForAlgo 方法
+func generateMetricsForAlgo(algo string, malRatio float64) ([]ErrorRatePoint, []LeaderChangePoint, []NodeCostPoint) {
+	fixedRounds := []int{100, 200, 300, 400, 500, 600, 700, 800, 900, 1000}
+	errs := make([]ErrorRatePoint, 0, len(fixedRounds))
+	leaders := make([]LeaderChangePoint, 0, len(fixedRounds))
+	costs := make([]NodeCostPoint, 0, len(fixedRounds))
+
+	var lcBase float64
+	switch algo {
+	case "pbft":
+		lcBase = 0.005 + malRatio*0.02
+	case "pos":
+		lcBase = 0.003 + malRatio*0.006
+	case "raft":
+		lcBase = 0.001 + malRatio*0.004
+	case "custom":
+		lcBase = 0.002 + malRatio*0.01
+	}
+
+	for _, r := range fixedRounds {
+		// 1. Error Rate
+		var rate float64
+		switch algo {
+		case "pbft":
+			rate = malRatio * (0.92 + globalRng.Float64()*0.1)
+		case "pos":
+			rate = malRatio * (1.0 - float64(r)/1800.0) * (0.7 + globalRng.Float64()*0.2)
+		case "raft":
+			rate = malRatio * 0.25 * (0.8 + globalRng.Float64()*0.3)
+		case "custom":
+			rate = malRatio * 0.6 * (1.0 - float64(r)/3000.0) * (0.8 + globalRng.Float64()*0.2)
+		}
+		if rate < 0 {
+			rate = 0
+		}
+		errs = append(errs, ErrorRatePoint{Round: r, ErrorRate: rate})
+
+		// 2. Leader Changes
+		lc := int(float64(r)*lcBase + globalRng.Float64()*0.8)
+		leaders = append(leaders, LeaderChangePoint{Round: r, LeaderChanges: lc})
+
+		// 3. Node Cost
+		var cost float64
+		switch algo {
+		case "pbft":
+			cost = 80.0 + float64(r)*0.05 + globalRng.Float64()*10.0
+		case "pos":
+			cost = 40.0 + float64(r)*0.02 + globalRng.Float64()*5.0
+		case "raft":
+			cost = 20.0 + float64(r)*0.01 + globalRng.Float64()*3.0
+		case "custom":
+			cost = 50.0 + float64(r)*0.03 + globalRng.Float64()*6.0
+		}
+		costs = append(costs, NodeCostPoint{Round: r, NodeCost: cost})
+	}
+	return errs, leaders, costs
+}
+
+// ================= 【高亮-2026-03-22】重构 4：核心调度器完全解耦 =================
+func simulateAllAlgos(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes int) {
+	// 初始化引擎列表 (未来加新算法只需加一行，符合开闭原则)
+	specs0 := node.NewPool(1, numNodes, maliciousRatio)
+	engines := []ConsensusEngine{
+		&PBFTEngine{},
+		NewPOSEngine(specs0),
+		&RAFTEngine{},
+		&CustomEngine{},
+	}
+
+	for r := 1; r <= totalRounds; r++ {
+		// 全局共用统一测试池（恶意节点和拓扑对齐）
+		specs := node.NewPool(r, numNodes, maliciousRatio)
+
+		for _, engine := range engines {
+			stat := engine.ExecuteRound(db, r, specs)
+
+			sysState.Lock()
+			sysState.allAlgoStats[engine.Name()] = append(sysState.allAlgoStats[engine.Name()], stat)
+			// custom 的数据作为系统概览主数据
+			if engine.Name() == "custom" {
+				sysState.roundOverview = append(sysState.roundOverview, stat)
+			}
+			sysState.Unlock()
+		}
+	}
+
+	// 统一生成所有测试指标数据并写入缓存
+	sysState.Lock()
+	defer sysState.Unlock()
+	for _, engine := range engines {
+		name := engine.Name()
+		errs, leaders, costs := generateMetricsForAlgo(name, maliciousRatio)
+		sysState.allAlgoErrorRateStats[name] = errs
+		sysState.allAlgoLeaderChangeStats[name] = leaders
+		sysState.allAlgoNodeCostStats[name] = costs
+	}
 }
 
 func convertValidators(origin []apbft.Validator) []PBFTValidator {
@@ -166,268 +412,9 @@ func dbConnect() *gorm.DB {
 	return db
 }
 
-// ================= 【优化3】统一状态更新接口 =================
-// 合并了原先 updatePBFTResult 和 updatePBFTBlock 且解耦了双重加锁问题
-func updatePBFTState(txId, status, consensus string, blockHeight int, validators []PBFTValidator, reason string, price float64, leaderNode string, confirmedTxs int) {
-	pbftMu.Lock()
-	defer pbftMu.Unlock()
-
-	latestPBFTResult = PBFTConsensusResult{
-		TxId:         txId,
-		Status:       status,
-		Consensus:    consensus,
-		BlockHeight:  blockHeight,
-		Timestamp:    time.Now(),
-		Validators:   validators,
-		FailedReason: reason,
-		Price:        price,
-		LeaderNode:   leaderNode,
-	}
-
-	latestBlock = PBFTBlock{
-		Height:       blockHeight,
-		Timestamp:    time.Now(),
-		ConfirmedTxs: confirmedTxs,
-	}
-}
-
-// ================= 【优化3】统一结果持久化接口 =================
 func persistTradeResult(db *gorm.DB, trade *TradeHistory) {
 	if db != nil {
 		db.Create(trade)
-	}
-}
-
-// ================= 【优化2】复用 globalRng =================
-func simulateErrorRateForAlgo(algo string, maliciousRatio float64) []ErrorRatePoint {
-	fixedRounds := []int{100, 200, 300, 400, 500, 600, 700, 800, 900, 1000}
-	points := make([]ErrorRatePoint, 0, len(fixedRounds))
-
-	for _, round := range fixedRounds {
-		var rate float64
-		switch algo {
-		case "pbft":
-			rate = maliciousRatio * (0.92 + globalRng.Float64()*0.1)
-		case "pos":
-			decay := 1.0 - (float64(round) / 1800.0)
-			rate = maliciousRatio * decay * (0.7 + globalRng.Float64()*0.2)
-		case "raft":
-			rate = maliciousRatio * 0.25 * (0.8 + globalRng.Float64()*0.3)
-		default: // custom/apbft
-			decay := 1.0 - (float64(round) / 3000.0)
-			rate = maliciousRatio * 0.6 * decay * (0.8 + globalRng.Float64()*0.2)
-		}
-		if rate < 0 { rate = 0 }
-		points = append(points, ErrorRatePoint{Round: round, ErrorRate: rate})
-	}
-	return points
-}
-
-func simulateLeaderChangesForAlgo(algo string, maliciousRatio float64) []LeaderChangePoint {
-	fixedRounds := []int{100, 200, 300, 400, 500, 600, 700, 800, 900, 1000}
-	points := make([]LeaderChangePoint, 0, len(fixedRounds))
-	base := 0.001
-	// 【修改点1】：稍微放大 PBFT 和 APBFT(custom) 的基础理论差距，确立宏观上的高低层级
-	switch algo {
-	case "pbft":
-		base = 0.005 + maliciousRatio*0.02   // 原为 0.002
-	case "pos":
-		base = 0.003 + maliciousRatio*0.006  // 原为 0.0012
-	case "raft":
-		base = 0.001 + maliciousRatio*0.004  // 原为 0.0008
-	case "custom":
-		base = 0.002 + maliciousRatio*0.01   // 原为 0.0016
-	}
-
-	for _, r := range fixedRounds {
-		// 【修改点2】：将随机数的权重从 3.0 大幅降低到 0.8
-		// 这样随机波动最多只贡献 +0 甚至不到 +1 的增量，理论 base 占据绝对主导地位
-		v := int(float64(r)*base + globalRng.Float64()*0.8)
-		points = append(points, LeaderChangePoint{Round: r, LeaderChanges: v})
-	}
-	return points
-}
-
-func simulateNodeCostForAlgo(algo string, maliciousRatio float64) []NodeCostPoint {
-	fixedRounds := []int{100, 200, 300, 400, 500, 600, 700, 800, 900, 1000}
-	points := make([]NodeCostPoint, 0, len(fixedRounds))
-
-	for _, r := range fixedRounds {
-		var cost float64
-		switch algo {
-		case "pbft":
-			cost = 80.0 + float64(r)*0.05 + globalRng.Float64()*10.0
-		case "pos":
-			cost = 40.0 + float64(r)*0.02 + globalRng.Float64()*5.0
-		case "raft":
-			cost = 20.0 + float64(r)*0.01 + globalRng.Float64()*3.0
-		case "custom":
-			cost = 50.0 + float64(r)*0.03 + globalRng.Float64()*6.0
-		}
-		points = append(points, NodeCostPoint{Round: r, NodeCost: cost})
-	}
-	return points
-}
-
-// ================= 【优化1】推翻各算法独立循环，实现所有算法在每一轮真正复用统一节点池 =================
-func simulateAllAlgos(db *gorm.DB, totalRounds int, maliciousRatio float64, numNodes int) {
-	pbftStats := make([]RoundStat, 0, totalRounds)
-	posStats := make([]RoundStat, 0, totalRounds)
-	raftStats := make([]RoundStat, 0, totalRounds)
-	customStats := make([]RoundStat, 0, totalRounds)
-
-	// 初始化POS独占的节点对象池（跨轮次累积奖惩需维持节点实例）
-	specs0 := node.NewPool(1, numNodes, maliciousRatio)
-	posNodes := pos.NewNodesFromSpecs(specs0)
-	posCfg := pos.DefaultSimConfig()
-
-	for r := 1; r <= totalRounds; r++ {
-		// 【核心变更】每一轮全局只生成一次规格（specs），四种算法完全共用同一批节点身份与恶意标签
-		specs := node.NewPool(r, numNodes, maliciousRatio)
-
-		// 1. 模拟 PBFT
-		pbftTxId := fmt.Sprintf("pbft-round-%d-%d", r, time.Now().UnixNano())
-		pbftRes := pbft.RunPBFTWithRoundAndSpecs(r, pbftTxId, 10, specs)
-		pbftRate := 0.0
-		if pbftRes.Status == "已确认" { pbftRate = 1.0 }
-		pbftStats = append(pbftStats, RoundStat{Round: r, SuccessRate: pbftRate, MinPrice: pbftRes.Price, SellerNode: pbftRes.LeaderNode})
-
-		// 2. 模拟 POS
-		posTxId := fmt.Sprintf("pos-round-%d-%d", r, time.Now().UnixNano())
-		posRes := pos.RunPOSWithRoundAndSpecs(r, posTxId, 10, posNodes, specs, posCfg)
-		posRate := 0.0
-		if posRes.Status == "已确认" {
-			posRate = 1.0
-			if globalRng.Float64() < (maliciousRatio * 0.15) { posRate = 1.0 - (globalRng.Float64() * 0.1) }
-			if globalRng.Float64() < 0.05 { posRate = 0.0 }
-		}
-		posStats = append(posStats, RoundStat{Round: r, SuccessRate: posRate, MinPrice: posRes.Price, SellerNode: posRes.Leader})
-
-		// 3. 模拟 RAFT
-		leaderID, raftPrice, raftErr := raft.SimulateRoundWithPrice(r, specs)
-		raftRate := 0.0
-		if raftErr == nil { raftRate = 1.0 }
-		raftStats = append(raftStats, RoundStat{Round: r, SuccessRate: raftRate, MinPrice: raftPrice, SellerNode: fmt.Sprintf("node-%d", leaderID)})
-
-		// 4. 模拟 CUSTOM (APBFT与引擎撮合)
-		customStats = append(customStats, runCustomRound(db, r, specs))
-	}
-
-	// 装载聚合数据
-	allAlgoStats = map[string][]RoundStat{
-		"pbft":   pbftStats,
-        "pos":    posStats,
-        "raft":   raftStats,
-		"custom": customStats,
-	}
-
-	tradeMu.Lock()
-	roundOverview = make([]RoundStat, len(customStats))
-	copy(roundOverview, customStats)
-	tradeMu.Unlock()
-
-	// 装载性能特征缓存
-	allAlgoErrorRateStats = map[string][]ErrorRatePoint{
-		"pbft":   simulateErrorRateForAlgo("pbft", maliciousRatio),
-		"pos":    simulateErrorRateForAlgo("pos", maliciousRatio),
-		"raft":   simulateErrorRateForAlgo("raft", maliciousRatio),
-		"custom": simulateErrorRateForAlgo("custom", maliciousRatio),
-	}
-
-	allAlgoLeaderChangeStats = map[string][]LeaderChangePoint{
-		"pbft":   simulateLeaderChangesForAlgo("pbft", maliciousRatio),
-		"pos":    simulateLeaderChangesForAlgo("pos", maliciousRatio),
-		"raft":   simulateLeaderChangesForAlgo("raft", maliciousRatio),
-		"custom": simulateLeaderChangesForAlgo("custom", maliciousRatio),
-	}
-
-	allAlgoNodeCostStats = map[string][]NodeCostPoint{
-		"pbft":   simulateNodeCostForAlgo("pbft", maliciousRatio),
-		"pos":    simulateNodeCostForAlgo("pos", maliciousRatio),
-		"raft":   simulateNodeCostForAlgo("raft", maliciousRatio),
-		"custom": simulateNodeCostForAlgo("custom", maliciousRatio),
-	}
-}
-
-// === 解耦后的单轮撮合执行逻辑 ===
-func runCustomRound(db *gorm.DB, r int, specs []node.NodeSpec) RoundStat {
-	successCount := 0
-	minPrice := math.MaxFloat64
-	var minBuyer, minSeller string
-
-	numTrades := globalRng.Intn(5) + 5
-
-	for i := 0; i < numTrades; i++ {
-		buyer := fmt.Sprintf("Node-%02d", globalRng.Intn(20))
-		seller := fmt.Sprintf("Node-%02d", globalRng.Intn(20))
-		price := globalRng.Float64()*500 + 30
-		amount := globalRng.Intn(50) + 10
-
-		pbftRound := nextPBFTRound()
-		txId := fmt.Sprintf("custom-round-%d-trade-%d-%d", r, i, time.Now().UnixNano())
-
-		pbftRes := apbft.RunAPBFTWithRoundAndSpecs(r, txId, amount, specs)
-
-		sellerNodeStr := pbftRes.LeaderNode
-		if sellerNodeStr == "" {
-			sellerNodeStr = fmt.Sprintf("Node-%02d", globalRng.Intn(20))
-		}
-
-		status := "失败"
-		if pbftRes.Status == "已确认" {
-			status = "成功"
-			successCount++
-			if price < minPrice {
-				minPrice = price
-				minBuyer = buyer
-				minSeller = seller
-			}
-		}
-
-		trade := TradeHistory{
-			UserID:     1,
-			Type:       "buy",
-			Amount:     amount,
-			Time:       time.Now(),
-			Status:     status,
-			Price:      price,
-			Node:       buyer,
-			Round:      r,
-			BuyerNode:  buyer,
-			SellerNode: seller,
-		}
-
-		// 【优化3应用】统一数据库插入调用
-		persistTradeResult(db, &trade)
-
-		reason := pbftRes.FailedReason
-		if reason == "" {
-			reason = fmt.Sprintf("pbftRound=%d", pbftRound)
-		} else {
-			reason = fmt.Sprintf("%s; pbftRound=%d", reason, pbftRound)
-		}
-
-		// 【优化3应用】统一处理 PBFT 结果到展示缓存
-		updatePBFTState(pbftRes.TxId, pbftRes.Status, pbftRes.Consensus, pbftRes.BlockHeight, convertValidators(pbftRes.Validators), reason, pbftRes.Price, pbftRes.LeaderNode, amount)
-	}
-
-	if minPrice == math.MaxFloat64 {
-		minPrice = 0
-	}
-	successRate := 0.0
-	if numTrades > 0 {
-		successRate = float64(successCount) / float64(numTrades)
-	}
-
-	fmt.Printf("[模拟轮 %d] 最低价: %v 买方: %s 卖方: %s 成功挂单率: %.2f%%\n",
-		r, minPrice, minBuyer, minSeller, successRate*100)
-
-    return RoundStat{
-		Round:       r,
-		MinPrice:    minPrice,
-		BuyerNode:   minBuyer,
-		SellerNode:  minSeller,
-		SuccessRate: successRate,
 	}
 }
 
@@ -435,13 +422,16 @@ func main() {
 	totalRounds := flag.Int("rounds", 20, "number of consensus rounds")
 	flag.Parse()
 
-    forecastClient = forecast.NewClient("http://192.168.140.1:8000")
+	forecastClient = forecast.NewClient("http://192.168.140.1:8000")
 	db := dbConnect()
 
-    simMalRatio := node.FixedMaliciousRatio
-    simNumNodes := node.FixedNumNodes
-    simulateAllAlgos(db, *totalRounds, simMalRatio, simNumNodes)
-	fmt.Printf("roundOverview len = %d\n", len(roundOverview))
+	simMalRatio := node.FixedMaliciousRatio
+	simNumNodes := node.FixedNumNodes
+	simulateAllAlgos(db, *totalRounds, simMalRatio, simNumNodes)
+
+	sysState.RLock()
+	fmt.Printf("roundOverview len = %d\n", len(sysState.roundOverview))
+	sysState.RUnlock()
 
 	r := gin.Default()
 	r.Use(cors.Default())
@@ -466,25 +456,25 @@ func main() {
 		c.JSON(200, respForecast)
 	})
 
-    api.GET("/pbft/result", func(c *gin.Context) {
-		pbftMu.RLock()
-		defer pbftMu.RUnlock()
-		if latestPBFTResult.TxId == "" {
+	api.GET("/pbft/result", func(c *gin.Context) {
+		sysState.RLock()
+		defer sysState.RUnlock()
+		if sysState.latestPBFTResult.TxId == "" {
 			c.JSON(200, gin.H{"msg": "尚无共识结果"})
 			return
 		}
-		c.JSON(200, latestPBFTResult)
-    })
+		c.JSON(200, sysState.latestPBFTResult)
+	})
 
-     api.GET("/pbft/block", func(c *gin.Context) {
-		pbftMu.RLock()
-		defer pbftMu.RUnlock()
-		if latestBlock.Height == 0 {
+	api.GET("/pbft/block", func(c *gin.Context) {
+		sysState.RLock()
+		defer sysState.RUnlock()
+		if sysState.latestBlock.Height == 0 {
 			c.JSON(404, gin.H{"msg": "尚无区块"})
 			return
 		}
-		c.JSON(200, latestBlock)
-     })
+		c.JSON(200, sysState.latestBlock)
+	})
 
 	api.POST("/register", func(c *gin.Context) {
 		var req struct {
@@ -629,9 +619,21 @@ func main() {
 				Node:   sellNode,
 			}
 
-			// 【优化3应用】利用统一状态更新和存储接口，代码精简
 			persistTradeResult(db, &trade)
-			updatePBFTState(pbftResult.TxId, pbftResult.Status, pbftResult.Consensus, pbftResult.BlockHeight, validators, pbftResult.FailedReason, tradePrice, sellNode, req.Amount)
+
+			// ================= 【高亮-2026-03-22】重构集成 =================
+			// 利用统一个的 sysState 接口进行更新，杜绝死锁
+			sysState.UpdatePBFTState(PBFTConsensusResult{
+				TxId:         pbftResult.TxId,
+				Status:       pbftResult.Status,
+				Consensus:    pbftResult.Consensus,
+				BlockHeight:  pbftResult.BlockHeight,
+				Timestamp:    time.Now(),
+				Validators:   validators,
+				FailedReason: pbftResult.FailedReason,
+				Price:        tradePrice,
+				LeaderNode:   sellNode,
+			}, req.Amount)
 
 			if forecastClient != nil {
 				go func(p float64, amt int) {
@@ -650,7 +652,18 @@ func main() {
 		if status != "成功" {
 			reason = "余额不足"
 		}
-		updatePBFTState(nowTxId, "失败", "pbft", pbftResult.BlockHeight, validators, reason, 0, "", req.Amount)
+
+		sysState.UpdatePBFTState(PBFTConsensusResult{
+			TxId:         nowTxId,
+			Status:       "失败",
+			Consensus:    "pbft",
+			BlockHeight:  pbftResult.BlockHeight,
+			Timestamp:    time.Now(),
+			Validators:   validators,
+			FailedReason: reason,
+			Price:        0,
+			LeaderNode:   "",
+		}, req.Amount)
 
 		failTrade := TradeHistory{
 			UserID: user.ID, Type: req.Type, Amount: req.Amount, Time: time.Now(), Status: "失败", Price: 0, Node: "",
@@ -677,107 +690,103 @@ func main() {
 		var out []gin.H
 		for _, r := range records {
 			out = append(out, gin.H{
-				"type":   r.Type,
-				"amount": r.Amount,
-				"price":  r.Price,
-				"node":   r.Node,
-				"round":  r.Round,
-				"buyerNode": r.BuyerNode,
+				"type":       r.Type,
+				"amount":     r.Amount,
+				"price":      r.Price,
+				"node":       r.Node,
+				"round":      r.Round,
+				"buyerNode":  r.BuyerNode,
 				"sellerNode": r.SellerNode,
-				"time":   r.Time.Format("2006-01-02 15:04:05"),
-				"status": r.Status,
+				"time":       r.Time.Format("2006-01-02 15:04:05"),
+				"status":     r.Status,
 			})
 		}
 		c.JSON(200, gin.H{"records": out})
 	})
 
 	api.GET("/trade/pricechart", func(c *gin.Context) {
+		sysState.RLock()
+		defer sysState.RUnlock()
 		c.JSON(200, gin.H{
-			"rounds": roundOverview,
+			"rounds": sysState.roundOverview,
 		})
 	})
 
 	api.GET("/trade/successrate", func(c *gin.Context) {
+		sysState.RLock()
+		defer sysState.RUnlock()
 		x := []int{}
 		y := []float64{}
-		for _, rv := range roundOverview {
+		for _, rv := range sysState.roundOverview {
 			x = append(x, rv.Round)
 			y = append(y, rv.SuccessRate)
 		}
 		c.JSON(200, gin.H{"x": x, "y": y})
 	})
 
-    getAlgosFromQuery := func(c *gin.Context) []string {
-    	algoQuery := c.Query("algo")
-    	if algoQuery == "" || algoQuery == "all" {
-    		return []string{"pbft", "pos", "raft", "custom"}
-    	}
-        return strings.Split(algoQuery, ",")
-    }
+	getAlgosFromQuery := func(c *gin.Context) []string {
+		algoQuery := c.Query("algo")
+		if algoQuery == "" || algoQuery == "all" {
+			return []string{"pbft", "pos", "raft", "custom"}
+		}
+		return strings.Split(algoQuery, ",")
+	}
 
-    api.GET("/performance", func(c *gin.Context) {
-    	tradeMu.RLock()
-    	defer tradeMu.RUnlock()
+	api.GET("/performance", func(c *gin.Context) {
+		sysState.RLock()
+		defer sysState.RUnlock()
 
-    	out := make([]AlgoStat, 0)
-    	if allAlgoStats != nil {
-    		reqAlgos := getAlgosFromQuery(c)
-    		for _, k := range reqAlgos {
-    			if rounds, ok := allAlgoStats[k]; ok {
-    				out = append(out, AlgoStat{Algo: k, Rounds: rounds})
-    			}
-            }
-        }
-    	c.JSON(200, gin.H{"algos": out})
-    })
+		out := make([]AlgoStat, 0)
+		reqAlgos := getAlgosFromQuery(c)
+		for _, k := range reqAlgos {
+			if rounds, ok := sysState.allAlgoStats[k]; ok {
+				out = append(out, AlgoStat{Algo: k, Rounds: rounds})
+			}
+		}
+		c.JSON(200, gin.H{"algos": out})
+	})
 
-    api.GET("/performance/errorrate", func(c *gin.Context) {
-    	tradeMu.RLock()
-    	defer tradeMu.RUnlock()
+	api.GET("/performance/errorrate", func(c *gin.Context) {
+		sysState.RLock()
+		defer sysState.RUnlock()
 
-    	out := make([]AlgoErrorStat, 0)
-    	if allAlgoErrorRateStats != nil {
-    		reqAlgos := getAlgosFromQuery(c)
-    		for _, k := range reqAlgos {
-    			if pts, ok := allAlgoErrorRateStats[k]; ok {
-    				out = append(out, AlgoErrorStat{Algo: k, Points: pts})
-    			}
-            }
-        }
-        c.JSON(200, gin.H{"algos": out})
-    })
+		out := make([]AlgoErrorStat, 0)
+		reqAlgos := getAlgosFromQuery(c)
+		for _, k := range reqAlgos {
+			if pts, ok := sysState.allAlgoErrorRateStats[k]; ok {
+				out = append(out, AlgoErrorStat{Algo: k, Points: pts})
+			}
+		}
+		c.JSON(200, gin.H{"algos": out})
+	})
 
-    api.GET("/performance/leaderchanges", func(c *gin.Context) {
-    	tradeMu.RLock()
-    	defer tradeMu.RUnlock()
+	api.GET("/performance/leaderchanges", func(c *gin.Context) {
+		sysState.RLock()
+		defer sysState.RUnlock()
 
-    	out := make([]AlgoLeaderChangeStat, 0)
-    	if allAlgoLeaderChangeStats != nil {
-    		reqAlgos := getAlgosFromQuery(c)
-    		for _, k := range reqAlgos {
-    			if pts, ok := allAlgoLeaderChangeStats[k]; ok {
-    				out = append(out, AlgoLeaderChangeStat{Algo: k, Points: pts})
-    			}
-    		}
-    	}
-        c.JSON(200, gin.H{"algos": out})
-    })
+		out := make([]AlgoLeaderChangeStat, 0)
+		reqAlgos := getAlgosFromQuery(c)
+		for _, k := range reqAlgos {
+			if pts, ok := sysState.allAlgoLeaderChangeStats[k]; ok {
+				out = append(out, AlgoLeaderChangeStat{Algo: k, Points: pts})
+			}
+		}
+		c.JSON(200, gin.H{"algos": out})
+	})
 
-    api.GET("/performance/nodecost", func(c *gin.Context) {
-    	tradeMu.RLock()
-    	defer tradeMu.RUnlock()
+	api.GET("/performance/nodecost", func(c *gin.Context) {
+		sysState.RLock()
+		defer sysState.RUnlock()
 
-    	out := make([]AlgoNodeCostStat, 0)
-    	if allAlgoNodeCostStats != nil {
-    		reqAlgos := getAlgosFromQuery(c)
-    		for _, k := range reqAlgos {
-    			if pts, ok := allAlgoNodeCostStats[k]; ok {
-    				out = append(out, AlgoNodeCostStat{Algo: k, Points: pts})
-    			}
-            }
-        }
-    c.JSON(200, gin.H{"algos": out})
-    })
+		out := make([]AlgoNodeCostStat, 0)
+		reqAlgos := getAlgosFromQuery(c)
+		for _, k := range reqAlgos {
+			if pts, ok := sysState.allAlgoNodeCostStats[k]; ok {
+				out = append(out, AlgoNodeCostStat{Algo: k, Points: pts})
+			}
+		}
+		c.JSON(200, gin.H{"algos": out})
+	})
 
 	r.Run(":5000")
 }
