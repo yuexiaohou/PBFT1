@@ -327,7 +327,7 @@ func generateMetricsForAlgo(algo string, malRatio float64) ([]ErrorRatePoint, []
 		lcBase = 0.003 + malRatio*0.006
 	case "raft":
 		lcBase = 0.001 + malRatio*0.004
-	case "custom":
+	case "apbft":
 		lcBase = 0.002 + malRatio*0.01
 	}
 
@@ -341,7 +341,7 @@ func generateMetricsForAlgo(algo string, malRatio float64) ([]ErrorRatePoint, []
 			rate = malRatio * (1.0 - float64(r)/1800.0) * (0.7 + globalRng.Float64()*0.2)
 		case "raft":
 			rate = malRatio * 0.25 * (0.8 + globalRng.Float64()*0.3)
-		case "custom":
+		case "apbft":
 			rate = malRatio * 0.6 * (1.0 - float64(r)/3000.0) * (0.8 + globalRng.Float64()*0.2)
 		}
 		if rate < 0 {
@@ -362,7 +362,7 @@ func generateMetricsForAlgo(algo string, malRatio float64) ([]ErrorRatePoint, []
 			cost = 40.0 + float64(r)*0.02 + globalRng.Float64()*5.0
 		case "raft":
 			cost = 20.0 + float64(r)*0.01 + globalRng.Float64()*3.0
-		case "custom":
+		case "apbft":
 			cost = 50.0 + float64(r)*0.03 + globalRng.Float64()*6.0
 		}
 		costs = append(costs, NodeCostPoint{Round: r, NodeCost: cost})
@@ -381,7 +381,7 @@ func generateMetricsForAlgo(algo string, malRatio float64) ([]ErrorRatePoint, []
     		case "pos":
     			// PoS 验证者轮换，时延较低
     			latency = 30.0 + globalRng.Float64()*15.0
-    		case "custom":
+    		case "apbft":
     			// KNN-APBFT 局部共识，距离远直接拒绝，极大降低了通信包，时延最低
     			latency = 12.0 + globalRng.Float64()*8.0
     		}
@@ -411,7 +411,7 @@ func simulateAllAlgos(db *gorm.DB, totalRounds int, maliciousRatio float64, numN
 			sysState.Lock()
 			sysState.allAlgoStats[engine.Name()] = append(sysState.allAlgoStats[engine.Name()], stat)
 			// custom 的数据作为系统概览主数据
-			if engine.Name() == "custom" {
+			if engine.Name() == "apbft" {
 				sysState.roundOverview = append(sysState.roundOverview, stat)
 			}
 			sysState.Unlock()

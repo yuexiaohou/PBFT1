@@ -10,7 +10,7 @@ const algoNames = [
     { value: "apbft", label: "APBFT" }
 ];
 
-const colors = { pbft: "blue", pos: "orange", raft: "green", custom: "purple" };
+const colors = { pbft: "blue", pos: "orange", raft: "green", apbft: "purple" };
 
 // 【高亮-2026-03-15 23:10:00】三个图独立的横轴采样
 const roundsChart1 = Array.from({length: 20}, (_, i) => i+1);  // 1~20
