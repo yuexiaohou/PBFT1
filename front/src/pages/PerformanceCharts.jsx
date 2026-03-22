@@ -338,7 +338,6 @@ export default function PerformanceCharts() {
                 <Box sx={{ mb: 6, p: 2, bgcolor: "#f8faff", borderRadius: 2, border: "1px solid #e3f2fd" }}>
                     <Typography variant="h6" color="primary" gutterBottom>⏱️ 核心优势: 交易平均时延对比 (Consensus Latency)</Typography>
                     <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 2 }}>
-                        注：引入 KNN 算法后，远距离节点因线损过高被自动 Reject (拒绝参与共识)，大幅缩小了广播规模。相比传统 PBFT O(N²) 的全局通信，<strong>KNN-APBFT 的时延显著降低且平稳</strong>。
                     </Typography>
                     <AlgoMultiSelect
                         label="选择算法（交易平均时延）"
