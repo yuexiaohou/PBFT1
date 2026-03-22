@@ -335,7 +335,8 @@ export default function PerformanceCharts() {
                 </Box>
 
                 {/* ======================= 【高亮-2026-03-22】新增：图5 交易平均时延 (置于最上方以突出优势) ======================= */}
-                <Box sx={{ mb: 6, p: 2, bgcolor: "#f8faff", borderRadius: 2, border: "1px solid #e3f2fd" }}>
+                {/* ======================= 【高亮-2026-03-22 10:15】修改：图5 交易平均时延，去除原有的蓝色背景、内边距与边框，使底色恢复白色以对齐其他图表 ======================= */}
+                <Box sx={{ mb: 6 }}>
                     <Typography variant="h6" color="primary" gutterBottom>⏱️ 核心优势: 交易平均时延对比 (Consensus Latency)</Typography>
                     <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 2 }}>
                     </Typography>
