@@ -484,7 +484,7 @@ func main() {
 		reqForecast := forecast.ForecastRequest{
 			InputCSV:  "monthly_outputs/monthly_aggregation_all_2014_2024.csv",
 			TargetCol: "avg_wtd_price_arithmetic",
-			Horizon:   12,
+			Horizon:   24,
 		}
 		respForecast, err := forecastClient.GetPriceForecast(reqForecast)
 		if err != nil {
