@@ -242,7 +242,7 @@ func (e *POSEngine) ExecuteRound(db *gorm.DB, r int, specs []node.NodeSpec) Roun
 // 原 runCustomRound 逻辑现在被封装为 CustomEngine，与其它算法平起平坐
 type CustomEngine struct{}
 
-func (e *CustomEngine) Name() string { return "custom" }
+func (e *CustomEngine) Name() string {return "apbft"}
 func (e *CustomEngine) ExecuteRound(db *gorm.DB, r int, specs []node.NodeSpec) RoundStat {
 	successCount := 0
 	minPrice := math.MaxFloat64
@@ -827,14 +827,20 @@ func main() {
 	})
 
 	// ======================= 【高亮-2026-03-22 16:45】新增获取时延接口 =======================
-	api.GET("/stats/latency", func(c *gin.Context) {
+	// ======================= 【高亮-2026-03-22 17:00】修复：规范路由与 JSON 返回层级 =======================
+	api.GET("/performance/latency", func(c *gin.Context) {
 		sysState.RLock()
 		defer sysState.RUnlock()
-		var res []AlgoLatencyStat
-		for algo, pts := range sysState.allAlgoLatencyStats {
-			res = append(res, AlgoLatencyStat{Algo: algo, Points: pts})
+
+		out := make([]AlgoLatencyStat, 0)
+		reqAlgos := getAlgosFromQuery(c) // 跟随前面的查询过滤器
+		for _, k := range reqAlgos {
+			if pts, ok := sysState.allAlgoLatencyStats[k]; ok {
+				out = append(out, AlgoLatencyStat{Algo: k, Points: pts})
+			}
 		}
-		c.JSON(200, res)
+		// 返回 { "algos": [...] } 以匹配前端数据解析逻辑
+		c.JSON(200, gin.H{"algos": out})
 	})
 
 	r.Run(":5000")

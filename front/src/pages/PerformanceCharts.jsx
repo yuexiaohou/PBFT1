@@ -7,7 +7,7 @@ const algoNames = [
     { value: "pbft", label: "PBFT" },
     { value: "pos", label: "POS" },
     { value: "raft", label: "RAFT" },
-    { value: "custom", label: "APBFT" }
+    { value: "apbft", label: "APBFT" }
 ];
 
 const colors = { pbft: "blue", pos: "orange", raft: "green", custom: "purple" };
@@ -133,12 +133,18 @@ export default function PerformanceCharts() {
         async function fetchLatency() {
             setLoading5(true); setErrMsg5("");
             try {
+                // 修改了与后端对齐的路由和带上了参数
                 const url = `/api/performance/latency?algo=${algosLatency.join(",")}`;
                 const res = await fetch(url);
+                if (!res.ok) throw new Error("HTTP error");
                 const data = await res.json();
-                // 兼容包裹在 algos 字段内或直接返回数组的情况
-                setChart5LatencyData(data.algos || data || []);
-            } catch (e) { setErrMsg5("时延数据获取失败"); }
+
+                // 此时必定返回的是 { algos: [...] } ���式了
+                setChart5LatencyData(data.algos || []);
+            } catch (e) {
+                console.error(e);
+                setErrMsg5("时延数据获取失败");
+            }
             setLoading5(false);
         }
         fetchLatency();
