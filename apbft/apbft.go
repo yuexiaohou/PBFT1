@@ -369,10 +369,6 @@ func RunAPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.
 		reason = "apbft consensus failed"
 	}
 
-	// ======================= 【高亮-2026-03-07】A方案关键：按 round 固定恶意节点集合（同一轮稳定） =======================
-	seed := int64(20260307 + round)
-    rng := rand.New(rand.NewSource(seed))
-
     // 【修复点】：显式定义并初始化 leaderNodeName
     leaderNodeName := "None"
     if finalLeader != nil {
