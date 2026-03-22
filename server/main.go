@@ -137,6 +137,7 @@ type AlgoLatencyStat struct {
 
 // ================= 【高亮-2026-03-22】重构 1：高内聚的系统状态缓存 =================
 // 解决原先 tradeMu, pbftMu, pbftRoundMu 锁分离导致的高耦合和潜在死锁危机
+// ==============系统缓存========================
 type SystemStateCache struct {
 	sync.RWMutex
 	globalPBFTRound          int
@@ -147,6 +148,8 @@ type SystemStateCache struct {
 	allAlgoErrorRateStats    map[string][]ErrorRatePoint
 	allAlgoLeaderChangeStats map[string][]LeaderChangePoint
 	allAlgoNodeCostStats     map[string][]NodeCostPoint
+	// ======================= 【高亮-2026-03-22 16:45】补充缺少的时延 map 字段 =======================
+    allAlgoLatencyStats      map[string][]LatencyPoint
 }
 
 // 全局单例状态机
@@ -155,6 +158,8 @@ var sysState = &SystemStateCache{
 	allAlgoErrorRateStats:    make(map[string][]ErrorRatePoint),
 	allAlgoLeaderChangeStats: make(map[string][]LeaderChangePoint),
 	allAlgoNodeCostStats:     make(map[string][]NodeCostPoint),
+	// ======================= 【高亮-2026-03-22 16:45】初始化时延 map 字段 =======================
+    allAlgoLatencyStats:      make(map[string][]LatencyPoint),
 	roundOverview:            make([]RoundStat, 0),
 }
 
@@ -308,7 +313,7 @@ func (e *CustomEngine) ExecuteRound(db *gorm.DB, r int, specs []node.NodeSpec) R
 
 // ================= 【高亮-2026-03-22】重构 3：统一指标生成引擎 =================
 // 合并了原先 3 个结构几乎一模一样的 simulateXXXForAlgo 方法
-func generateMetricsForAlgo(algo string, malRatio float64) ([]ErrorRatePoint, []LeaderChangePoint, []NodeCostPoint) {
+func generateMetricsForAlgo(algo string, malRatio float64) ([]ErrorRatePoint, []LeaderChangePoint, []NodeCostPoint, []LatencyPoint) {
 	fixedRounds := []int{100, 200, 300, 400, 500, 600, 700, 800, 900, 1000}
 	errs := make([]ErrorRatePoint, 0, len(fixedRounds))
 	leaders := make([]LeaderChangePoint, 0, len(fixedRounds))
@@ -821,15 +826,15 @@ func main() {
 		c.JSON(200, gin.H{"algos": out})
 	})
 
-    // ======================= 【高亮-2026-03-22】5. 在 main 中增加对应的 API 路由 =======================
-	api.GET("/performance/latency", func(c *gin.Context) {
+	// ======================= 【高亮-2026-03-22 16:45】新增获取时延接口 =======================
+	api.GET("/stats/latency", func(c *gin.Context) {
 		sysState.RLock()
 		defer sysState.RUnlock()
 		var res []AlgoLatencyStat
 		for algo, pts := range sysState.allAlgoLatencyStats {
 			res = append(res, AlgoLatencyStat{Algo: algo, Points: pts})
 		}
-		c.JSON(200, res) // 直接返回结果数组供前端图表渲染
+		c.JSON(200, res)
 	})
 
 	r.Run(":5000")
