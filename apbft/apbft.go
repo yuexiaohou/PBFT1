@@ -9,6 +9,12 @@ import ( // 导入必要的标准库包
 	"PBFT1/node"
 )
 
+// ======================= 【高亮-2026-03-29】新增一：开放系统级参数 =======================
+// 暴露给外部 (如 find_k.go) 用于动态调参寻优。
+// 注意：在正式生产环境或寻优结束后，建议将 GlobalK 替换为 config.go 中的常量 OptimalKNNValue 以保证共识绝对确定性。
+var GlobalK = 5         // 系统当前使用的 KNN 近邻数
+var EnableLogs = true   // 是否打印控制台日志 (寻优时可关闭以加快速度)
+
 // ======================= 【高亮-2026-03-22】新增：KNN 辅助结构与距离计算 =======================
 type Neighbor struct {
 	ID    int
@@ -29,7 +35,6 @@ func calculateNodeDistance(id1, id2 int) float64 {
 	rng := rand.New(rand.NewSource(seed))
 	return rng.Float64() * 100.0 // 模拟距离范围 0 ~ 100 KM
 }
-// ======================= 【高亮-2026-03-22】新增结束 =======================
 
 // 简化 PBFT 模拟器（PRE-PREPARE / PREPARE / COMMIT）
 // 定义 PBFT 模拟器的结构体，封装节点集合与参数
@@ -166,7 +171,6 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
 	// 【KNN 参数初始化】
 	basePrice := 250.0       // 基础电价
 	lineLossCoeff := 1.2     // 线损系数（元/单位距离）
-	K := 5                   // K近邻数量
 	var neighbors []Neighbor // 存储邻居节点信息用于 KNN 定价
 
 	// PREPARE: 所有活跃节点签名
@@ -183,9 +187,17 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
 
 		// 计算距离 d 并生成本地报价
 		d := calculateNodeDistance(nd.ID, leader.ID)
-		quote := 15.0 + rand.Float64()*10.0 // 模拟节点的卖方报价
-		neighbors = append(neighbors, Neighbor{ID: nd.ID, D: d, Quote: quote})
+        // ======================= 【高亮-2026-03-29】修改三：引入真实的拜占庭节点报价攻击 =======================
+		var quote float64
+		if nd.IsMalicious {
+			// 恶意节点故意报极高的垄断电价，试图破坏全网指导价
+			quote = 60.0 + rand.Float64()*30.0
+		} else {
+			// 诚实节点的正常低廉报价
+			quote = 15.0 + rand.Float64()*10.0
+		}
 
+		neighbors = append(neighbors, Neighbor{ID: nd.ID, D: d, Quote: quote})
 		wg.Add(1) // 增加等待计数
 
 		go func(node *node.Node, distance float64) { // 并发签名以模拟真实网��的并行性
@@ -272,8 +284,9 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
 			return neighbors[i].D < neighbors[j].D
 		})
 
-		knnCount := K
-		if len(neighbors) < K {
+        // ======================= 【高亮-2026-03-29】修改四：采用动态 K 值截取 =======================
+		knnCount := GlobalK
+		if len(neighbors) < GlobalK {
 			knnCount = len(neighbors)
 		}
 
@@ -304,7 +317,9 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
 		}
 		return true, finalPrice // 返回共识成功及最终价格
 	} else {
-		fmt.Println("Not enough commit signatures; consensus failed") // 未达到阈值，打印失败信息
+        if EnableLogs {
+			fmt.Println("Not enough commit signatures; consensus failed") // 未达到阈值，打印失败信息
+		}
 		for _, nd := range s.nodes {                                  // 对所有节点应用失败的奖励更新
 			nd.UpdateReward(false)
 		}
@@ -312,7 +327,6 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
 		return false, 0
 	}
 }
-
 func RunAPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.NodeSpec) PBFTResult {
 	useBlst := true
 
