@@ -318,9 +318,7 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
 		}
 		return true, finalPrice // 返回共识成功及最终价格
 	} else {
-        if EnableLogs {
-			fmt.Println("Not enough commit signatures; consensus failed") // 未达到阈值，打印失败信息
-		}
+		fmt.Println("Not enough commit signatures; consensus failed") // 未达到阈值，打印失败信息
 		for _, nd := range s.nodes {                                  // 对所有节点应用失败的奖励更新
 			nd.UpdateReward(false)
 		}
@@ -328,6 +326,7 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
 		return false, 0
 	}
 }
+
 func RunAPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.NodeSpec) PBFTResult {
 	useBlst := true
 
