@@ -12,9 +12,7 @@ import ( // 导入必要的标准库包
 // ======================= 【高亮-2026-03-29】新增一：开放系统级参数 =======================
 // 暴露给外部 (如 find_k.go) 用于动态调参寻优。
 // 注意：在正式生产环境或寻优结束后，建议将 GlobalK 替换为 config.go 中的常量 OptimalKNNValue 以保证共识绝对确定性。
-// 经过蒙特卡洛寻优，确定了系统的最优纳什均衡 K 值为 5。
-// 将其硬编码为常量，保证分布式共识结果的确定性与不可篡改性。
-const OptimalKNNValue = 28
+
 
 // ======================= 【高亮-2026-03-22】新增：KNN 辅助结构与距离计算 =======================
 type Neighbor struct {
@@ -285,9 +283,9 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
 			return neighbors[i].D < neighbors[j].D
 		})
 
-		// ======================= 【高亮-2026-03-29】使用硬编码的常量 OptimalKNNValue =======================
-		knnCount := OptimalKNNValue
-		if len(neighbors) < OptimalKNNValue {
+        // ======================= 【高亮-2026-03-29】修改四：采用动态 K 值截取 =======================
+		knnCount := GlobalK
+		if len(neighbors) < GlobalK {
 			knnCount = len(neighbors)
 		}
 

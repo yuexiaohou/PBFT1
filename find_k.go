@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	// 引入您的 apbft 和 node 包
-	"PBFT1/apbft"
+	"PBFT1/apbft_forfindK"
 	"PBFT1/node"
 )
 
