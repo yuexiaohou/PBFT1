@@ -11,7 +11,7 @@ import (
 const (
 	basePrice     = 20.0  // 基础电价 (按我们刚刚的修改)
 	lineLossCoeff = 0.2   // 线损系数 (按我们刚刚的修改)
-	numNodes      = 50    // 模拟的电网节点总数
+	numNodes      = 100    // 模拟的电网节点总数
 	simRounds     = 1000  // 每个 K 值跑 1000 轮蒙特卡洛模拟求平均
 )
 
