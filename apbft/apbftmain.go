@@ -76,10 +76,11 @@ func RunPBFTSimulator(numNodes int, maliciousCount int, maliciousRatio float64, 
     	}
         // ======================= 【高亮-2026-03-11】关键修改结束 =======================
 
-		ob.SubmitOrder(Buy, 500+rand.Float64()*30, 10+rand.Float64()*3, "Alice")
-		ob.SubmitOrder(Sell, 495+rand.Float64()*20, 5+rand.Float64()*6, "Bob")
-		ob.SubmitOrder(Buy, 490+rand.Float64()*15, 4+rand.Float64()*2, "Carol")
-		ob.SubmitOrder(Sell, 510+rand.Float64()*10, 8+rand.Float64()*5, "David")
+		// ======================= 【修改四：降低固定机器人的挂单价格】 =======================
+        ob.SubmitOrder(Buy, 50+rand.Float64()*15, 10+rand.Float64()*3, "Alice")   // 50~65 元买
+		ob.SubmitOrder(Sell, 45+rand.Float64()*15, 5+rand.Float64()*6, "Bob")     // 45~60 元卖
+		ob.SubmitOrder(Buy, 48+rand.Float64()*10, 4+rand.Float64()*2, "Carol")    // 48~58 元买
+		ob.SubmitOrder(Sell, 52+rand.Float64()*10, 8+rand.Float64()*5, "David")   // 52~62 元卖
 		trades := ob.MatchAndClear()
 
 		for _, t := range trades {
@@ -96,10 +97,11 @@ func RunPBFTSimulator(numNodes int, maliciousCount int, maliciousRatio float64, 
 
 		numOrders := 5
 		for i := 0; i < numOrders; i++ {
+			// ======================= 【修改五：降低随机散户的挂单价格】 =======================
 			if i%2 == 0 {
-				ob.SubmitOrder(Buy, 450+rand.Float64()*100, 5+rand.Float64()*10, fmt.Sprintf("User_%d", i))
+				ob.SubmitOrder(Buy, 40+rand.Float64()*30, 5+rand.Float64()*10, fmt.Sprintf("User_%d", i)) // 40~70 买
 			} else {
-				ob.SubmitOrder(Sell, 440+rand.Float64()*100, 3+rand.Float64()*9, fmt.Sprintf("User_%d", i))
+				ob.SubmitOrder(Sell, 35+rand.Float64()*30, 3+rand.Float64()*9, fmt.Sprintf("User_%d", i)) // 35~65 卖
 			}
 		}
 		trades = ob.MatchAndClear()

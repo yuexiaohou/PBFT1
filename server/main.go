@@ -642,7 +642,7 @@ func main() {
 
 		tradePrice := pbftResult.Price
 		if tradePrice == 0 {
-			tradePrice = float64(500 + globalRng.Intn(20))
+			tradePrice = float64(45 + globalRng.Intn(15))
 		}
 		sellNode := pbftResult.LeaderNode
 

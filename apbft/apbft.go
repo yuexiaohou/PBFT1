@@ -183,7 +183,7 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
 
 		// 计算距离 d 并生成本地报价
 		d := calculateNodeDistance(nd.ID, leader.ID)
-		quote := 150.0 + rand.Float64()*100.0 // 模拟节点的卖方报价
+		quote := 15.0 + rand.Float64()*10.0 // 模拟节点的卖方报价
 		neighbors = append(neighbors, Neighbor{ID: nd.ID, D: d, Quote: quote})
 
 		wg.Add(1) // 增加等待计数
@@ -359,7 +359,7 @@ func RunAPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.
 		// 失败时回退给个默认价格
 		seed := int64(20260307 + round)
 		rngObj := rand.New(rand.NewSource(seed))
-		finalPrice = 500 + rngObj.Float64()*50
+		finalPrice = 45 + rngObj.Float64()*15
 	}
 
 	leaderNodeName := "None"
