@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"time"
 
 	// 引入您的 apbft 和 node 包 (请根据您的 go.mod 模块名调整 "PBFT1")
 	"PBFT1/apbft"
