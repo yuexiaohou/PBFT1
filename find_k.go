@@ -19,7 +19,7 @@ func main() {
 
 	bestK := 1
 	minAvgPrice := 999999.0
-	simRounds := 100 // 每个 K 值跑 100 次真实共识来求平均值
+	simRounds := 20 // 每个 K 值跑 20 次真实共识来求平均值
 
 	// 遍历测试 K = 1 到 30
 	for k := 1; k <= 30; k++ {
