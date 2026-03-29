@@ -251,16 +251,16 @@ func (e *CustomEngine) ExecuteRound(db *gorm.DB, r int, specs []node.NodeSpec) R
 
 	for i := 0; i < numTrades; i++ {
 		buyer := fmt.Sprintf("Node-%02d", globalRng.Intn(20))
-		price := globalRng.Float64()*500 + 30
 		amount := globalRng.Intn(50) + 10
 
 		txId := fmt.Sprintf("custom-round-%d-trade-%d-%d", r, i, time.Now().UnixNano())
+		// 获取带有 KNN 撮合价格的 PBFT 结果
 		pbftRes := apbft.RunAPBFTWithRoundAndSpecs(r, txId, amount, specs)
 
 		// ======================= 【高亮-2026-03-29】修改一：使用共识驱动的真实价格 =======================
 		// 取消之前硬编码的随机价 (price := globalRng.Float64()*500 + 30)
 		// 从 APBFT 共识结果里提取真实的、由 KNN 模型计算出的纳什均衡价格
-		actualTradePrice := pbftRes.Price
+		actualTradePrice := pbftRes.finalPrice
 		if actualTradePrice <= 0 {
 			actualTradePrice = 45.0 + globalRng.Float64()*15.0 // 失败时的退让托底价
 		}
