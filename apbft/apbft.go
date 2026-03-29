@@ -169,8 +169,8 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
 	}
 
 	// 【KNN 参数初始化】
-	basePrice := 250.0       // 基础电价
-	lineLossCoeff := 1.2     // 线损系数（元/单位距离）
+	basePrice := 20.0       // 基础电价
+	lineLossCoeff := 0.2     // 线损系数（元/单位距离）
 	var neighbors []Neighbor // 存储邻居节点信息用于 KNN 定价
 
 	// PREPARE: 所有活跃节点签名
