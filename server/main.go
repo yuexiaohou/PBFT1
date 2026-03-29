@@ -257,6 +257,14 @@ func (e *CustomEngine) ExecuteRound(db *gorm.DB, r int, specs []node.NodeSpec) R
 		txId := fmt.Sprintf("custom-round-%d-trade-%d-%d", r, i, time.Now().UnixNano())
 		pbftRes := apbft.RunAPBFTWithRoundAndSpecs(r, txId, amount, specs)
 
+		// ======================= 【高亮-2026-03-29】修改一：使用共识驱动的真实价格 =======================
+		// 取消之前硬编码的随机价 (price := globalRng.Float64()*500 + 30)
+		// 从 APBFT 共识结果里提取真实的、由 KNN 模型计算出的纳什均衡价格
+		actualTradePrice := pbftRes.Price
+		if actualTradePrice <= 0 {
+			actualTradePrice = 45.0 + globalRng.Float64()*15.0 // 失败时的退让托底价
+		}
+
 		seller := pbftRes.LeaderNode
 		if seller == "" {
 			seller = fmt.Sprintf("Node-%02d", globalRng.Intn(20))
@@ -266,14 +274,18 @@ func (e *CustomEngine) ExecuteRound(db *gorm.DB, r int, specs []node.NodeSpec) R
 		if pbftRes.Status == "已确认" {
 			status = "成功"
 			successCount++
-			if price < minPrice {
-				minPrice, minBuyer, minSeller = price, buyer, seller
+
+			// ======================= 【高亮-2026-03-29】修改二：修正最低价统计算法 =======================
+			// 此处的 minPrice 用于图表展示，必须和真实的 actualTradePrice 比较
+			if actualTradePrice < minPrice {
+				minPrice, minBuyer, minSeller = actualTradePrice, buyer, seller
 			}
 		}
 
+		// ======================= 【高亮-2026-03-29】修改三：修正数据库落库数据 =======================
 		trade := TradeHistory{
 			UserID: 1, Type: "buy", Amount: amount, Time: time.Now(), Status: status,
-			Price: price, Node: buyer, Round: r, BuyerNode: buyer, SellerNode: seller,
+			Price: actualTradePrice, Node: buyer, Round: r, BuyerNode: buyer, SellerNode: seller,
 		}
 		if db != nil {
 			db.Create(&trade)
@@ -292,10 +304,11 @@ func (e *CustomEngine) ExecuteRound(db *gorm.DB, r int, specs []node.NodeSpec) R
 			reason = fmt.Sprintf("%s; pbftRound=%d", reason, pbftRound)
 		}
 
-		// 利用全新的状态缓存写入本轮状态
+		// ======================= 【高亮-2026-03-29】修改四：更新状态机中的价格 =======================
 		sysState.UpdatePBFTState(PBFTConsensusResult{
 			TxId: txId, Status: status, Consensus: pbftRes.Consensus, BlockHeight: pbftRes.BlockHeight,
-			Timestamp: time.Now(), Validators: vals, FailedReason: reason, Price: pbftRes.Price, LeaderNode: pbftRes.LeaderNode,
+			Timestamp: time.Now(), Validators: vals, FailedReason: reason,
+			Price: actualTradePrice, LeaderNode: pbftRes.LeaderNode,
 		}, amount)
 	}
 
@@ -307,7 +320,7 @@ func (e *CustomEngine) ExecuteRound(db *gorm.DB, r int, specs []node.NodeSpec) R
 		successRate = float64(successCount) / float64(numTrades)
 	}
 
-	fmt.Printf("[模拟轮 %d] 最低价: %v 买方: %s 卖方: %s 成功挂单率: %.2f%%\n", r, minPrice, minBuyer, minSeller, successRate*100)
+	fmt.Printf("[模拟轮 %d] 最低价: %.2f 买方: %s 卖方: %s 成功挂单率: %.2f%%\n", r, minPrice, minBuyer, minSeller, successRate*100)
 	return RoundStat{Round: r, MinPrice: minPrice, BuyerNode: minBuyer, SellerNode: minSeller, SuccessRate: successRate}
 }
 
