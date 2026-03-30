@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { getPerformanceStats, getApbftStressTest } from "../api"; // <== 确保导入 getApbftStressTest
-import {Paper, Typography, Box, FormControl, MenuItem, Select, InputLabel, Checkbox, ListItemText} from "@mui/material";
+import {Paper, Typography, Box, FormControl, MenuItem, Select, InputLabel, Checkbox, ListItemText, Slider, Button} from "@mui/material";
 import { LineChart } from "@mui/x-charts";
 import { BarChart } from '@mui/x-charts/BarChart';
 
