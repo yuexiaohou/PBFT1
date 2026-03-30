@@ -12,6 +12,11 @@ import ( // 导入必要的标准库包
 // 全局日志开关
 var EnableLogs = true
 
+// ======================= 【修复多轮状态丢失】 =======================
+// 创建一个全局持久化的 Simulator 单例，用于跨轮次保留 Q-Table 和 Reputation
+var GlobalSim *PBFTSimulator
+var simMutex sync.Mutex
+
 // ======================= 【高亮-2026-03-29】新增一：开放系统级参数 =======================
 // 暴露给外部 (如 find_k.go) 用于动态调参寻优。
 // 注意：在正式生产环境或寻优结束后，建议将 GlobalK 替换为 config.go 中的常量 OptimalKNNValue 以保证共识绝对确定性。
@@ -482,7 +487,7 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
 		// 最终撮合价格 = 基础电价 + K邻近平均报价 + KNN平均距离 * 线损系数
 		finalPrice := basePrice + avgQuote + (avgDistance * lineLossCoeff)
 
-if EnableLogs {
+    if EnableLogs {
 			fmt.Printf("\n>>>>>> [APBFT 共识达成 | 轮次 %d] <<<<<<\n", round)
 			// ======================= 【高亮-2026-03-29】修改：打印最新的 Q信誉值(R) =======================
 			fmt.Printf("├─ 主节点信息: ID=%d | Q信誉值(R)=%d | 层级(Tier)=%d | 吞吐量=%.2f\n",
@@ -518,44 +523,52 @@ if EnableLogs {
 	}
 }
 
-func RunAPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.NodeSpec) PBFTResult {
-	useBlst := true
+//==================修改RunAPBFTWithRoundAndSpecs函数更正为RunPersistentAPBFT，将原函数中的node:=make([]*node.Node, 0, len(specs)),改为只有第一次才进行初始化节点池，其余时候都使用第一轮创建的节点池=======================
+func RunPersistentAPBFT(round int, txId string, amount int, specs []node.NodeSpec) PBFTResult {
+	simMutex.Lock()
+	defer simMutex.Unlock()
 
-	// ========== 构建节点池：把 isMal 写入节点 ==========
-	nodes := make([]*node.Node, 0, len(specs))
-	for _, sp := range specs {
-		nd := node.NewNode(sp.ID, sp.Throughput, sp.IsMalicious, useBlst)
-		nodes = append(nodes, nd)
+	// 只有第一轮，或者单例为空时，才初始化一次
+	if GlobalSim == nil || round == 1 {
+		nodes := make([]*node.Node, 0, len(specs))
+		for _, sp := range specs {
+			nd := node.NewNode(sp.ID, sp.Throughput, sp.IsMalicious, true)
+			nodes = append(nodes, nd)
+		}
+		GlobalSim = NewPBFTSimulator(nodes, true)
+		GlobalSim.ComputeTiers()
+	} else {
+		// 跨轮次更新恶意状态（因为 specs 可能会让不同的节点临时变成恶意）
+		// 但我们保留 nd 实例，这样就保留了信誉值和 Q表
+		for i, sp := range specs {
+			GlobalSim.nodes[i].IsMalicious = sp.IsMalicious
+			GlobalSim.nodes[i].Throughput = sp.Throughput
+		}
+		GlobalSim.ComputeTiers()
 	}
 
-	sim := NewPBFTSimulator(nodes, true)
-	sim.ComputeTiers()
-
-	// 【主节点轮换算法逻辑】
 	var finalLeader *node.Node
 	var success bool
-	var finalPrice float64   // 接收 KNN 计算的新价格
+	var finalPrice float64
 	viewOffset := 0
-	maxViewChange := 5 // 最多允许轮换 5 个备份节点
+	maxViewChange := 5
 
 	for viewOffset < maxViewChange {
-		leader := sim.SelectLeader(round, viewOffset)
+		leader := GlobalSim.SelectLeader(round, viewOffset)
 		if leader == nil {
 			break
 		}
 
-    // ======================= 【高亮-2026-03-29】修改：使用信誉值 R 判定不可信节点 =======================
-		if leader.IsMalicious || sim.QAgents[leader.ID].Reputation <= 0 {
+		if leader.IsMalicious || GlobalSim.QAgents[leader.ID].Reputation <= 0 {
 			if EnableLogs {
-				fmt.Printf("[View Change] 轮次 %d: 节点 %d (R=%d, Malicious=%v) 不可信，触发视图转换...\n", round, leader.ID, sim.QAgents[leader.ID].Reputation, leader.IsMalicious)
+				fmt.Printf("[View Change] 轮次 %d: 节点 %d (R=%d, Malicious=%v) 不可信，触发视图转换...\n", round, leader.ID, GlobalSim.QAgents[leader.ID].Reputation, leader.IsMalicious)
 			}
 			viewOffset++
 			continue
 		}
 
 		finalLeader = leader
-		// 接收成功状态和基于 KNN 计算的定价
-		success, finalPrice = sim.RunRoundWithLeader(round, []byte(txId), leader)
+		success, finalPrice = GlobalSim.RunRoundWithLeader(round, []byte(txId), leader)
 		break
 	}
 
@@ -564,7 +577,6 @@ func RunAPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.
 	if !success {
 		status = "失败"
 		reason = "apbft consensus failed"
-		// 失败时回退给个默认价格
 		seed := int64(20260307 + round)
 		rngObj := rand.New(rand.NewSource(seed))
 		finalPrice = 45 + rngObj.Float64()*15
@@ -572,10 +584,9 @@ func RunAPBFTWithRoundAndSpecs(round int, txId string, amount int, specs []node.
 
 	leaderNodeName := "None"
 	if finalLeader != nil {
-	// ======================= 【高亮-2026-03-29】修改：结构化输出包含信誉值 R =======================
-    leaderNodeName = fmt.Sprintf("Node-%02d(R=%d, tier=%d, tp=%.2f, mal=%v)",
-        finalLeader.ID, sim.QAgents[finalLeader.ID].Reputation, finalLeader.Tier, finalLeader.Throughput, finalLeader.IsMalicious)
-    }
+		leaderNodeName = fmt.Sprintf("Node-%02d(R=%d, tier=%d, tp=%.2f, mal=%v)",
+			finalLeader.ID, GlobalSim.QAgents[finalLeader.ID].Reputation, finalLeader.Tier, finalLeader.Throughput, finalLeader.IsMalicious)
+	}
 
 	return PBFTResult{
 		TxId:         txId,

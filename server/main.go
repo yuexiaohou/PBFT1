@@ -255,7 +255,7 @@ func (e *CustomEngine) ExecuteRound(db *gorm.DB, r int, specs []node.NodeSpec) R
 
 		txId := fmt.Sprintf("custom-round-%d-trade-%d-%d", r, i, time.Now().UnixNano())
 		// 获取带有 KNN 撮合价格的 PBFT 结果
-		pbftRes := apbft.RunAPBFTWithRoundAndSpecs(r, txId, amount, specs)
+		pbftRes := apbft.RunPersistentAPBFT(r, txId, amount, specs)
 
 		// ======================= 【高亮-2026-03-29】修改一：使用共识驱动的真实价格 =======================
 		// 取消之前硬编码的随机价 (price := globalRng.Float64()*500 + 30)
