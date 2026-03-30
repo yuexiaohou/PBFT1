@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"strconv"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -21,7 +22,6 @@ import (
 	apbft "PBFT1/apbft"
 	"PBFT1/forecast"
 	"PBFT1/node"
-    "strconv"
 )
 
 var globalRng *rand.Rand
