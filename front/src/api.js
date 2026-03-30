@@ -30,3 +30,5 @@ export const getPBFTBlock = () => axios.get("/api/pbft/block");
 export const getPBFTBlockById = (id) => axios.get(`/api/pbft/block?id=${id}`);
 // ======================= 【高亮-2026-03-18】新增预测数据获取接口 =======================
 export const getForecast = () => axios.get("/api/forecast");
+// ======================= 【高亮-2026-03-30】新增Q-learning 压力测试 =======================
+export const getApbftStressTest = (ratio, rounds, scenario) =>axios.get(`/api/stress/apbft?ratio=${ratio}&rounds=${rounds}&scenario=${scenario}`);

@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { getPerformanceStats, getApbftStressTest } from "../api"; // <== 确保导入 getApbftStressTest
 import {Paper, Typography, Box, FormControl, MenuItem, Select, InputLabel, Checkbox, ListItemText} from "@mui/material";
 import { LineChart } from "@mui/x-charts";
+import { BarChart } from '@mui/x-charts/BarChart';
 
 // ========== 【高亮-2026-03-16 09:00:00】算法选择数组 ==========
 const algoNames = [
@@ -210,6 +212,35 @@ export default function PerformanceCharts() {
     }, [chart5LatencyData, algosLatency]);
 
     const selectedLabel = (a) => algoNames.find(x => x.value === a)?.label || a;
+    // ======================= 【高亮-新增】压力测试状态 =======================
+    const [stressRatio, setStressRatio] = useState(33); // 默认 33% 恶性节点
+    const [stressScenario, setStressScenario] = useState(1);
+    const [stressData, setStressData] = useState([]);
+    const [stressLoading, setStressLoading] = useState(false);
+    const runStressTest = async () => {
+        setStressLoading(true);
+        try {
+            const rounds = 200; // 测试 200 轮以观察自愈
+            const { data } = await getApbftStressTest(stressRatio / 100, rounds, stressScenario);
+
+            // 计算近10轮滑动平均成功率，以平滑折线图展现趋势
+            const windowSize = 10;
+            const ma = [];
+            for (let i = 0; i < data.results.length; i++) {
+                let start = Math.max(0, i - windowSize + 1);
+                let sum = 0;
+                for (let j = start; j <= i; j++) sum += data.results[j];
+                ma.push((sum / (i - start + 1)) * 100);
+            }
+
+            const chartData = ma.map((val, idx) => ({ round: idx + 1, successRate: val }));
+            setStressData(chartData);
+        } catch (e) {
+            console.error(e);
+        }
+        setStressLoading(false);
+    };
+
 
     return (
         <Box sx={{ my: 4, mx: "auto", maxWidth: 800 }}>
@@ -366,6 +397,64 @@ export default function PerformanceCharts() {
                         </>
                     )}
                 </Box>
+            </Paper>
+            {/* ======================= 【高亮-新增】Q-Learning 动态压力测试面板 ======================= */}
+            <Paper sx={{ p: 3, mb: 4, borderTop: '4px solid #d32f2f' }}>
+                <Typography variant="h6" gutterBottom>APBFT Q-Learning 抗压自愈与防突变测试</Typography>
+                <Typography variant="body2" color="text.secondary" paragraph>
+                    通过前端注入任意比例的恶性节点。场景一测试突破拜占庭极限（>33%）后系统能否自愈隔离；场景二测试（前100轮伪装好人，后100轮突变砸盘）系统的惩罚降级速度。
+                </Typography>
+
+                <Box sx={{ display: 'flex', gap: 4, alignItems: 'center', mb: 2, mt: 3 }}>
+                    <Box sx={{ flex: 1 }}>
+                        <Typography gutterBottom fontWeight="bold">
+                            全局恶意节点注入比例: {stressRatio}%
+                        </Typography>
+                        <Slider
+                            value={stressRatio}
+                            onChange={(e, v) => setStressRatio(v)}
+                            step={1}
+                            min={0}
+                            max={50} // 允许测试 50% 的极端情况
+                            valueLabelDisplay="auto"
+                            color="error"
+                        />
+                    </Box>
+                    <FormControl sx={{ minWidth: 250 }}>
+                        <InputLabel>攻击场景模拟</InputLabel>
+                        <Select
+                            value={stressScenario}
+                            label="攻击场景模拟"
+                            onChange={e => setStressScenario(e.target.value)}
+                        >
+                            <MenuItem value={1}>场景一：常规攻击（测试自愈极限）</MenuItem>
+                            <MenuItem value={2}>场景二：伪装潜伏后突变（Hit-and-Run）</MenuItem>
+                        </Select>
+                    </FormControl>
+                    <Button variant="contained" color="error" size="large" onClick={runStressTest} disabled={stressLoading}>
+                        {stressLoading ? "计算中..." : "启动压力测试"}
+                    </Button>
+                </Box>
+
+                {stressData.length > 0 && (
+                    <Box sx={{ width: '100%', height: 400, mt: 3 }}>
+                        <LineChart
+                            dataset={stressData}
+                            xAxis={[{
+                                dataKey: 'round',
+                                label: '仿真运行轮次',
+                            }]}
+                            series={[{
+                                dataKey: 'successRate',
+                                label: '系统共识成功率 (近10轮滑动平均 %)',
+                                color: '#d32f2f',
+                                showMark: false // 隐藏点，显示平滑线
+                            }]}
+                            height={350}
+                            margin={{ left: 50, right: 20, top: 20, bottom: 50 }}
+                        />
+                    </Box>
+                )}
             </Paper>
         </Box>
     );
