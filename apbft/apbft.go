@@ -603,5 +603,5 @@ func RunPersistentAPBFT(round int, txId string, amount int, specs []node.NodeSpe
 
 func RunAPBFT(txId string, amount int) PBFTResult {
 	specs := node.NewPool(1, node.FixedNumNodes, node.FixedMaliciousRatio)
-	return RunAPBFTWithRoundAndSpecs(1, txId, amount, specs)
+	return RunPersistentAPBFT(1, txId, amount, specs)
 }
