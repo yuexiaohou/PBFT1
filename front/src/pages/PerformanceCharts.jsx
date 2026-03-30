@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { getPerformanceStats, getApbftStressTest } from "../api"; // <== 确保导入 getApbftStressTest
-import { Paper, Typography, Box, FormControl, MenuItem, Select, InputLabel, Checkbox, ListItemText, Button } from "@mui/material";
+import { Paper, Typography, Box, FormControl, MenuItem, Select, InputLabel, Checkbox, ListItemText } from "@mui/material";
 import { LineChart } from "@mui/x-charts";
-import { BarChart } from '@mui/x-charts/BarChart';
 
 // ========== 【高亮-2026-03-16 09:00:00】算法选择数组 ==========
 const algoNames = [
@@ -62,7 +61,7 @@ export default function PerformanceCharts() {
     const [algosLatency, setAlgosLatency] = useState(algoNames.map(a=>a.value)); // 图5 (时延)
 
     // 图数据
-    // ���前的const [chartData, setChartData] = useState([])只能存储单算法数据
+    // 之前的const [chartData, setChartData] = useState([])只能存储单算法数据
     const [chart1Data, setChart1Data] = useState([]);
     const [chart2ErrorData, setChart2ErrorData] = useState([]);
     const [chart3LeaderData, setChart3LeaderData] = useState([]);
@@ -161,7 +160,6 @@ export default function PerformanceCharts() {
     }, [algosLatency]);
 
     // 工具：对齐采样点
-    // 将axis作为参数传进去
     const alignPoints = (allPoints, axis, getter) => {
         const map = new Map((allPoints || []).map((p) => [p.round, getter(p)]));
         return axis.map(r => {
@@ -170,7 +168,6 @@ export default function PerformanceCharts() {
     };
 
     // 图1
-    // 采用多选模式的 filter+map+alignPoints，首先通过filter筛选出用户选择的算法数据，然后通过map对每个算法的数据进行处理，使用alignPoints函数将原始数据对齐到预设的roundsChart1上，并且通过getter函数提取出需要展示的数值（挂单成功率转百分比）。最终返回一个包含多个算法系列数据的数组，每个系列包含算法名称和对应的数据点。
     const chart1Series = useMemo(() => {
         return (chart1Data || [])
             .filter(as => algosSuccess.includes(as.algo))
@@ -198,7 +195,7 @@ export default function PerformanceCharts() {
             }));
     }, [chart3LeaderData, algosLeader]);
 
-    // 图4数据格式化【高亮-2026-03-15 23:40:00】
+    // 图4数据格式化
     const chart4Series = useMemo(() => {
         return (chart4CostData || [])
             .filter(as => algosCost.includes(as.algo))
@@ -208,65 +205,68 @@ export default function PerformanceCharts() {
             }));
     }, [chart4CostData, algosCost]);
 
-    // ======================= 【高亮-2026-03-22】��增：图5 时延数据格式化 =======================
+    // ======================= 【高亮-2026-03-22】新增：图5 时延数据格式化 =======================
     const chart5Series = useMemo(() => {
         return (chart5LatencyData || [])
             .filter(as => algosLatency.includes(as.algo))
             .map(as => ({
                 algo: as.algo,
-                // 时延在后端模拟中是按照 1~20 轮生成的，所以使用 roundsChart1 (1-20) 轴
                 data: alignPoints(as.points, roundsChart1, r=>Number(r.latency??0)),
             }));
     }, [chart5LatencyData, algosLatency]);
 
     const selectedLabel = (a) => algoNames.find(x => x.value === a)?.label || a;
 
-    // ======================= 【高亮-2026-03-30】修改：压力测试多比例图表对比状态 =======================
+    // ======================= 【高亮-2026-03-30】修改：去掉按钮和场景，使用 useEffect 自动加载压测数据 =======================
     const [stressRatios, setStressRatios] = useState(["20", "30", "40", "50"]); // 默认全选
-    const [stressScenario, setStressScenario] = useState(1);
     const [stressData, setStressData] = useState([]);
     const [stressLoading, setStressLoading] = useState(false);
 
-    // ======================= 【高亮-2026-03-30】修改：压力测试执行逻辑 =======================
-    const runStressTest = async () => {
-        setStressLoading(true);
-        try {
-            const rounds = 1000; // 测试 1000 轮以对齐横坐标
-            const ratioColors = { "20": "#2e7d32", "30": "#1976d2", "40": "#ed6c02", "50": "#d32f2f" }; // 绿, 蓝, 橙, 红
+    useEffect(() => {
+        async function loadStressTest() {
+            if (stressRatios.length === 0) {
+                setStressData([]);
+                return;
+            }
+            setStressLoading(true);
+            try {
+                const rounds = 1000;
+                const scenario = 1; // 默认使用场景一：常规自愈极限测试，不暴露在前端
+                const ratioColors = { "20": "#2e7d32", "30": "#1976d2", "40": "#ed6c02", "50": "#d32f2f" };
 
-            // 并发请求选中的所有比例
-            const promises = stressRatios.map(async (ratioStr) => {
-                const ratio = parseInt(ratioStr, 10) / 100;
-                // 请求后端1000轮压测数据
-                const { data } = await getApbftStressTest(ratio, rounds, stressScenario);
+                const promises = stressRatios.map(async (ratioStr) => {
+                    const ratio = parseInt(ratioStr, 10) / 100;
+                    const { data } = await getApbftStressTest(ratio, rounds, scenario);
 
-                // 将1000轮按每100轮划分为一个Bucket，求该100轮区间的成功率
-                const bucketSize = 100;
-                const bucketedData = roundsChart234.map((roundMark, index) => {
-                    const start = index * bucketSize;
-                    const end = start + bucketSize;
-                    const slice = data.results.slice(start, end);
-                    const successCount = slice.reduce((a, b) => a + b, 0);
-                    return Number(((successCount / bucketSize) * 100).toFixed(2));
+                    const bucketSize = 100;
+                    const bucketedData = roundsChart234.map((roundMark, index) => {
+                        const start = index * bucketSize;
+                        const end = start + bucketSize;
+                        const slice = data.results.slice(start, end);
+                        const successCount = slice.reduce((a, b) => a + b, 0);
+                        return Number(((successCount / bucketSize) * 100).toFixed(2));
+                    });
+
+                    return {
+                        label: `恶性率 ${ratioStr}%`,
+                        data: bucketedData,
+                        color: ratioColors[ratioStr] || "purple",
+                    };
                 });
 
-                return {
-                    label: `恶性率 ${ratioStr}%`,
-                    data: bucketedData,
-                    color: ratioColors[ratioStr] || "purple",
-                };
-            });
+                const results = await Promise.all(promises);
+                // 排序，保持图表Legend的显示顺序一致
+                results.sort((a, b) => parseInt(a.label.match(/\d+/)[0]) - parseInt(b.label.match(/\d+/)[0]));
 
-            const results = await Promise.all(promises);
-            // 排序，保持图表Legend的显示顺序一致（20->30->40->50）
-            results.sort((a, b) => parseInt(a.label.match(/\d+/)[0]) - parseInt(b.label.match(/\d+/)[0]));
-
-            setStressData(results);
-        } catch (e) {
-            console.error("压力测试执行失败:", e);
+                setStressData(results);
+            } catch (e) {
+                console.error("压力测试执行失败:", e);
+            }
+            setStressLoading(false);
         }
-        setStressLoading(false);
-    };
+
+        loadStressTest();
+    }, [stressRatios]);
 
     return (
         <Box sx={{ my: 4, mx: "auto", maxWidth: 800 }}>
@@ -334,7 +334,7 @@ export default function PerformanceCharts() {
                 {/* 图3：主节点切换次数 */}
                 <Box sx={{ mb: 4 }}>
                     <AlgoMultiSelect
-                        label="选择���法（主节点切换次数）"
+                        label="选择算法（主节点切换次数）"
                         value={algosLeader}
                         onChange={e => setAlgosLeader(typeof e.target.value === "string" ? e.target.value.split(',') : e.target.value)}
                     />
@@ -361,7 +361,7 @@ export default function PerformanceCharts() {
                     )}
                 </Box>
 
-                {/* 图4：平均节点开销【高亮-2026-03-15 23:40:00】 */}
+                {/* 图4：平均节点开销 */}
                 <Box sx={{ mb: 4 }}>
                     <AlgoMultiSelect
                         label="选择算法（平均节点开销）"
@@ -391,12 +391,10 @@ export default function PerformanceCharts() {
                     )}
                 </Box>
 
-                {/* ======================= 【高���-2026-03-22】新增：图5 交易平均时延 (置于最上方以突出优势) ======================= */}
-                {/* ======================= 【高亮-2026-03-22 10:15】修改：图5 交易平均时延，去除原有的蓝色背景、内边距与边框，使底色恢复白色以对齐其他图表 ======================= */}
+                {/* ======================= 【高亮-2026-03-22】图5 交易平均时延 ======================= */}
                 <Box sx={{ mb: 6 }}>
                     <Typography variant="h6" color="primary" gutterBottom>⏱️ 核心优势: 交易平均时延对比 (Consensus Latency)</Typography>
-                    <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 2 }}>
-                    </Typography>
+                    <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 2 }}></Typography>
                     <AlgoMultiSelect
                         label="选择算法（交易平均时延）"
                         value={algosLatency}
@@ -425,16 +423,15 @@ export default function PerformanceCharts() {
                 </Box>
             </Paper>
 
-            {/* ======================= 【高亮-2026-03-30】修改：Q-Learning 动态压力测试面板 (完全对齐图2多线规格) ======================= */}
+            {/* ======================= 【高亮-2026-03-30】修改：完全对齐图2规格的极简压测图 ======================= */}
             <Paper sx={{ p: 3, mb: 4, borderTop: '4px solid #d32f2f' }}>
-                <Typography variant="h6" gutterBottom>APBFT Q-Learning 抗压自愈与防突变测试</Typography>
+                <Typography variant="h6" gutterBottom>APBFT Q-Learning 抗压自愈测试</Typography>
                 <Typography variant="body2" color="text.secondary" paragraph>
-                    通过前端注入任意比例的恶性节点进行1000轮长期博弈验证。场景一测试突破拜占庭极限（>33%）后系统能否自愈隔离；场景二测试（前500轮伪装好人，后500轮突变砸盘）系统的惩罚降级速度。
+                    通过前端注入不同比例的恶性节点进行长期博弈验证。系统突破拜占庭极限（>33%）后的自愈隔离能力展示。
                 </Typography>
 
                 <Box sx={{ mb: 4 }}>
-                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2, mt: 3, flexWrap: 'wrap' }}>
-                        {/* 恶意比例多选下拉框 */}
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2, mt: 3 }}>
                         <FormControl sx={{ minWidth: 220 }} size="small">
                             <InputLabel>选择多组恶性节点率</InputLabel>
                             <Select
@@ -452,30 +449,13 @@ export default function PerformanceCharts() {
                                 ))}
                             </Select>
                         </FormControl>
-
-                        {/* 场景下拉框 */}
-                        <FormControl sx={{ minWidth: 320 }} size="small">
-                            <InputLabel>攻击场景模拟</InputLabel>
-                            <Select
-                                value={stressScenario}
-                                label="攻击场景模拟"
-                                onChange={e => setStressScenario(e.target.value)}
-                            >
-                                <MenuItem value={1}>场景一：常规攻击（测试自愈极限）</MenuItem>
-                                <MenuItem value={2}>场景二：伪装潜伏后突变（Hit-and-Run）</MenuItem>
-                            </Select>
-                        </FormControl>
-
-                        {/* 触发按钮 */}
-                        <Button variant="contained" color="error" onClick={runStressTest} disabled={stressLoading || stressRatios.length === 0}>
-                            {stressLoading ? "正在计算千轮博弈..." : "启动压力测试"}
-                        </Button>
+                        {stressLoading && <Typography variant="body2" color="text.secondary">正在加载数据并计算...</Typography>}
                     </Box>
 
-                    {/* 与图2、图4保持完全一致的规格进行绘制 */}
                     <Typography variant="subtitle1" mt={3} gutterBottom>
                         不同恶性节点率下的共识成功率（%）（共识轮数100-1000）
                     </Typography>
+
                     {stressData.length > 0 ? (
                         <LineChart
                             series={stressData}
@@ -485,7 +465,7 @@ export default function PerformanceCharts() {
                             height={300}
                         />
                     ) : (
-                        <Typography color="text.secondary" sx={{ py: 2 }}>请选择恶性节点率并点击“启动压力测试”生成多线对比数据</Typography>
+                        <Typography color="text.secondary" sx={{ py: 2 }}>请勾选上方恶性节点率以展示数据</Typography>
                     )}
                 </Box>
             </Paper>
