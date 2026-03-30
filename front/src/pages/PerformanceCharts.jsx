@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { getPerformanceStats, getApbftStressTest } from "../api"; // <== 确保导入 getApbftStressTest
-import {Paper, Typography, Box, FormControl, MenuItem, Select, InputLabel, Checkbox, ListItemText, Slider, Button} from "@mui/material";
+import { Paper, Typography, Box, FormControl, MenuItem, Select, InputLabel, Checkbox, ListItemText, Button } from "@mui/material";
 import { LineChart } from "@mui/x-charts";
 import { BarChart } from '@mui/x-charts/BarChart';
 
@@ -18,6 +18,14 @@ const colors = { pbft: "blue", pos: "orange", raft: "green", apbft: "purple" };
 const roundsChart1 = Array.from({length: 20}, (_, i) => i+1);  // 1~20
 const roundsChart234 = [100,200,300,400,500,600,700,800,900,1000]; // 图2~图4
 
+// ======================= 【高亮-2026-03-30】新增：压力测试选项常量 =======================
+const ratioOptions = [
+    { value: "20", label: "20%" },
+    { value: "30", label: "30%" },
+    { value: "40", label: "40%" },
+    { value: "50", label: "50%" }
+];
+
 // 算法多选下拉框组件【高亮-2026-03-15 23:10:00】
 // 在MUI的Select组件中，默认就是单选， 因此要实现多选，需要设置multiple属性，并且value必须是一个数组
 function AlgoMultiSelect({ label, value, onChange }) {
@@ -31,7 +39,7 @@ function AlgoMultiSelect({ label, value, onChange }) {
                 renderValue={(selected) => selected.map(v => algoNames.find(a => a.value===v)?.label).join(", ")}
                 label={label}
                 size="small"
-             variant="outlined">
+                variant="outlined">
                 {algoNames.map((a) => (
                     <MenuItem key={a.value} value={a.value}>
                         <Checkbox checked={value.indexOf(a.value) > -1} />
@@ -54,7 +62,7 @@ export default function PerformanceCharts() {
     const [algosLatency, setAlgosLatency] = useState(algoNames.map(a=>a.value)); // 图5 (时延)
 
     // 图数据
-    // 之前的const [chartData, setChartData] = useState([])只能存储单算法数据
+    // ���前的const [chartData, setChartData] = useState([])只能存储单算法数据
     const [chart1Data, setChart1Data] = useState([]);
     const [chart2ErrorData, setChart2ErrorData] = useState([]);
     const [chart3LeaderData, setChart3LeaderData] = useState([]);
@@ -141,7 +149,7 @@ export default function PerformanceCharts() {
                 if (!res.ok) throw new Error("HTTP error");
                 const data = await res.json();
 
-                // 此时必定返回的是 { algos: [...] } ���式了
+                // 此时必定返回的是 { algos: [...] } 式了
                 setChart5LatencyData(data.algos || []);
             } catch (e) {
                 console.error(e);
@@ -200,7 +208,7 @@ export default function PerformanceCharts() {
             }));
     }, [chart4CostData, algosCost]);
 
-    // ======================= 【高亮-2026-03-22】新增：图5 时延数据格式化 =======================
+    // ======================= 【高亮-2026-03-22】��增：图5 时延数据格式化 =======================
     const chart5Series = useMemo(() => {
         return (chart5LatencyData || [])
             .filter(as => algosLatency.includes(as.algo))
@@ -212,35 +220,53 @@ export default function PerformanceCharts() {
     }, [chart5LatencyData, algosLatency]);
 
     const selectedLabel = (a) => algoNames.find(x => x.value === a)?.label || a;
-    // ======================= 【高亮-新增】压力测试状态 =======================
-    const [stressRatio, setStressRatio] = useState(33); // 默认 33% 恶性节点
+
+    // ======================= 【高亮-2026-03-30】修改：压力测试多比例图表对比状态 =======================
+    const [stressRatios, setStressRatios] = useState(["20", "30", "40", "50"]); // 默认全选
     const [stressScenario, setStressScenario] = useState(1);
     const [stressData, setStressData] = useState([]);
     const [stressLoading, setStressLoading] = useState(false);
+
+    // ======================= 【高亮-2026-03-30】修改：压力测试执行逻辑 =======================
     const runStressTest = async () => {
         setStressLoading(true);
         try {
-            const rounds = 200; // 测试 200 轮以观察自愈
-            const { data } = await getApbftStressTest(stressRatio / 100, rounds, stressScenario);
+            const rounds = 1000; // 测试 1000 轮以对齐横坐标
+            const ratioColors = { "20": "#2e7d32", "30": "#1976d2", "40": "#ed6c02", "50": "#d32f2f" }; // 绿, 蓝, 橙, 红
 
-            // 计算近10轮滑动平均成功率，以平滑折线图展现趋势
-            const windowSize = 10;
-            const ma = [];
-            for (let i = 0; i < data.results.length; i++) {
-                let start = Math.max(0, i - windowSize + 1);
-                let sum = 0;
-                for (let j = start; j <= i; j++) sum += data.results[j];
-                ma.push((sum / (i - start + 1)) * 100);
-            }
+            // 并发请求选中的所有比例
+            const promises = stressRatios.map(async (ratioStr) => {
+                const ratio = parseInt(ratioStr, 10) / 100;
+                // 请求后端1000轮压测数据
+                const { data } = await getApbftStressTest(ratio, rounds, stressScenario);
 
-            const chartData = ma.map((val, idx) => ({ round: idx + 1, successRate: val }));
-            setStressData(chartData);
+                // 将1000轮按每100轮划分为一个Bucket，求该100轮区间的成功率
+                const bucketSize = 100;
+                const bucketedData = roundsChart234.map((roundMark, index) => {
+                    const start = index * bucketSize;
+                    const end = start + bucketSize;
+                    const slice = data.results.slice(start, end);
+                    const successCount = slice.reduce((a, b) => a + b, 0);
+                    return Number(((successCount / bucketSize) * 100).toFixed(2));
+                });
+
+                return {
+                    label: `恶性率 ${ratioStr}%`,
+                    data: bucketedData,
+                    color: ratioColors[ratioStr] || "purple",
+                };
+            });
+
+            const results = await Promise.all(promises);
+            // 排序，保持图表Legend的显示顺序一致（20->30->40->50）
+            results.sort((a, b) => parseInt(a.label.match(/\d+/)[0]) - parseInt(b.label.match(/\d+/)[0]));
+
+            setStressData(results);
         } catch (e) {
-            console.error(e);
+            console.error("压力测试执行失败:", e);
         }
         setStressLoading(false);
     };
-
 
     return (
         <Box sx={{ my: 4, mx: "auto", maxWidth: 800 }}>
@@ -308,7 +334,7 @@ export default function PerformanceCharts() {
                 {/* 图3：主节点切换次数 */}
                 <Box sx={{ mb: 4 }}>
                     <AlgoMultiSelect
-                        label="选择算法（主节点切换次数）"
+                        label="选择���法（主节点切换次数）"
                         value={algosLeader}
                         onChange={e => setAlgosLeader(typeof e.target.value === "string" ? e.target.value.split(',') : e.target.value)}
                     />
@@ -365,7 +391,7 @@ export default function PerformanceCharts() {
                     )}
                 </Box>
 
-                {/* ======================= 【高亮-2026-03-22】新增：图5 交易平均时延 (置于最上方以突出优势) ======================= */}
+                {/* ======================= 【高���-2026-03-22】新增：图5 交易平均时延 (置于最上方以突出优势) ======================= */}
                 {/* ======================= 【高亮-2026-03-22 10:15】修改：图5 交易平均时延，去除原有的蓝色背景、内边距与边框，使底色恢复白色以对齐其他图表 ======================= */}
                 <Box sx={{ mb: 6 }}>
                     <Typography variant="h6" color="primary" gutterBottom>⏱️ 核心优势: 交易平均时延对比 (Consensus Latency)</Typography>
@@ -398,63 +424,70 @@ export default function PerformanceCharts() {
                     )}
                 </Box>
             </Paper>
-            {/* ======================= 【高亮-新增】Q-Learning 动态压力测试面板 ======================= */}
+
+            {/* ======================= 【高亮-2026-03-30】修改：Q-Learning 动态压力测试面板 (完全对齐图2多线规格) ======================= */}
             <Paper sx={{ p: 3, mb: 4, borderTop: '4px solid #d32f2f' }}>
                 <Typography variant="h6" gutterBottom>APBFT Q-Learning 抗压自愈与防突变测试</Typography>
                 <Typography variant="body2" color="text.secondary" paragraph>
-                    通过前端注入任意比例的恶性节点。场景一测试突破拜占庭极限（>33%）后系统能否自愈隔离；场景二测试（前100轮伪装好人，后100轮突变砸盘）系统的惩罚降级速度。
+                    通过前端注入任意比例的恶性节点进行1000轮长期博弈验证。场景一测试突破拜占庭极限（>33%）后系统能否自愈隔离；场景二测试（前500轮伪装好人，后500轮突变砸盘）系统的惩罚降级速度。
                 </Typography>
 
-                <Box sx={{ display: 'flex', gap: 4, alignItems: 'center', mb: 2, mt: 3 }}>
-                    <Box sx={{ flex: 1 }}>
-                        <Typography gutterBottom fontWeight="bold">
-                            全局恶意节点注入比例: {stressRatio}%
-                        </Typography>
-                        <Slider
-                            value={stressRatio}
-                            onChange={(e, v) => setStressRatio(v)}
-                            step={1}
-                            min={0}
-                            max={50} // 允许测试 50% 的极端情况
-                            valueLabelDisplay="auto"
-                            color="error"
-                        />
-                    </Box>
-                    <FormControl sx={{ minWidth: 250 }}>
-                        <InputLabel>攻击场景模拟</InputLabel>
-                        <Select
-                            value={stressScenario}
-                            label="攻击场景模拟"
-                            onChange={e => setStressScenario(e.target.value)}
-                        >
-                            <MenuItem value={1}>场景一：常规攻击（测试自愈极限）</MenuItem>
-                            <MenuItem value={2}>场景二：伪装潜伏后突变（Hit-and-Run）</MenuItem>
-                        </Select>
-                    </FormControl>
-                    <Button variant="contained" color="error" size="large" onClick={runStressTest} disabled={stressLoading}>
-                        {stressLoading ? "计算中..." : "启动压力测试"}
-                    </Button>
-                </Box>
+                <Box sx={{ mb: 4 }}>
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2, mt: 3, flexWrap: 'wrap' }}>
+                        {/* 恶意比例多选下拉框 */}
+                        <FormControl sx={{ minWidth: 220 }} size="small">
+                            <InputLabel>选择多组恶性节点率</InputLabel>
+                            <Select
+                                multiple
+                                value={stressRatios}
+                                onChange={e => setStressRatios(typeof e.target.value === "string" ? e.target.value.split(',') : e.target.value)}
+                                renderValue={(selected) => selected.map(v => `${v}%`).join(", ")}
+                                label="选择多组恶性节点率"
+                            >
+                                {ratioOptions.map((r) => (
+                                    <MenuItem key={r.value} value={r.value}>
+                                        <Checkbox checked={stressRatios.indexOf(r.value) > -1} />
+                                        <ListItemText primary={r.label} />
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
 
-                {stressData.length > 0 && (
-                    <Box sx={{ width: '100%', height: 400, mt: 3 }}>
-                        <LineChart
-                            dataset={stressData}
-                            xAxis={[{
-                                dataKey: 'round',
-                                label: '仿真运行轮次',
-                            }]}
-                            series={[{
-                                dataKey: 'successRate',
-                                label: '系统共识成功率 (近10轮滑动平均 %)',
-                                color: '#d32f2f',
-                                showMark: false // 隐藏点，显示平滑线
-                            }]}
-                            height={350}
-                            margin={{ left: 50, right: 20, top: 20, bottom: 50 }}
-                        />
+                        {/* 场景下拉框 */}
+                        <FormControl sx={{ minWidth: 320 }} size="small">
+                            <InputLabel>攻击场景模拟</InputLabel>
+                            <Select
+                                value={stressScenario}
+                                label="攻击场景模拟"
+                                onChange={e => setStressScenario(e.target.value)}
+                            >
+                                <MenuItem value={1}>场景一：常规攻击（测试自愈极限）</MenuItem>
+                                <MenuItem value={2}>场景二：伪装潜伏后突变（Hit-and-Run）</MenuItem>
+                            </Select>
+                        </FormControl>
+
+                        {/* 触发按钮 */}
+                        <Button variant="contained" color="error" onClick={runStressTest} disabled={stressLoading || stressRatios.length === 0}>
+                            {stressLoading ? "正在计算千轮博弈..." : "启动压力测试"}
+                        </Button>
                     </Box>
-                )}
+
+                    {/* 与图2、图4保持完全一致的规格进行绘制 */}
+                    <Typography variant="subtitle1" mt={3} gutterBottom>
+                        不同恶性节点率下的共识成功率（%）（共识轮数100-1000）
+                    </Typography>
+                    {stressData.length > 0 ? (
+                        <LineChart
+                            series={stressData}
+                            xAxis={[{label:"共识轮数", data:roundsChart234}]}
+                            yAxis={[{label:"共识成功率(%)"}]}
+                            width={680}
+                            height={300}
+                        />
+                    ) : (
+                        <Typography color="text.secondary" sx={{ py: 2 }}>请选择恶性节点率并点击“启动压力测试”生成多线对比数据</Typography>
+                    )}
+                </Box>
             </Paper>
         </Box>
     );
