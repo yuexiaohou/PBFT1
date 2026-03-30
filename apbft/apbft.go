@@ -357,24 +357,18 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
 		neighbors = append(neighbors, Neighbor{ID: nd.ID, D: d, Quote: quote})
 		wg.Add(1) // 增加等待计数
 
-		go func(node *node.Node, distance float64) { // 并发签名以模拟真实网��的并行性
+        go func(n *node.Node, act int) { // 并发签名以模拟真实网的并行性
 			defer wg.Done() // 完成时通知等待组
 
-			// 基于 KNN 距离的 Reject 逻辑
-			rejectProb := distance * 0.004 // 假设最大距离100时，有40%概率拒绝交易
-			if rand.Float64() < rejectProb {
-				return // 模拟节点投 reject，直接返回不签名
-			}
-
-			sig, err := node.Sign(request) // 节点对请求进行签名
+			sig, err := n.Sign(request) // 节点对请求进行签名
 			if err == nil && sig != nil {  // 如果签名成功
 				mu.Lock()                                   // 保护共享切片
 				signatures = append(signatures, sig)        // 添加签名
-				pubKeys = append(pubKeys, node.PublicKey()) // 添加对应公钥
-				signedIDs = append(signedIDs, node.ID)
+				pubKeys = append(pubKeys, n.PublicKey())    // 添加对应公钥
+				signedIDs = append(signedIDs, n.ID)
 				mu.Unlock() // 解锁
 			}
-		}(nd, action) // 传入节点和距离
+		}(nd, action) // 传入节点
 	}
 	wg.Wait() // 等待所有并发签名完成
 
