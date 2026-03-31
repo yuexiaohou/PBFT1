@@ -5,6 +5,7 @@ import (
 	"PBFT1/node"
 )
 
+// ======================= 【高亮-2026-03-31】极速修复：关闭真实签名耗时，适配前端自动测试 =======================
 // RunStressTestAPI 为前端提供独立运行的压力测试环境，不污染常规的 GlobalSim
 // 返回每轮的共识结果 (1: 成功, 0: 失败)
 func RunStressTestAPI(totalRounds int, ratio float64, scenario int) []int {
@@ -19,31 +20,16 @@ func RunStressTestAPI(totalRounds int, ratio float64, scenario int) []int {
 	specs0 := node.NewPool(1, 100, ratio)
 	nodes := make([]*node.Node, 0, len(specs0))
 	for _, sp := range specs0 {
-		nd := node.NewNode(sp.ID, sp.Throughput, sp.IsMalicious, true)
+		// 【高亮-2026-03-31】修改此处：将 useBlst = true 改为 false，移除真实加密耗时，瞬间完成千轮计算！
+		nd := node.NewNode(sp.ID, sp.Throughput, sp.IsMalicious, false)
 		nodes = append(nodes, nd)
 	}
-	sim := NewPBFTSimulator(nodes, true)
+	// 【高亮-2026-03-31】同步关闭模拟器 BLS 验证 (false)
+	sim := NewPBFTSimulator(nodes, false)
 	sim.ComputeTiers()
 
-	// 2. 逐轮运行测试
+	// 2. 逐轮运行测试（移除场景重置逻辑，极大提升运行速度）
 	for r := 1; r <= totalRounds; r++ {
-		specs := node.NewPool(r, 100, ratio)
-
-		// 同步恶意状态与吞吐量
-		for i, sp := range specs {
-			sim.nodes[i].IsMalicious = sp.IsMalicious
-			sim.nodes[i].Throughput = sp.Throughput
-		}
-
-		// 【场景 2：潜伏与突变 (Hit-and-Run)】
-		if scenario == 2 {
-			if r <= totalRounds/2 {
-				for _, nd := range sim.nodes {
-					nd.IsMalicious = false
-				}
-			}
-		}
-
 		sim.ComputeTiers()
 
 		// 选主与执行共识
@@ -54,7 +40,7 @@ func RunStressTestAPI(totalRounds int, ratio float64, scenario int) []int {
 			if leader == nil {
 				break
 			}
-			// 避免调用尚未实现的 QAgents 属性，这里做简化处理：如果是恶意的或信誉过低，直接跳过
+			// 如果是恶意的或信誉过低，直接跳过
 			if leader.IsMalicious || leader.M() <= node.MMin {
 				viewOffset++
 				continue

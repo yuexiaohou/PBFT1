@@ -26,14 +26,15 @@ type NodeSpec struct {
 // - maliciousRatio：恶意比例（0~1）
 // 返回：NodeSpec 切片（长度 numNodes）
 func NewPool(round int, numNodes int, maliciousRatio float64) []NodeSpec {
-	//=============参量转变量================
-	numNodes = FixedNumNodes
-    maliciousRatio = FixedMaliciousRatio
+	// ======================= 【高亮-2026-03-31】修改：解除恶意率硬编码，支持动态传参 =======================
+	// 如果传入的节点数不合法，则使用全局常量兜底
 	if numNodes <= 0 {
-		return []NodeSpec{}
+		numNodes = FixedNumNodes
 	}
+	// 删除了 maliciousRatio = FixedMaliciousRatio 这一行
+	// 这样，主体常规实验传入 0.20 就会使用 0.20，Q-Learning 测试传入 0.40 就会使用 0.40
 
-	// 用 round 固定随机种子：保证同一轮恶意��点集合稳定
+	// 用 round 固定随机种子：保证同一轮恶意点集合稳定
 	seed := int64(20260308 + round)
 	rng := rand.New(rand.NewSource(seed))
 

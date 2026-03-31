@@ -508,17 +508,17 @@ func main() {
 		c.JSON(200, respForecast)
 	})
 
-	// ======================= 【高亮-新增】Q-Learning 压力测试接口 =======================
+	// ======================= 【高亮-2026-03-31】修改：优化 Q-Learning 压力测试无状态接口 =======================
 	api.GET("/stress/apbft", func(c *gin.Context) {
 		ratioStr := c.DefaultQuery("ratio", "0.33")
-		roundsStr := c.DefaultQuery("rounds", "200") // 默认压测 200 轮
+		roundsStr := c.DefaultQuery("rounds", "1000") // 前端默认发 1000 轮
 		scenarioStr := c.DefaultQuery("scenario", "1")
 
 		ratio, _ := strconv.ParseFloat(ratioStr, 64)
 		rounds, _ := strconv.Atoi(roundsStr)
 		scenario, _ := strconv.Atoi(scenarioStr)
 
-		// 调用我们在 stress_test.go 中暴露的无状态 API
+		// 调用我们在 Q-learning_stress.go 中优化过（关闭真实 BLS）的 API
 		results := apbft.RunStressTestAPI(rounds, ratio, scenario)
 
 		c.JSON(200, gin.H{

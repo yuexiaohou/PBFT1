@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { getPerformanceStats, getApbftStressTest } from "../api"; // <== 确保导入 getApbftStressTest
-import { Paper, Typography, Box, FormControl, MenuItem, Select, InputLabel, Checkbox, ListItemText } from "@mui/material";
+// ======================= 【高亮-2026-03-31】修复：去掉多余导入，直接使用 fetch 请求 =======================
+import { Paper, Typography, Box, FormControl, MenuItem, Select, InputLabel, Checkbox, ListItemText, CircularProgress } from "@mui/material";
 import { LineChart } from "@mui/x-charts";
 
 // ========== 【高亮-2026-03-16 09:00:00】算法选择数组 ==========
@@ -17,7 +17,7 @@ const colors = { pbft: "blue", pos: "orange", raft: "green", apbft: "purple" };
 const roundsChart1 = Array.from({length: 20}, (_, i) => i+1);  // 1~20
 const roundsChart234 = [100,200,300,400,500,600,700,800,900,1000]; // 图2~图4
 
-// ======================= 【高亮-2026-03-30】新增：压力测试选项常量 =======================
+// ======================= 【高亮-2026-03-31】新增：压力测试选项常量 =======================
 const ratioOptions = [
     { value: "20", label: "20%" },
     { value: "30", label: "30%" },
@@ -25,8 +25,7 @@ const ratioOptions = [
     { value: "50", label: "50%" }
 ];
 
-// 算法多选下拉框组件【高亮-2026-03-15 23:10:00】
-// 在MUI的Select组件中，默认就是单选， 因此要实现多选，需要设置multiple属性，并且value必须是一个数组
+// 算法多选下拉框组件
 function AlgoMultiSelect({ label, value, onChange }) {
     return (
         <FormControl fullWidth sx={{ maxWidth: 350 }}>
@@ -51,39 +50,29 @@ function AlgoMultiSelect({ label, value, onChange }) {
 }
 
 export default function PerformanceCharts() {
-    // ========== 【高亮-2026-03-15 22:27:00】每个图表独立算法选择 ==========
-    // 每个图表的算法选择状态均为多选数组，并独立声明，兼容多算法对比需求
     const [algosSuccess, setAlgosSuccess] = useState(algoNames.map(a=>a.value)); // 图1
     const [algosError, setAlgosError] = useState(algoNames.map(a=>a.value)); // 图2
     const [algosLeader, setAlgosLeader] = useState(algoNames.map(a=>a.value)); // 图3
     const [algosCost, setAlgosCost] = useState(algoNames.map(a=>a.value)); // 图4
-    // ======================= 【高亮-2026-03-22】新增：时延图表独立的算法选择状态 =======================
     const [algosLatency, setAlgosLatency] = useState(algoNames.map(a=>a.value)); // 图5 (时延)
 
-    // 图数据
-    // 之前的const [chartData, setChartData] = useState([])只能存储单算法数据
     const [chart1Data, setChart1Data] = useState([]);
     const [chart2ErrorData, setChart2ErrorData] = useState([]);
     const [chart3LeaderData, setChart3LeaderData] = useState([]);
-    const [chart4CostData, setChart4CostData] = useState([]); // 【高亮-2026-03-15 23:40:00】
-    // ======================= 【高亮-2026-03-22】新增：时延图表独立数据状态 =======================
+    const [chart4CostData, setChart4CostData] = useState([]);
     const [chart5LatencyData, setChart5LatencyData] = useState([]);
 
     const [loading1, setLoading1] = useState(true), [errMsg1, setErrMsg1] = useState("");
     const [loading2, setLoading2] = useState(true), [errMsg2, setErrMsg2] = useState("");
     const [loading3, setLoading3] = useState(true), [errMsg3, setErrMsg3] = useState("");
-    const [loading4, setLoading4] = useState(true), [errMsg4, setErrMsg4] = useState(""); // 【高亮-2026-03-15 23:40:00】
-    // ======================= 【高亮-2026-03-22】新增：时延图表加载与报错状态 =======================
+    const [loading4, setLoading4] = useState(true), [errMsg4, setErrMsg4] = useState("");
     const [loading5, setLoading5] = useState(true), [errMsg5, setErrMsg5] = useState("");
 
-    // 图1：挂单成功率
-    // 旧写法是要实现可以在图中呈现单个算法和全部算法，因此通过采用algosSuccess!=="all"与?algo=${algoSuccess}` : "",由于要实现多选，因此通过algosSuccess.join(",")实现数组应用
     useEffect(() => {
         async function fetchStats() {
             setLoading1(true); setErrMsg1("");
             try {
-                const url = `/api/performance?algo=${algosSuccess.join(",")}&rounds=1-20`;
-                const res = await fetch(url);
+                const res = await fetch(`/api/performance?algo=${algosSuccess.join(",")}&rounds=1-20`);
                 const data = await res.json();
                 setChart1Data(data.algos || []);
             } catch (e) { setErrMsg1("数据获取失败"); }
@@ -92,13 +81,11 @@ export default function PerformanceCharts() {
         fetchStats();
     }, [algosSuccess]);
 
-    // 图2：错误节点参与率
     useEffect(() => {
         async function fetchErrorRate() {
             setLoading2(true); setErrMsg2("");
             try {
-                const url = `/api/performance/errorrate?algo=${algosError.join(",")}`;
-                const res = await fetch(url);
+                const res = await fetch(`/api/performance/errorrate?algo=${algosError.join(",")}`);
                 const data = await res.json();
                 setChart2ErrorData(data.algos || []);
             } catch (e) { setErrMsg2("数据获取失败"); }
@@ -107,13 +94,11 @@ export default function PerformanceCharts() {
         fetchErrorRate();
     }, [algosError]);
 
-    // 图3：主节点切换次数
     useEffect(() => {
         async function fetchLeader() {
             setLoading3(true); setErrMsg3("");
             try {
-                const url = `/api/performance/leaderchanges?algo=${algosLeader.join(",")}`;
-                const res = await fetch(url);
+                const res = await fetch(`/api/performance/leaderchanges?algo=${algosLeader.join(",")}`);
                 const data = await res.json();
                 setChart3LeaderData(data.algos || []);
             } catch (e) { setErrMsg3("数据获取失败"); }
@@ -122,13 +107,11 @@ export default function PerformanceCharts() {
         fetchLeader();
     }, [algosLeader]);
 
-    // 图4：平均节点开销【高亮-2026-03-15 23:40:00】
     useEffect(() => {
         async function fetchNodeCost() {
             setLoading4(true); setErrMsg4("");
             try {
-                const url = `/api/performance/nodecost?algo=${algosCost.join(",")}`;
-                const res = await fetch(url);
+                const res = await fetch(`/api/performance/nodecost?algo=${algosCost.join(",")}`);
                 const data = await res.json();
                 setChart4CostData(data.algos || []);
             } catch (e) { setErrMsg4("数据获取失败"); }
@@ -137,18 +120,13 @@ export default function PerformanceCharts() {
         fetchNodeCost();
     }, [algosCost]);
 
-    // ======================= 【高亮-2026-03-22】新增：获取交易平均时延数据 =======================
     useEffect(() => {
         async function fetchLatency() {
             setLoading5(true); setErrMsg5("");
             try {
-                // 修改了与后端对齐的路由和带上了参数
-                const url = `/api/performance/latency?algo=${algosLatency.join(",")}`;
-                const res = await fetch(url);
+                const res = await fetch(`/api/performance/latency?algo=${algosLatency.join(",")}`);
                 if (!res.ok) throw new Error("HTTP error");
                 const data = await res.json();
-
-                // 此时必定返回的是 { algos: [...] } 式了
                 setChart5LatencyData(data.algos || []);
             } catch (e) {
                 console.error(e);
@@ -159,7 +137,6 @@ export default function PerformanceCharts() {
         fetchLatency();
     }, [algosLatency]);
 
-    // 工具：对齐采样点
     const alignPoints = (allPoints, axis, getter) => {
         const map = new Map((allPoints || []).map((p) => [p.round, getter(p)]));
         return axis.map(r => {
@@ -167,105 +144,106 @@ export default function PerformanceCharts() {
         });
     };
 
-    // 图1
     const chart1Series = useMemo(() => {
-        return (chart1Data || [])
-            .filter(as => algosSuccess.includes(as.algo))
-            .map(as => ({
-                algo: as.algo,
-                data: alignPoints(as.rounds, roundsChart1, r => Number((r.successRate * 100).toFixed(2))),
-            }));
+        return (chart1Data || []).filter(as => algosSuccess.includes(as.algo)).map(as => ({
+            algo: as.algo, data: alignPoints(as.rounds, roundsChart1, r => Number((r.successRate * 100).toFixed(2))),
+        }));
     }, [chart1Data, algosSuccess]);
-    // 图2
+
     const chart2Series = useMemo(() => {
-        return (chart2ErrorData || [])
-            .filter(as => algosError.includes(as.algo))
-            .map(as => ({
-                algo: as.algo,
-                data: alignPoints(as.points, roundsChart234, r=>Number((r.errorRate*100).toFixed(2))),
-            }));
+        return (chart2ErrorData || []).filter(as => algosError.includes(as.algo)).map(as => ({
+            algo: as.algo, data: alignPoints(as.points, roundsChart234, r=>Number((r.errorRate*100).toFixed(2))),
+        }));
     }, [chart2ErrorData, algosError]);
-    // 图3
+
     const chart3Series = useMemo(() => {
-        return (chart3LeaderData || [])
-            .filter(as => algosLeader.includes(as.algo))
-            .map(as => ({
-                algo: as.algo,
-                data: alignPoints(as.points, roundsChart234, r=>Number(r.leaderChanges??0)),
-            }));
+        return (chart3LeaderData || []).filter(as => algosLeader.includes(as.algo)).map(as => ({
+            algo: as.algo, data: alignPoints(as.points, roundsChart234, r=>Number(r.leaderChanges??0)),
+        }));
     }, [chart3LeaderData, algosLeader]);
 
-    // 图4数据格式化
     const chart4Series = useMemo(() => {
-        return (chart4CostData || [])
-            .filter(as => algosCost.includes(as.algo))
-            .map(as => ({
-                algo: as.algo,
-                data: alignPoints(as.points, roundsChart234, r=>Number(r.nodeCost??0)),
-            }));
+        return (chart4CostData || []).filter(as => algosCost.includes(as.algo)).map(as => ({
+            algo: as.algo, data: alignPoints(as.points, roundsChart234, r=>Number(r.nodeCost??0)),
+        }));
     }, [chart4CostData, algosCost]);
 
-    // ======================= 【高亮-2026-03-22】新增：图5 时延数据格式化 =======================
     const chart5Series = useMemo(() => {
-        return (chart5LatencyData || [])
-            .filter(as => algosLatency.includes(as.algo))
-            .map(as => ({
-                algo: as.algo,
-                data: alignPoints(as.points, roundsChart1, r=>Number(r.latency??0)),
-            }));
+        return (chart5LatencyData || []).filter(as => algosLatency.includes(as.algo)).map(as => ({
+            algo: as.algo, data: alignPoints(as.points, roundsChart1, r=>Number(r.latency??0)),
+        }));
     }, [chart5LatencyData, algosLatency]);
 
     const selectedLabel = (a) => algoNames.find(x => x.value === a)?.label || a;
 
-    // ======================= 【高亮-2026-03-30】修改：去掉按钮和场景，使用 useEffect 自动加载压测数据 =======================
+    // ======================= 【高亮-2026-03-31】修改：压力测试去掉了场景和按钮，完全自动化加载 =======================
     const [stressRatios, setStressRatios] = useState(["20", "30", "40", "50"]); // 默认全选
     const [stressData, setStressData] = useState([]);
     const [stressLoading, setStressLoading] = useState(false);
+    const [stressErrMsg, setStressErrMsg] = useState("");
 
     useEffect(() => {
-        async function loadStressTest() {
+        let isCancelled = false; // 防抖标志位
+
+        const fetchStressTest = async () => {
             if (stressRatios.length === 0) {
                 setStressData([]);
                 return;
             }
+
             setStressLoading(true);
+            setStressErrMsg("");
+
             try {
                 const rounds = 1000;
-                const scenario = 1; // 默认使用场景一：常规自愈极限测试，不暴露在前端
                 const ratioColors = { "20": "#2e7d32", "30": "#1976d2", "40": "#ed6c02", "50": "#d32f2f" };
 
-                const promises = stressRatios.map(async (ratioStr) => {
-                    const ratio = parseInt(ratioStr, 10) / 100;
-                    const { data } = await getApbftStressTest(ratio, rounds, scenario);
+                // 为了防止并发1000轮压测把后端直接卡死导致超时，我们改为串行请求(For loop)
+                const results = [];
+                for (const ratioStr of stressRatios) {
+                    if (isCancelled) break;
 
+                    const url = `/api/stress/apbft?ratio=0.${ratioStr}&rounds=${rounds}&scenario=1`;
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error("API failed");
+                    const data = await res.json();
+
+                    // 将1000轮按每100轮划分为一个Bucket
                     const bucketSize = 100;
                     const bucketedData = roundsChart234.map((roundMark, index) => {
                         const start = index * bucketSize;
                         const end = start + bucketSize;
-                        const slice = data.results.slice(start, end);
+                        const slice = (data.results || []).slice(start, end);
                         const successCount = slice.reduce((a, b) => a + b, 0);
                         return Number(((successCount / bucketSize) * 100).toFixed(2));
                     });
 
-                    return {
+                    results.push({
                         label: `恶性率 ${ratioStr}%`,
                         data: bucketedData,
                         color: ratioColors[ratioStr] || "purple",
-                    };
-                });
+                    });
+                }
 
-                const results = await Promise.all(promises);
-                // 排序，保持图表Legend的显示顺序一致
-                results.sort((a, b) => parseInt(a.label.match(/\d+/)[0]) - parseInt(b.label.match(/\d+/)[0]));
-
-                setStressData(results);
+                if (!isCancelled) {
+                    results.sort((a, b) => parseInt(a.label.match(/\d+/)[0]) - parseInt(b.label.match(/\d+/)[0]));
+                    setStressData(results);
+                }
             } catch (e) {
-                console.error("压力测试执行失败:", e);
+                if (!isCancelled) {
+                    console.error("压力测试执行失败:", e);
+                    setStressErrMsg("请求超时或后端计算失败，请稍后重试");
+                }
+            } finally {
+                if (!isCancelled) setStressLoading(false);
             }
-            setStressLoading(false);
-        }
+        };
 
-        loadStressTest();
+        fetchStressTest();
+
+        return () => {
+            isCancelled = true;
+        };
     }, [stressRatios]);
 
     return (
@@ -391,10 +369,11 @@ export default function PerformanceCharts() {
                     )}
                 </Box>
 
-                {/* ======================= 【高亮-2026-03-22】图5 交易平均时延 ======================= */}
+                {/* 图5：交易平均时延 */}
                 <Box sx={{ mb: 6 }}>
                     <Typography variant="h6" color="primary" gutterBottom>⏱️ 核心优势: 交易平均时延对比 (Consensus Latency)</Typography>
-                    <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 2 }}></Typography>
+                    <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 2 }}>
+                    </Typography>
                     <AlgoMultiSelect
                         label="选择算法（交易平均时延）"
                         value={algosLatency}
@@ -423,15 +402,16 @@ export default function PerformanceCharts() {
                 </Box>
             </Paper>
 
-            {/* ======================= 【高亮-2026-03-30】修改：完全对齐图2规格的极简压测图 ======================= */}
+            {/* ======================= 【高亮-2026-03-31】修改：自动化加载的 Q-Learning 压力测试面板 ======================= */}
             <Paper sx={{ p: 3, mb: 4, borderTop: '4px solid #d32f2f' }}>
                 <Typography variant="h6" gutterBottom>APBFT Q-Learning 抗压自愈测试</Typography>
                 <Typography variant="body2" color="text.secondary" paragraph>
-                    通过前端注入不同比例的恶性节点进行长期博弈验证。系统突破拜占庭极限（>33%）后的自愈隔离能力展示。
+                    通过前端注入不同比例的恶性节点进行长期博弈验证。系统突破拜占庭极限（&gt;33%）后的自愈隔离能力展示。
                 </Typography>
 
                 <Box sx={{ mb: 4 }}>
-                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2, mt: 3 }}>
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2, mt: 3, flexWrap: 'wrap' }}>
+                        {/* 恶意比例多选下拉框 */}
                         <FormControl sx={{ minWidth: 220 }} size="small">
                             <InputLabel>选择多组恶性节点率</InputLabel>
                             <Select
@@ -449,23 +429,34 @@ export default function PerformanceCharts() {
                                 ))}
                             </Select>
                         </FormControl>
-                        {stressLoading && <Typography variant="body2" color="text.secondary">正在加载数据并计算...</Typography>}
+
+                        {/* 加载提示 */}
+                        {stressLoading && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 2 }}>
+                                <CircularProgress size={20} color="error" />
+                                <Typography variant="body2" color="text.secondary">
+                                    正在与后端交互计算千轮数据，请稍候...
+                                </Typography>
+                            </Box>
+                        )}
                     </Box>
 
                     <Typography variant="subtitle1" mt={3} gutterBottom>
                         不同恶性节点率下的共识成功率（%）（共识轮数100-1000）
                     </Typography>
 
-                    {stressData.length > 0 ? (
+                    {stressErrMsg && <Typography color="error">{stressErrMsg}</Typography>}
+
+                    {(!stressLoading && stressData.length > 0) ? (
                         <LineChart
                             series={stressData}
                             xAxis={[{label:"共识轮数", data:roundsChart234}]}
-                            yAxis={[{label:"共识成功率(%)"}]}
+                            yAxis={[{label:"共识成功率(%)", min: 0, max: 100}]}
                             width={680}
                             height={300}
                         />
                     ) : (
-                        <Typography color="text.secondary" sx={{ py: 2 }}>请勾选上方恶性节点率以展示数据</Typography>
+                        !stressLoading && <Typography color="text.secondary" sx={{ py: 2 }}>请勾选上方恶性节点率以展示数据</Typography>
                     )}
                 </Box>
             </Paper>
