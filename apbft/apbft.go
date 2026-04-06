@@ -7,6 +7,7 @@ import ( // 导入必要的标准库包
 	"sync"      // 并发原语，用于等待并保护共享切片
 	"time"
 	"PBFT1/node"
+	"encoding/json"
 )
 
 // 全局日志开关
@@ -204,6 +205,7 @@ func (s *PBFTSimulator) updateQTable(nodeID int, state QState, action int, rewar
 	newQ := oldQ + alpha*(reward+gamma*maxNextQ-oldQ)
 	agent.QTable[state][action] = newQ
 }
+
 // 主节点选择，基于活跃节点
 func (s *PBFTSimulator) SelectLeader(round int, offset int) *node.Node {
 	active := []*node.Node{}
@@ -302,6 +304,11 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
 		return false, 0
 	}
 
+	// ======================= 【高亮-2026-04-05】重构：提案解析机制 =======================
+	// 节点池在收到主节点发来的 request (提案消息) 后，尝试将其解析为真实的交易区块。
+	var proposedTrades []Trade
+	isBusinessBlock := json.Unmarshal(request, &proposedTrades) == nil
+
 	// 【KNN 参数初始化】
 	basePrice := 20.0       // 基础电价
 	lineLossCoeff := 0.2     // 线损系数（元/单位距离）
@@ -346,6 +353,29 @@ func (s *PBFTSimulator) RunRoundWithLeader(round int, request []byte, leader *no
 			// 如果因为物理距离过远拒绝投票（合理止损）：R = +2（节省了计算资源）
 			s.updateQTable(nd.ID, state, action, 2.0)
 			s.QAgents[nd.ID].Reputation += 2
+			continue
+		}
+
+		// ======================= 【高亮-2026-04-05】重构：多方监督与独立验证 =======================
+		isValidProposal := true
+		if nd.ID != leader.ID && isBusinessBlock && action != 2 {
+			// 在真实场景中，从节点会重演(Replay)所有订单以验证提案交易合法性
+			// 这里我们加入对订单成交价的合法性校验：如果价格异常，则拒绝签名
+			for _, trade := range proposedTrades {
+				if trade.Price <= 0 || trade.Quantity <= 0 {
+					isValidProposal = false
+					if EnableLogs {
+						fmt.Printf("    Node %d REJECTED proposal: Invalid trade detected (Price: %.2f)!\n", nd.ID, trade.Price)
+					}
+					break
+				}
+			}
+		}
+
+		// 如果提案验证失败，即便本节点没有打算作恶，也应拒绝为其背书
+		if !isValidProposal {
+			// 修正动作记录，便于后续不再提交 commit 签名
+			nodeActions[nd.ID] = 1
 			continue
 		}
 

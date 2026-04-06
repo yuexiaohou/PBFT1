@@ -22,6 +22,7 @@ import (
 	apbft "PBFT1/apbft"
 	"PBFT1/forecast"
 	"PBFT1/node"
+	"encoding/json" // 【高亮-2026-04-05】新增：用于将撮合结果序列化为提案Payload
 )
 
 var globalRng *rand.Rand
@@ -245,83 +246,114 @@ type CustomEngine struct{}
 
 func (e *CustomEngine) Name() string {return "apbft"}
 func (e *CustomEngine) ExecuteRound(db *gorm.DB, r int, specs []node.NodeSpec) RoundStat {
+	// ======================= 【高亮-2026-04-05】修改一：本地订单簿价格/时间优先预撮合 =======================
+	// 主节点收集本地模拟订单并实例化订单簿
+	ob := apbft.NewOrderBook()
+	numOrders := globalRng.Intn(5) + 5
+	for i := 0; i < numOrders; i++ {
+		buyer := fmt.Sprintf("Node-%02d", globalRng.Intn(20))
+		amount := float64(globalRng.Intn(50) + 10)
+		if i%2 == 0 {
+			// 买单类型: 0
+			ob.SubmitOrder(apbft.OrderType(0), 40.0+globalRng.Float64()*30.0, amount, buyer)
+		} else {
+			// 卖单类型: 1，价格压低以促成匹配
+			ob.SubmitOrder(apbft.OrderType(1), 35.0+globalRng.Float64()*25.0, amount, buyer)
+		}
+	}
+
+	// 严格按价格与时间优先级进行交易出清，生成本次共识所需的【业务级初步撮合结果】
+	trades := ob.MatchAndClear()
+
+	blockData, _ := json.Marshal(trades)
+	if len(trades) == 0 {
+		blockData = []byte("[]")
+	}
+
+	// ======================= 【高亮-2026-04-05】修改二：携带真实业务提案广播 =======================
+	// 我们将序列化后的 blockData 传入 txId 占位符，交给 PBFT 从节点进行严格的 Replay(重演)验证！
+	txIdForConsensus := string(blockData)
+	pbftRes := apbft.RunPersistentAPBFT(r, txIdForConsensus, 0, specs)
+	// ======================= 【高亮-2026-04-05】结束 =======================
+
+	actualTradePrice := pbftRes.Price
+	if actualTradePrice <= 0 && len(trades) > 0 {
+		actualTradePrice = trades[0].Price
+	} else if actualTradePrice <= 0 {
+		actualTradePrice = 45.0 + globalRng.Float64()*15.0
+	}
+
+	seller := pbftRes.LeaderNode
+	if seller == "" {
+		seller = fmt.Sprintf("Node-%02d", globalRng.Intn(20))
+	}
+
+	status := "失败"
 	successCount := 0
 	minPrice := math.MaxFloat64
 	var minBuyer, minSeller string
-	numTrades := globalRng.Intn(5) + 5
 
-	for i := 0; i < numTrades; i++ {
-		buyer := fmt.Sprintf("Node-%02d", globalRng.Intn(20))
-		amount := globalRng.Intn(50) + 10
+	if pbftRes.Status == "已确认" {
+		status = "成功"
+		successCount = len(trades)
 
-		txId := fmt.Sprintf("custom-round-%d-trade-%d-%d", r, i, time.Now().UnixNano())
-		// 获取带有 KNN 撮合价格的 PBFT 结果
-		pbftRes := apbft.RunPersistentAPBFT(r, txId, amount, specs)
-
-		// ======================= 【高亮-2026-03-29】修改一：使用共识驱动的真实价格 =======================
-		// 取消之前硬编码的随机价 (price := globalRng.Float64()*500 + 30)
-		// 从 APBFT 共识结果里提取真实的、由 KNN 模型计算出的纳什均衡价格
-		actualTradePrice := pbftRes.Price
-		if actualTradePrice <= 0 {
-			actualTradePrice = 45.0 + globalRng.Float64()*15.0 // 失败时的退让托底价
-		}
-
-		seller := pbftRes.LeaderNode
-		if seller == "" {
-			seller = fmt.Sprintf("Node-%02d", globalRng.Intn(20))
-		}
-
-		status := "失败"
-		if pbftRes.Status == "已确认" {
-			status = "成功"
-			successCount++
-
-			// ======================= 【高亮-2026-03-29】修改二：修正最低价统计算法 =======================
-			// 此处的 minPrice 用于图表展示，必须和真实的 actualTradePrice 比较
-			if actualTradePrice < minPrice {
-				minPrice, minBuyer, minSeller = actualTradePrice, buyer, seller
+		// ======================= 【高亮-2026-04-05】修改三：持久化真实的撮合结果 =======================
+		for _, t := range trades {
+			tradeRecord := TradeHistory{
+				UserID: 1, Type: "buy/sell", Amount: int(t.Quantity), Time: time.Now(), Status: status,
+				Price: t.Price, Node: "Market", Round: r, BuyerNode: "Buyer", SellerNode: seller,
+			}
+			if db != nil {
+				db.Create(&tradeRecord)
+			}
+			if t.Price < minPrice {
+				minPrice = t.Price
+				minBuyer = "Buyer"
+				minSeller = seller
 			}
 		}
-
-		// ======================= 【高亮-2026-03-29】修改三：修正数据库落库数据 =======================
-		trade := TradeHistory{
-			UserID: 1, Type: "buy", Amount: amount, Time: time.Now(), Status: status,
-			Price: actualTradePrice, Node: buyer, Round: r, BuyerNode: buyer, SellerNode: seller,
+		// ======================= 【高亮-2026-04-05】结束 =======================
+	} else {
+		tradeRecord := TradeHistory{
+			UserID: 1, Type: "buy/sell", Amount: 0, Time: time.Now(), Status: status,
+			Price: actualTradePrice, Node: "Market", Round: r, BuyerNode: "-", SellerNode: seller,
 		}
 		if db != nil {
-			db.Create(&trade)
+			db.Create(&tradeRecord)
 		}
-
-		vals := make([]PBFTValidator, 0, len(pbftRes.Validators))
-		for _, v := range pbftRes.Validators {
-			vals = append(vals, PBFTValidator{ID: v.ID, Vote: v.Vote})
-		}
-
-		pbftRound := sysState.NextGlobalRound()
-		reason := pbftRes.FailedReason
-		if reason == "" {
-			reason = fmt.Sprintf("pbftRound=%d", pbftRound)
-		} else {
-			reason = fmt.Sprintf("%s; pbftRound=%d", reason, pbftRound)
-		}
-
-		// ======================= 【高亮-2026-03-29】修改四：更新状态机中的价格 =======================
-		sysState.UpdatePBFTState(PBFTConsensusResult{
-			TxId: txId, Status: status, Consensus: pbftRes.Consensus, BlockHeight: pbftRes.BlockHeight,
-			Timestamp: time.Now(), Validators: vals, FailedReason: reason,
-			Price: actualTradePrice, LeaderNode: pbftRes.LeaderNode,
-		}, amount)
 	}
+
+	vals := make([]PBFTValidator, 0, len(pbftRes.Validators))
+	for _, v := range pbftRes.Validators {
+		vals = append(vals, PBFTValidator{ID: v.ID, Vote: v.Vote})
+	}
+
+	pbftRound := sysState.NextGlobalRound()
+	reason := pbftRes.FailedReason
+	if reason == "" {
+		reason = fmt.Sprintf("pbftRound=%d", pbftRound)
+	} else {
+		reason = fmt.Sprintf("%s; pbftRound=%d", reason, pbftRound)
+	}
+
+	// ======================= 【高亮-2026-04-05】修改四：优化前端区块 TxId 展现 =======================
+	// 因为传入的是整个 JSON Block，为防止前端展示崩盘，将状态机的 ID 改为摘要短名称
+	displayTxId := fmt.Sprintf("block-%d-contains-%d-txs", r, len(trades))
+	sysState.UpdatePBFTState(PBFTConsensusResult{
+		TxId: displayTxId, Status: status, Consensus: pbftRes.Consensus, BlockHeight: pbftRes.BlockHeight,
+		Timestamp: time.Now(), Validators: vals, FailedReason: reason,
+		Price: actualTradePrice, LeaderNode: pbftRes.LeaderNode,
+	}, len(trades))
 
 	if minPrice == math.MaxFloat64 {
 		minPrice = 0
 	}
 	successRate := 0.0
-	if numTrades > 0 {
-		successRate = float64(successCount) / float64(numTrades)
+	if numOrders > 0 {
+		successRate = float64(successCount) / float64(numOrders)
 	}
 
-	fmt.Printf("[模拟轮 %d] 最低价: %.2f 买方: %s 卖方: %s 成功挂单率: %.2f%%\n", r, minPrice, minBuyer, minSeller, successRate*100)
+	fmt.Printf("[模拟轮 %d] 最低价: %.2f 买方: %s 卖方: %s 成功撮合交易: %d笔\n", r, minPrice, minBuyer, minSeller, successCount)
 	return RoundStat{Round: r, MinPrice: minPrice, BuyerNode: minBuyer, SellerNode: minSeller, SuccessRate: successRate}
 }
 
@@ -670,8 +702,37 @@ func main() {
 			db.Save(&b)
 		}
 
-		nowTxId := fmt.Sprintf("%s_%d", username, time.Now().UnixNano())
-		pbftResult := apbft.RunAPBFT(nowTxId, req.Amount)
+		// ======================= 【高亮-2026-04-05】修改五：处理前端订单预撮合与共识广播 =======================
+		// 收到前端真实请求后，构造局部订单薄并将用户订单及做市商兜底单放入以形成真实撮合
+		ob := apbft.NewOrderBook()
+
+		reqPrice := 50.0
+		counterPrice := 45.0
+		orderType := 0 // apbft.Buy
+		counterType := 1 // apbft.Sell
+
+		if req.Type == "sell" {
+			orderType = 1
+			counterType = 0
+			reqPrice = 40.0
+			counterPrice = 45.0
+		}
+
+		// 压入真实前端用户的买单或卖单
+		ob.SubmitOrder(apbft.OrderType(orderType), reqPrice, float64(req.Amount), username)
+		// 压入系统做市商对手机器人兜底单，保证本次匹配成功
+		ob.SubmitOrder(apbft.OrderType(counterType), counterPrice, float64(req.Amount), "MarketMaker")
+
+		// 主节点依据时间优先、价格优先正式跑出初步成交结果
+		trades := ob.MatchAndClear()
+
+		blockData, _ := json.Marshal(trades)
+		if len(trades) == 0 {
+			blockData = []byte("[]")
+		}
+
+		// 携带真实的业务交易提案 (blockData) 参与共识网络多方背书验证
+		pbftResult := apbft.RunAPBFT(string(blockData), req.Amount)
 		validators := convertValidators(pbftResult.Validators)
 
 		tradePrice := pbftResult.Price
@@ -692,11 +753,11 @@ func main() {
 			}
 
 			persistTradeResult(db, &trade)
+			// ======================= 【高亮-2026-04-05】修改六：缩略版TxID供前端展示 =======================
+			displayTxId := fmt.Sprintf("tx-%s-ok", username)
 
-            // ================= 【高亮-2026-03-22】重构集成 =================
-			// 利用统一个的 sysState 接口进行更新，杜绝死锁
 			sysState.UpdatePBFTState(PBFTConsensusResult{
-				TxId:         pbftResult.TxId,
+				TxId:         displayTxId, // 用缩略 ID 替代巨大的 JSON Block 以免前端 UI 崩溃
 				Status:       pbftResult.Status,
 				Consensus:    pbftResult.Consensus,
 				BlockHeight:  pbftResult.BlockHeight,
@@ -705,7 +766,7 @@ func main() {
 				FailedReason: pbftResult.FailedReason,
 				Price:        tradePrice,
 				LeaderNode:   sellNode,
-			}, req.Amount)
+			}, len(trades))
 
 			if forecastClient != nil {
 				go func(p float64, amt int) {
